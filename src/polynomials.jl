@@ -33,11 +33,6 @@ divides(ctx::Γ, x::T, y::T) where {T, Γ<:MonomialContext{T}} =
 iscompatible(ctx::Γ, x::T, y::T) where {T, Γ<:MonomialContext{T}} =
     iscompatible(termorder(ctx), exponents(ctx, x), exponents(ctx, y))
 
-# In some computations we carry certificates along by multiplying
-# them with an ε variable and ignoring them when apropriate.
-isepsilon(ctx::Γ, x::T) where {T, Γ<:Context{T}} =
-    isepsilon(termorder(ctx), exponents(ctx, x))
-
 lt(ctx::Γ, x::T, y::T) where {T, Γ<:MonomialContext{T}} =
     lt(termorder(ctx), exponents(ctx, x), exponents(ctx, y))
 
@@ -193,9 +188,6 @@ function lt(ctx::Γ, a::Tuple{M, T}, b :: Tuple{M, T}) where {M, T, Γ<:Polynomi
     lt(ctx.mo, a[1], b[1])
 end
 
-isepsilon(ctx::Γ, p::T) where {T<:Polynomial, Γ<:Context{T}} =
-    isempty(p) || @inbounds isepsilon(ctx.mo, leadingmonomial(p))
-
 function normalize!(ctx::Γ, p::T; onlysort::Bool=false) where {T<:Polynomial, Γ<:Context{T}}
     sort!(p, rev=true, order=order(ctx))
     onlysort && return
@@ -259,22 +251,6 @@ function selectcoefficient(ctx::Γ, p::P, var::Int, exp::Int) where {P <: Polyno
             push!(newp.co, c)
         end
     end
-    return newp
-end
-
-function derivative(ctx::Γ, p::P, var::Int) where {P<:Polynomial, Γ<:Context{P}}
-    newp = ctx([], [])
-    for (m, c) in p
-        e = exponents(ctx.mo, m)
-        ev = e[var]
-        @assert ev >= 0
-        iszero(ev) && continue
-        newm = ctx.mo(setindex(exponents, var, ev-1))
-        newc = mul(ctx.co, c, ctx.co(ev))
-        push!(newp.mo, newm)
-        push!(newp.co, newc)
-    end
-    normalize!(ctx, newp)
     return newp
 end
 
