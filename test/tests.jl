@@ -33,7 +33,6 @@ end
 end
 
 @testset "monomial hashing" begin
-    char = 11
     order = SG.Grevlex(5)
     ctx = SG.monomialctx(exponents = Int64, order=SG.Grevlex(5))
     idx = SG.ixmonomialctx(ctx)

@@ -32,9 +32,9 @@ end
 #.. MonomialHashTable
 # Mostly for fun, may not be a good candidate for GB computations
 
-mutable struct MonomialHashTable{N, E, I <: Unsigned}
+mutable struct MonomialHashTable{N, E, I <: Unsigned, B <: Unsigned}
     val::Vector{Monomial{N, E}}
-    bitmasks::Vector{BitArray}
+    bitmasks::Vector{B}
     idx::Vector{I}
 
     max_powers::MVector{N, E}
@@ -44,11 +44,11 @@ mutable struct MonomialHashTable{N, E, I <: Unsigned}
     size::Int
     maxloop::Int
 
-    function MonomialHashTable{N, E, I}() where {N, E, I}
+    function MonomialHashTable{N, E, I, B}() where {N, E, I, B}
         tsize = 16
         @assert 2*tsize <= typemax(I)
         zs = SVector{N, E}(zeros(E, N))
-        new(Monomial{N, E}[], BitArray[], zeros(Int, 2*tsize),
+        new(Monomial{N, E}[], B[], zeros(Int, 2*tsize),
             zs, zs, zs, tsize-1, 0, 4)
     end
 end
@@ -109,7 +109,7 @@ function register!(table::MonomialHashTable{N, E, I}, n::I) where {N, E, I}
 end
 
 
-function findorpush!(table::MonomialHashTable{N, E, I}, v::Monomial{N, E}) where {N, E, I}
+function findorpush!(table::MonomialHashTable{N, E, I, B}, v::Monomial{N, E}) where {N, E, I, B}
     @inbounds begin
         n = table.idx[index1(table, v)]
         if n > 0 && table[n] == v
@@ -137,7 +137,7 @@ function findorpush!(table::MonomialHashTable{N, E, I}, v::Monomial{N, E}) where
         end
     end
     remask_cond && remask!(table)
-    push!(table.bitmasks, bitmask(v, table.bitmask_powers))
+    push!(table.bitmasks, bitmask(v, table.bitmask_powers, masktype = B))
     table.size += 1
     n = I(table.size)
 
@@ -162,11 +162,11 @@ end
 # need to change this?
 const IxPolynomialΓ{I, T, moΓ <: IxMonomialΓ{I}, coΓ} = PolynomialΓ{I, T, moΓ, coΓ}
 
-function ixmonomialctx(moctx=nothing; indices=UInt32, kwargs...)
+function ixmonomialctx(moctx=nothing; indices=UInt32, mask_type=UInt32, kwargs...)
     if isnothing(moctx)
         moctx = monomialctx(;kwargs...)
     end
-    return IxMonomialΓ{indices, params(moctx)...}(moctx, MonomialHashTable{params(moctx)..., indices}())
+    return IxMonomialΓ{indices, params(moctx)...}(moctx, MonomialHashTable{params(moctx)..., indices, mask_type}())
 end
 
 (ctx::IxMonomialΓ{I, N, E})(x::Monomial{N, E}) where {I, N, E} = findorpush!(ctx.table, ctx.ctx(x))
@@ -203,7 +203,7 @@ function divides(ctx::IxMonomialΓ{I, N},
                  i::I,
                  j::I) where {I, N}
 
-    (bitcheck(ctx.table.bitmasks[i], ctx.table.bitmasks[j], Val(N)) &&
-        divides(ctx.ctx, ctx[i], ctx[j]))
+    # (bitcheck(ctx.table.bitmasks[i], ctx.table.bitmasks[j], Val(N))
+     iszero(ctx.table.bitmasks[i]  & (~ ctx.table.bitmasks[j])) && divides(ctx.ctx, ctx[i], ctx[j])
 end
     
