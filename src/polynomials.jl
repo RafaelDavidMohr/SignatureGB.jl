@@ -79,7 +79,7 @@ Base.show(io::IO, m::Monomial) = Base.show(io, convert(Vector{Int}, m.exponents)
 Base.isequal(x::Monomial, y::Monomial) = x.exponents == y.exponents
 
 # Compute a bitmask for the monomial M, TODO: make this generated
-function bitmask(m::Monomial{N, E}, pwrs::SVector{N, E})
+function bitmask(m::Monomial{N, E}, pwrs::SVector{N, E}) where {N, E<:Signed}
     @inbounds BitArray([pwrs[i] <= m.exponents[i] for i in 1:N])
 end
                   

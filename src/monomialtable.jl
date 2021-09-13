@@ -56,8 +56,8 @@ end
 Base.@propagate_inbounds Base.getindex(table::MonomialHashTable, i) = table.val[i]
 Base.length(table::MonomialHashTable) = length(table.val)
 
-index1(table::MonomialHashTable{N, E}, v::Monomial{N, E}) = 2*( (hash(v) % I)&table.mask ) + 1
-index2(table::MonomialHashTable, v::Monomial{N, E}) = 2*( ((hash(v) >> 32) % I)&table.mask ) + 2
+index1(table::MonomialHashTable{N, E}, v::Monomial{N, E}) where {N, E} = 2*( (hash(v) % I)&table.mask ) + 1
+index2(table::MonomialHashTable{N, E}, v::Monomial{N, E}) where {N, E} = 2*( ((hash(v) >> 32) % I)&table.mask ) + 2
 
 function find(table::MonomialHashTable{N, E, I}, v::Monomial{N, E}) where {N, E, I}
     @inbounds begin
@@ -145,7 +145,7 @@ function findorpush!(table::MonomialHashTable{N, E, I}, v::Monomial{N, E}) where
     return n
 end
 
-function remask!(table::MonomialHashTable{N, E})
+function remask!(table::MonomialHashTable{N, E}) where {N, E}
 
     avg_int = (x, y) -> floor((x + y) / 2)
     table.bitmask_powers = @inbounds SVector{N, E}([avg_int(table.max_powers[i], table.min_powers[i]) for i in 1:N])
@@ -154,8 +154,8 @@ end
 
 #. INDEXED MONOMIALS
 
-mutable struct IxMonomialΓ{I<:Unsigned, Monomial{N, E}, Γ<:MonomialContext{Monomial{N, E}}}<:MonomialContext{I}
-    ctx::Γ
+mutable struct IxMonomialΓ{I<:Unsigned, N, E}<:MonomialContext{I}
+    ctx::MonomialContext{Monomial{N, E}}
     table::MonomialHashTable{N, E, I}
 end
 
@@ -166,10 +166,10 @@ function ixmonomialctx(moctx=nothing; indices=UInt32, kwargs...)
     if isnothing(moctx)
         moctx = monomialctx(;kwargs...)
     end
-    return IxMonomialΓ{indices, eltype(moctx), typeof(moctx)}(moctx, MonomialHashTable{params(moctx), indices}())
+    return IxMonomialΓ{indices, nvars(moctx), exponenttype(moctx)}(moctx, MonomialHashTable{params(moctx), indices}())
 end
 
-(ctx::IxMonomialΓ{I, M, Γ})(x) where {I, M, Γ} = findorpush!(ctx.table, ctx.ctx(x))
+(ctx::IxMonomialΓ{I, N, E})(x::Monomial{N, E}) where {I, N, E} = findorpush!(ctx.table, ctx.ctx(x))
 (ctx::IxMonomialΓ{I})(i::I) where I = i
 (ctx::IxMonomialΓ)(x::AA.MPolyElem) = findorpush!(ctx.table, ctx.ctx(x))
 
@@ -179,12 +179,12 @@ function lt(ix::IxMonomialΓ{I}, a::I, b::I) where I
     lt(ix.ctx, ix[a], ix[b])
 end
 
-function indexmonomials(ix::IxMonomialΓ{I, M}, p::Polynomial{M, T}) where {I, M, T}
+function indexmonomials(ix::IxMonomialΓ{I, N, E}, p::Polynomial{M, T}) where {I, N, E, M <: Monomial{N, E}, T}
     return Polynomial{I, T}([ix(m) for m in p.mo], p.co)
 end
 
-function unindexmonomials(ix::IxMonomialΓ{I, M}, p::Polynomial{I, T}) where {I, M, T}
-    return Polynomial{M, T}([ix[i] for i in p.mo], p.co)
+function unindexmonomials(ix::IxMonomialΓ{I, N, E}, p::Polynomial{I, T}) where {I, N, E, T}
+    return Polynomial{Monomial{N, E}, T}([ix[i] for i in p.mo], p.co)
 end
 
 
@@ -199,9 +199,9 @@ exponents(ctx::IxMonomialΓ{I}, i::I) where I = exponents(ctx.ctx, ctx[i])
 mul(ctx::IxMonomialΓ{I}, i::I, j::I) where I = ctx(mul(ctx.ctx, ctx[i], ctx[j]))
 div(ctx::IxMonomialΓ{I}, i::I, j::I) where I = ctx(div(ctx.ctx, ctx[i], ctx[j]))
 lcm(ctx::IxMonomialΓ{I}, i::I, j::I) where I = ctx(lcm(ctx.ctx, ctx[i], ctx[j]))
-function divides(ctx::IxMonomialΓ{I, Monomial{N, E}},
+function divides(ctx::IxMonomialΓ{I, N},
                  i::I,
-                 j::I) where {I, N, E}}
+                 j::I) where {I, N}
 
     (bitw_and(ctx.table.bitmasks[i], ctx.table.bitmasks[j], Val(N)) &&
         divides(ctx.ctx, ctx[i], ctx[j]))
