@@ -56,8 +56,8 @@ end
 Base.@propagate_inbounds Base.getindex(table::MonomialHashTable, i) = table.val[i]
 Base.length(table::MonomialHashTable) = length(table.val)
 
-index1(table::MonomialHashTable{N, E}, v::Monomial{N, E}) where {N, E} = 2*( (hash(v) % I)&table.mask ) + 1
-index2(table::MonomialHashTable{N, E}, v::Monomial{N, E}) where {N, E} = 2*( ((hash(v) >> 32) % I)&table.mask ) + 2
+index1(table::MonomialHashTable{N, E, I}, v::Monomial{N, E}) where {N, E, I} = 2*( (hash(v) % I)&table.mask ) + 1
+index2(table::MonomialHashTable{N, E, I}, v::Monomial{N, E}) where {N, E, I} = 2*( ((hash(v) >> 32) % I)&table.mask ) + 2
 
 function find(table::MonomialHashTable{N, E, I}, v::Monomial{N, E}) where {N, E, I}
     @inbounds begin
@@ -137,7 +137,7 @@ function findorpush!(table::MonomialHashTable{N, E, I}, v::Monomial{N, E}) where
         end
     end
     remask_cond && remask!(table)
-    push!(table.bitmasks, bitmask(m, table.bitmask_powers))
+    push!(table.bitmasks, bitmask(v, table.bitmask_powers))
     table.size += 1
     n = I(table.size)
 
@@ -149,7 +149,7 @@ function remask!(table::MonomialHashTable{N, E}) where {N, E}
 
     avg_int = (x, y) -> floor((x + y) / 2)
     table.bitmask_powers = @inbounds SVector{N, E}([avg_int(table.max_powers[i], table.min_powers[i]) for i in 1:N])
-    table.bitmasks = broadcast(v -> bitmask(v, table.bitmask_powers), table.bitmasks)
+    table.bitmasks = broadcast(v -> bitmask(v, table.bitmask_powers), table.val)
 end
 
 #. INDEXED MONOMIALS
@@ -166,7 +166,7 @@ function ixmonomialctx(moctx=nothing; indices=UInt32, kwargs...)
     if isnothing(moctx)
         moctx = monomialctx(;kwargs...)
     end
-    return IxMonomialΓ{indices, nvars(moctx), exponenttype(moctx)}(moctx, MonomialHashTable{params(moctx), indices}())
+    return IxMonomialΓ{indices, params(moctx)...}(moctx, MonomialHashTable{params(moctx)..., indices}())
 end
 
 (ctx::IxMonomialΓ{I, N, E})(x::Monomial{N, E}) where {I, N, E} = findorpush!(ctx.table, ctx.ctx(x))
@@ -203,7 +203,7 @@ function divides(ctx::IxMonomialΓ{I, N},
                  i::I,
                  j::I) where {I, N}
 
-    (bitw_and(ctx.table.bitmasks[i], ctx.table.bitmasks[j], Val(N)) &&
+    (bitcheck(ctx.table.bitmasks[i], ctx.table.bitmasks[j], Val(N)) &&
         divides(ctx.ctx, ctx[i], ctx[j]))
 end
     
