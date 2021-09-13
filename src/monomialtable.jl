@@ -154,9 +154,9 @@ end
 
 #. INDEXED MONOMIALS
 
-mutable struct IxMonomialΓ{I<:Unsigned, N, E}<:MonomialContext{I}
+mutable struct IxMonomialΓ{I<:Unsigned, N, E, B}<:MonomialContext{I}
     ctx::MonomialContext{Monomial{N, E}}
-    table::MonomialHashTable{N, E, I}
+    table::MonomialHashTable{N, E, I, B}
 end
 
 # need to change this?
@@ -166,10 +166,10 @@ function ixmonomialctx(moctx=nothing; indices=UInt32, mask_type=UInt32, kwargs..
     if isnothing(moctx)
         moctx = monomialctx(;kwargs...)
     end
-    return IxMonomialΓ{indices, params(moctx)...}(moctx, MonomialHashTable{params(moctx)..., indices, mask_type}())
+    return IxMonomialΓ{indices, params(moctx)..., mask_type}(moctx, MonomialHashTable{params(moctx)..., indices, mask_type}())
 end
 
-(ctx::IxMonomialΓ{I, N, E})(x::Monomial{N, E}) where {I, N, E} = findorpush!(ctx.table, ctx.ctx(x))
+(ctx::IxMonomialΓ{I, N, E, B})(x::Monomial{N, E}) where {I, N, E, B} = findorpush!(ctx.table, ctx.ctx(x))
 (ctx::IxMonomialΓ{I})(i::I) where I = i
 (ctx::IxMonomialΓ)(x::AA.MPolyElem) = findorpush!(ctx.table, ctx.ctx(x))
 
