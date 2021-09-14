@@ -1,5 +1,27 @@
 using StaticArrays
 
+@testset "sliceddict" begin
+    ind = [(1, "a"), (2, "b")]
+    vs = [1.0, 2.0]
+    S = SG.SlicedDict(ind, vs)
+
+    @test S[(1, "a")] == 1.0
+    S[(2, "b")] = 3.0
+    @test S[(2, "b")] == 3.0
+    T = copy(S)
+    Base.insert!(S, (3, "c"), 4.0)
+    @test S[(3, "c")] == 4.0
+    Base.delete!(S, (3, "c"))
+    @test T == S
+
+    ind = SG.SlicedInd(ind)
+    @test length(ind) == 2
+    T = copy(ind)
+    insert!(ind, (3, "c"))
+    delete!(ind, (3, "c"))
+    @test T == ind
+end
+
 @testset "termorder" begin
     order = SG.Grevlex(5)
     v = @SVector [2,2,3,4,5]
