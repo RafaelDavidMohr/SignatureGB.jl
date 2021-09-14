@@ -1,6 +1,7 @@
 using BenchmarkTools
 using SignatureGB
 using Combinatorics
+using Dictionaries
 
 SG = SignatureGB
 
@@ -22,3 +23,14 @@ function divmask_benchmark(nvars, nmons)
     suite, idx, ctx, mons
 end
 
+function sliceddict_benchmark()
+    suite = BenchmarkGroup()
+    alph = ["a", "b", "c", "d", "e", "f", "g", "h"]
+    rng = 1:100000
+    keys = [(lett, i) for lett in alph for i in rng]
+    dct_1 = Dictionary(keys, keys)
+    dct_2 = SG.SlicedDict(keys, keys)
+    suite["plain_dict"] = @benchmarkable getindices($(dct_1), filter(a -> a[1] == "a", keys($(dct_1))))
+    suite["sliced_dict"] = @benchmarkable $(dct_2)["a"]
+    suite, dct_1, dct_2
+end

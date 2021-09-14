@@ -19,14 +19,16 @@ Construct a `SlicedInd{I, K}` object from a given Vector of Tuples.
 function SlicedInd(ind::Vector{Tuple{I, K}}) where {I, K}
     dct = Dictionary{I, Indices{K}}()
     for (i, k) in ind
-        try
-            Base.insert!(dct, i, Indices([k]))
-        catch
+        if i in keys(dct)
             Base.insert!(dct[i], k)
+        else
+            Base.insert!(dct, i, Indices([k]))
         end
     end
     SlicedInd(dct)
 end
+
+Base.getindex(Sl::SlicedInd{I}, i::I) where I = Sl.ind[i]
 
 function Base.iterate(Sl::SlicedInd, s...)
     iterate([(i, k) for i in Base.keys(Sl.ind) for k in Sl.ind[i]], s...)
@@ -73,10 +75,15 @@ Construct a `SlicedDict{I, K, V}` with keys `ind` and values `vs`.
 """
 function SlicedDict(ind::SlicedInd{I, K}, vs::Vector{V}) where {I, K, V}
     is = Base.keys(ind.ind)
-    dct = Dictionary{I, Dictionary{K, V}}(is, [Dictionary{K, V}() for _ in 1:Base.length(is)])
-    for (j, (i, k)) in enumerate(ind)
-        Base.insert!(dct[i], k, vs[j])
+    slices = vcat([0], [length(ind[i]) for i in is])
+    for i in eachindex(slices)[2:end]
+        slices[i] = slices[i] + slices[i-1]
     end
+    dct = Dictionary(is, [Dictionary(ind[i], vs[slices[j]+1:slices[j+1]]) for (j, i) in enumerate(is)])
+    # for (j, (i, k)) in enumerate(ind)
+    #     println("i'm iterating")
+    #     Base.insert!(dct[i], k, vs[j])
+    # end
     SlicedDict(dct)
 end
 
