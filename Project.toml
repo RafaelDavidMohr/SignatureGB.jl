@@ -4,8 +4,11 @@ authors = ["Rafael Mohr <Rafael.Mohr@lip6.fr> and contributors"]
 version = "0.1.0"
 
 [deps]
+AbstractAlgebra = "c3fe647b-3220-5bb0-a1ea-a7954cac585d"
 Dictionaries = "85a47980-9c8c-11e8-2b9f-f7ca1fa99fb4"
+Nemo = "2edaba10-b0f1-5616-af89-8c11ac63239a"
 Oscar = "f1435218-dba5-11e9-1e4d-f1a5fab5fc13"
+Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
 StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
 
 [compat]

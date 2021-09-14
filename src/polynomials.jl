@@ -60,6 +60,8 @@ end
     return hash
 end
 
+makehash(m::SVector{N}) where N = makehash(Val(N), m)
+
 # Monomial in N variables with exponent type E
 # We require E to be signed because it makes grevlex easier.
 # [TODO is that a good reason?]
@@ -78,6 +80,11 @@ Base.hash(m::Monomial) = m.hash
 Base.show(io::IO, m::Monomial) = Base.show(io, convert(Vector{Int}, m.exponents))
 Base.isequal(x::Monomial, y::Monomial) = x.exponents == y.exponents
 
+# Compute a bitmask for the monomial M, TODO: make this generated
+function bitmask(m::Monomial{N, E}, pwrs::SVector{N, E}; masktype = UInt32) where {N, E<:Signed}
+    @inbounds parse(masktype, join(["$(Int(pwrs[i] <= m.exponents[i]))" for i in 1:N]), base = 2)
+end
+                  
 
 #.. Monomial context
 
@@ -100,6 +107,7 @@ function monomialctx(;exponents=Int16, order::TermOrder, vars=[], varprefix="x",
     end
 end
 
+params(::MonomialΓ{N, E}) where {N, E} = N, E
 exponents(::MonomialΓ{N, E}, m :: Monomial{N, E}) where {N, E}= m.exponents
 exponenttype(::MonomialΓ{N, E}) where {N, E} = E
 nvars(::MonomialΓ{N}) where N = N

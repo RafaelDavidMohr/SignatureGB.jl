@@ -14,8 +14,9 @@ end
 
 #.. Helpers for BitVectors
 
-@generated function bitw_and(a::BitArray, b::BitArray, ::Val{N}) where N
+@generated function bitcheck(a::BitArray, b::BitArray, ::Val{N}) where N
     quote
-        $([:(~(a[$i] & b[$i]) && return false) for i in 1:N]...)
+        $([:(b[$i] < a[$i] && return false) for i in 1:N]...)
+        return true
     end
 end

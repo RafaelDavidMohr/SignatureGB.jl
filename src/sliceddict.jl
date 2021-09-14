@@ -8,7 +8,7 @@ to a given value can be accessed in constant time.
 
 """
 mutable struct SlicedInd{I, K} <: AbstractIndices{Tuple{I, K}}
-    ind::Dictionary{I, Vector{K}}
+    ind::Dictionary{I, Indices{K}}
 end
 
 """
@@ -17,12 +17,12 @@ end
 Construct a `SlicedInd{I, K}` object from a given Vector of Tuples.
 """
 function SlicedInd(ind::Vector{Tuple{I, K}}) where {I, K}
-    dct = Dictionary{I, Vector{K}}()
+    dct = Dictionary{I, Indices{K}}()
     for (i, k) in ind
         try
-            insert!(dct, i, [k])
+            Base.insert!(dct, i, Indices([k]))
         catch
-            push!(dct[i], k)
+            Base.insert!(dct[i], k)
         end
     end
     SlicedInd(dct)
@@ -40,6 +40,19 @@ function Base.length(Sl::SlicedInd)
     sum([Base.length(k) for k in values(Sl.ind)])
 end
 
+Dictionaries.isinsertable(Sl::SlicedInd) = true
+function Base.insert!(Sl::SlicedInd{I, K}, ind::Tuple{I, K}) where {I, K}
+    if ind[1] in keys(Sl.ind)
+        Base.insert!(Sl.ind[ind[1]], ind[2])
+    else
+        Base.insert!(Sl.ind, ind[1], Indices([ind[2]]))
+    end
+end
+
+function Base.delete!(Sl::SlicedInd{I, K}, ind::Tuple{I, K}) where {I, K}
+    delete!(Sl.ind[ind[1]], ind[2])
+    isempty(Sl.ind[ind[1]]) && delete!(Sl.ind, ind[1])
+end
 
 """
     SlicedDict{I, K}(::Dictionary{I, Dictionary{K, V}})
@@ -62,7 +75,7 @@ function SlicedDict(ind::SlicedInd{I, K}, vs::Vector{V}) where {I, K, V}
     is = Base.keys(ind.ind)
     dct = Dictionary{I, Dictionary{K, V}}(is, [Dictionary{K, V}() for _ in 1:Base.length(is)])
     for (j, (i, k)) in enumerate(ind)
-        insert!(dct[i], k, vs[j])
+        Base.insert!(dct[i], k, vs[j])
     end
     SlicedDict(dct)
 end
@@ -80,11 +93,32 @@ function Base.getindex(S::SlicedDict{I, K}, i::Tuple{I, K}) where {I, K}
     Base.getindex(Base.getindex(S.data, i[1]), i[2])
 end
 
+Base.getindex(S::SlicedDict{I}, i::I) where I = S.data[i]
+
 function Base.keys(S::SlicedDict)
     ks = Base.keys(S.data)
-    SlicedInd(Dictionary(ks, [collect(Base.keys(S.data[i])) for i in ks]))
+    SlicedInd(Dictionary(ks, [Indices(collect(Base.keys(S.data[i]))) for i in ks]))
 end
 
 function Base.isassigned(S::SlicedDict{I, K}, i::Tuple{I, K}) where {I, K}
     Base.isassigned(S.data, i[1]) && Base.isassigned(S.data[i[1]], i[2])
+end
+
+Dictionaries.issettable(S::SlicedDict) = true
+Dictionaries.isinsertable(S::SlicedDict) = true
+
+function Base.setindex!(S::SlicedDict{I, K, V}, val::V, ind::Tuple{I, K}) where {I, K, V}
+    setindex!(S.data[ind[1]], val, ind[2])
+end
+
+function Base.insert!(S::SlicedDict{I, K, V}, ind::Tuple{I, K}, val::V) where {I, K, V}
+    if ind[1] in keys(S.data)
+        Base.insert!(S.data[ind[1]], ind[2], val)
+    else
+        Base.insert!(S.data, ind[1], Dictionary([ind[2]], [val]))
+    end
+end
+
+function Base.delete!(S::SlicedDict{I, K}, ind::Tuple{I, K}) where {I, K}
+    Base.delete!(S.data[ind[1]], ind[2])
 end

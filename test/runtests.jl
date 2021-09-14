@@ -1,6 +1,6 @@
 using SignatureGB
 using Test
 
-@testset "SignatureGB.jl" begin
-    # Write your tests here.
-end
+SG = SignatureGB
+
+include("./tests.jl")

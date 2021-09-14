@@ -89,12 +89,6 @@ end
 
 ordervector(o::WGrevlex{N}, e::SVector{N}) where N = ordervector(Grevlex(N), o.weights .* e)
 
-#.. Module order u0 < u1 < u2 < ...
-struct ModuleOrder <: AbstractModuleOrder end
-
-ordervector(::ModuleOrder, e::SVector{1}) = e
-
-
 #.. Block order
 
 """ Lexicographic on two blocks """
