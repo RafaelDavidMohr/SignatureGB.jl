@@ -301,8 +301,13 @@ end
 
 abstractalgebra(ctx :: PolynomialΓ) = AA.PolynomialRing(abstractalgebra(ctx.co), variables(ctx))
 
+function (ctx :: MonomialΓ)(m ::AA.MPolyElem)
+    exp = AA.exponent_vector(m, 1)
+    ctx(Monomial{nvars(ctx), exponenttype(ctx)}(exp))
+end
+
 function (ctx :: PolynomialΓ)(p :: AA.MPolyElem)
-    mo = [ctx.mo(Monomial{nvars(ctx), exponenttype(ctx.mo)}(AA.exponent_vector(p, i))) for i in 1:length(p)]
+    mo = [ctx.mo(m) for m in AA.monomials(p)]
     co = [ctx.co(AA.coeff(p, i).data) for i in 1:length(p)]
     p = ctx(mo, co)
     sort!(p, rev=true, order=order(ctx))

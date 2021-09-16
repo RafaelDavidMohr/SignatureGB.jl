@@ -62,12 +62,12 @@ end
     order = SG.Grevlex(2)
     char = 101
     ctx = SG.idxsigpolynomialctx(SG.Nmod32Γ(char), order=order)
-    n = ctx.po.mo(R(1))
-    I = SG.pos_type(ctx)
     
-    sig1, sig2 = (I(1), n), (I(2), n)
-    ctx(sig1, f), ctx(sig2, f)
+    sig1, sig2 = ctx(1, R(1)), ctx(2, R(1))
+    ctx(sig1, f), ctx(sig2, g)
     m1 = ctx.po.mo(x)
+    @test keys(ctx.tbl) == SG.SlicedInd([sig1, sig2])
+    @test R(ctx.po, ctx(sig1)[:poly]) == f
     @test R(ctx.po, ctx(m1, sig1)[:poly]) == x*f
 end
     

@@ -190,6 +190,7 @@ end
 
 #.. Monomial interface
 
+valtype(ctx::IxMonomialΓ) = eltype(ctx.ctx)
 variables(ctx::IxMonomialΓ) = variables(ctx.ctx)
 nvars(ctx::IxMonomialΓ) = nvars(ctx.ctx)
 exponenttype(ctx::IxMonomialΓ) = exponenttype(ctx.ctx)

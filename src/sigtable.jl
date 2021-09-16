@@ -18,7 +18,6 @@ function idxsigpolynomialctx(coefficients;
                              kwargs...)
     if isnothing(monomials)
         moctx = ixmonomialctx(; indices=indices, mask_type=mask_type, kwargs...)
-        println(typeof(moctx))
     end
     po = polynomialctx(coefficients, monomials = moctx)
     tbl = emptysldict(pos_type, eltype(moctx), Data{eltype(moctx), eltype(coefficients)})
@@ -26,9 +25,11 @@ function idxsigpolynomialctx(coefficients;
                    typeof(moctx), typeof(coefficients)}(po, tbl)
 end
 
+# registration functions
+
 function (ctx::SigPolynomialΓ{I, M, T})(sig::Tuple{I, M},
                                         pol::Polynomial{M, T},
-                                        sigtail::Polynomial{M, T}) where {I, M, T}
+                                        sigtail::Polynomial{M, T}) where {I, MO, M, T}
     val = Data{M, T}((pol, sigtail))
     try
         ctx.tbl[sig] = val
@@ -38,6 +39,14 @@ function (ctx::SigPolynomialΓ{I, M, T})(sig::Tuple{I, M},
 end
 
 (ctx::SigPolynomialΓ{I, M, T})(sig::Tuple{I, M}, pol::Polynomial{M, T}) where {I, M, T} = ctx(sig, pol, zero(pol))
+
+# get functions
+
+function (ctx::SigPolynomialΓ{I, M})(sig::Tuple{I, M}) where {I, M, MO}
+    get(ctx.tbl, sig) do
+        error("Nothing registered under the signature $(sign)")
+    end
+end
 
 function (ctx::SigPolynomialΓ{I, M, T})(m::M, sig::Tuple{I, M}) where {I, M, T}
     @assert sig in keys(ctx.tbl)
@@ -50,4 +59,5 @@ end
 
 # Abstract Algebra
 
+(ctx::SigPolynomialΓ)(i, m::AA.MPolyElem) = (pos_type(ctx)(i), ctx.po.mo(m))
 (ctx::SigPolynomialΓ{I, M})(sig::Tuple{I, M}, p::AA.MPolyElem) where {I, M} = ctx(sig, ctx.po(p))
