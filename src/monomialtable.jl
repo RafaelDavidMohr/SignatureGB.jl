@@ -2,7 +2,6 @@
 
 #.. EasyTable
 # Building upon Julia's Dict
-# this is a comment for git tests
 
 mutable struct EasyTable{T, I <: Unsigned}
     val::Vector{T}
