@@ -201,6 +201,7 @@ exponents(ctx::IxMonomialΓ{I}, i::I) where I = exponents(ctx.ctx, ctx[i])
 mul(ctx::IxMonomialΓ{I}, i::I, j::I) where I = ctx(mul(ctx.ctx, ctx[i], ctx[j]))
 div(ctx::IxMonomialΓ{I}, i::I, j::I) where I = ctx(div(ctx.ctx, ctx[i], ctx[j]))
 lcm(ctx::IxMonomialΓ{I}, i::I, j::I) where I = ctx(lcm(ctx.ctx, ctx[i], ctx[j]))
+gcd(ctx::IxMonomialΓ{I}, i::I, j::I) where I = ctx(gcd(ctx.ctx, ctx[i], ctx[j]))
 function divides(ctx::IxMonomialΓ{I, N},
                  i::I,
                  j::I) where {I, N}

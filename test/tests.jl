@@ -1,4 +1,5 @@
 using StaticArrays
+using AbstractTrees
 
 @testset "sliceddict" begin
     ind = [(1, "a"), (2, "b")]
@@ -70,7 +71,25 @@ end
     @test R(ctx.po, ctx(sig1)[:poly]) == f
     @test R(ctx.po, ctx(m1, sig1)[:poly]) == x*f
 end
+
+@testset "kd tree" begin
+    R, (x, y) = Oscar.PolynomialRing(GF(101), ["x", "y"], ordering = :degrevlex)
+    f, g = x + y, y^3 + x*y + y^2
     
+    order = SG.Grevlex(2)
+    char = 101
+    ctx = SG.idxsigpolynomialctx(SG.Nmod32Γ(char), order=order)
+    
+    sig1, sig2 = ctx(1, R(1)), ctx(2, R(1))
+    ctx(sig1, f), ctx(sig2, g)
+    mo1, mo2 = ctx.po.mo(x), ctx.po.mo(y^3)
+    kd_tree = SG.Kd_node([mo1, mo2], SG.pos_type(ctx))
+    SG.insert_new_basis_element!(ctx, kd_tree, sig1)
+    SG.insert_new_basis_element!(ctx, kd_tree, sig2)
+    @test SG.div_query(ctx, kd_tree, mo1) == SG.SlicedInd([sig1])
+    @test SG.div_query(ctx, kd_tree, mo2) == SG.SlicedInd([sig2])
+end
+
 @testset "monomial hashing" begin
     order = SG.Grevlex(5)
     ctx = SG.monomialctx(exponents = Int64, order=SG.Grevlex(5))

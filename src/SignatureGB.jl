@@ -8,5 +8,6 @@ include("./polynomials.jl")
 include("./coefficients.jl")
 include("./monomialtable.jl")
 include("./sigtable.jl")
+include("./kd_tree.jl")
 
 end

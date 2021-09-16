@@ -21,6 +21,7 @@ It is probably interesting to redefine:
     - mul(::MonomialContext{T}, ::T, ::T) :: T
     - div(::MonomialContext{T}, ::T, ::T) :: T
     - lcm(::MonomialContext{T}, ::T, ::T) :: T
+    - gcd(::MonomialContext{T}, ::T, ::T) :: T
 """
 abstract type MonomialContext{T} <: Context{T} end
 
@@ -46,6 +47,10 @@ end
 
 function lcm(ctx::MonomialContext{T}, x::T, y::T) where {T}
     ctx(max.(exponents(ctx, x), exponents(ctx, y)))
+end
+
+function gcd(ctx::MonomialContext{T}, x::T, y::T) where {T}
+    ctx(min.(exponents(ctx, x), exponents(ctx, y)))
 end
 
 
