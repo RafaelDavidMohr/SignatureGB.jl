@@ -85,6 +85,7 @@ function bitmask(m::Monomial{N, E}, pwrs::SVector{N, E}; masktype = UInt32) wher
     @inbounds parse(masktype, join(["$(Int(pwrs[i] <= m.exponents[i]))" for i in 1:N]), base = 2)
 end
                   
+Base.one(::Type{Monomial{N, E}}) where {N, E} = Monomial{N, E}(SVector{N, E}(zeros(E, N)))
 
 #.. Monomial context
 
@@ -163,6 +164,8 @@ Base.@propagate_inbounds coefficient(p::Polynomial, i) = p.co[i]
 Base.@propagate_inbounds monomial(p::Polynomial, i) = p.mo[i]
 Base.@propagate_inbounds leadingmonomial(p::Polynomial) = monomial(p, 1)
 monomials(p::Polynomial) = p.mo
+Base.zero(::Type{Polynomial{M, T}}) where {M, T} = Polynomial(M[], T[])
+Base.zero(p::Polynomial) = zero(typeof(p))
 
 ismonic(p::Polynomial) = !isempty(p) && @inbounds isone(coefficient(p, 1))
 
@@ -299,8 +302,8 @@ end
 abstractalgebra(ctx :: PolynomialΓ) = AA.PolynomialRing(abstractalgebra(ctx.co), variables(ctx))
 
 function (ctx :: PolynomialΓ)(p :: AA.MPolyElem)
-    mo = [ctx.mo(AA.exponent_vector(p, i)) for i in 1:length(p)]
-    co = [ctx.co(AA.coeff(p, i)) for i in 1:length(p)]
+    mo = [ctx.mo(Monomial{nvars(ctx), exponenttype(ctx.mo)}(AA.exponent_vector(p, i))) for i in 1:length(p)]
+    co = [ctx.co(AA.coeff(p, i).data) for i in 1:length(p)]
     p = ctx(mo, co)
     sort!(p, rev=true, order=order(ctx))
     return p

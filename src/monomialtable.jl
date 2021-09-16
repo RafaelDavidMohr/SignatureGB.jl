@@ -192,6 +192,7 @@ end
 
 variables(ctx::IxMonomialΓ) = variables(ctx.ctx)
 nvars(ctx::IxMonomialΓ) = nvars(ctx.ctx)
+exponenttype(ctx::IxMonomialΓ) = exponenttype(ctx.ctx)
 
 termorder(ctx::IxMonomialΓ) = termorder(ctx.ctx)
 exponents(ctx::IxMonomialΓ{I}, i::I) where I = exponents(ctx.ctx, ctx[i])

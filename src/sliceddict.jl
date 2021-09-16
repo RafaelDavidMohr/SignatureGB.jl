@@ -80,10 +80,6 @@ function SlicedDict(ind::SlicedInd{I, K}, vs::Vector{V}) where {I, K, V}
         slices[i] = slices[i] + slices[i-1]
     end
     dct = Dictionary(is, [Dictionary(ind[i], vs[slices[j]+1:slices[j+1]]) for (j, i) in enumerate(is)])
-    # for (j, (i, k)) in enumerate(ind)
-    #     println("i'm iterating")
-    #     Base.insert!(dct[i], k, vs[j])
-    # end
     SlicedDict(dct)
 end
 
@@ -94,6 +90,10 @@ Construct a `SlicedDict{I, K, V}` with keys `ind` and values `vs`.
 """
 function SlicedDict(ind::Vector{Tuple{I, K}}, vs::Vector{V}) where {I, K, V}
     SlicedDict(SlicedInd(ind), vs)
+end
+
+function emptysldict(::Type{I}, ::Type{K}, ::Type{V}) where {I, K, V}
+    SlicedDict(Tuple{I, K}[], V[])
 end
         
 function Base.getindex(S::SlicedDict{I, K}, i::Tuple{I, K}) where {I, K}

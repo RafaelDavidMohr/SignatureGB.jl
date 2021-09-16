@@ -15,6 +15,7 @@ using StaticArrays
     @test T == S
 
     ind = SG.SlicedInd(ind)
+    view(ind, SG.SlicedInd([(2, "b")]))
     @test length(ind) == 2
     T = copy(ind)
     insert!(ind, (3, "c"))
@@ -35,7 +36,7 @@ end
 # stolen from pierre
 @testset "polynomials" begin
     char = 4294967291
-    ctx = SG.polynomialctx(SG.Nmod32Γ(char), order=SG.Grevlex(5))
+    ctx = SG.polynomialctx(SG.Nmod32Γ(char), monomials = SG.monomialctx(order=SG.Grevlex(5)))
 
     # Conversion from and to AA
     R, x = SG.abstractalgebra(ctx)
@@ -54,6 +55,22 @@ end
     @test R(ctx, SG.shift(ctx, p0, ctx.mo(x[1]^12*x[2]^6*x[3]))) == p1*x[1]^2*x[2]^6*x[3]
 end
 
+@testset "sig polynomials" begin
+    R, (x, y) = Oscar.PolynomialRing(GF(101), ["x", "y"], ordering = :degrevlex)
+    f, g = x + y, x^2 + x*y + y^2
+    
+    order = SG.Grevlex(2)
+    char = 101
+    ctx = SG.idxsigpolynomialctx(SG.Nmod32Γ(char), order=order)
+    n = ctx.po.mo(R(1))
+    I = SG.pos_type(ctx)
+    
+    sig1, sig2 = (I(1), n), (I(2), n)
+    ctx(sig1, f), ctx(sig2, f)
+    m1 = ctx.po.mo(x)
+    @test R(ctx.po, ctx(m1, sig1)[:poly]) == x*f
+end
+    
 @testset "monomial hashing" begin
     order = SG.Grevlex(5)
     ctx = SG.monomialctx(exponents = Int64, order=SG.Grevlex(5))
