@@ -119,7 +119,7 @@ exponenttype(::MonomialΓ{N, E}) where {N, E} = E
 nvars(::MonomialΓ{N}) where N = N
 variables(ctx::MonomialΓ) = ctx.vars
 termorder(ctx::MonomialΓ) = ctx.order
-
+Base.one(ctx::MonomialΓ) = Base.one(eltype(ctx))
 
 function mul(::MonomialContext{T}, x::T, y::T) where {T<:Monomial}
     T(x.exponents + y.exponents, x.hash + y.hash)
@@ -171,6 +171,7 @@ Base.@propagate_inbounds leadingmonomial(p::Polynomial) = monomial(p, 1)
 monomials(p::Polynomial) = p.mo
 Base.zero(::Type{Polynomial{M, T}}) where {M, T} = Polynomial(M[], T[])
 Base.zero(p::Polynomial) = zero(typeof(p))
+Base.iszero(p::Polynomial) = p == zero(p)
 
 ismonic(p::Polynomial) = !isempty(p) && @inbounds isone(coefficient(p, 1))
 

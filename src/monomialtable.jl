@@ -198,6 +198,8 @@ exponenttype(ctx::IxMonomialΓ) = exponenttype(ctx.ctx)
 termorder(ctx::IxMonomialΓ) = termorder(ctx.ctx)
 exponents(ctx::IxMonomialΓ{I}, i::I) where I = exponents(ctx.ctx, ctx[i])
 
+Base.one(ctx::IxMonomialΓ) = ctx(one(valtype(ctx)))
+
 mul(ctx::IxMonomialΓ{I}, i::I, j::I) where I = ctx(mul(ctx.ctx, ctx[i], ctx[j]))
 div(ctx::IxMonomialΓ{I}, i::I, j::I) where I = ctx(div(ctx.ctx, ctx[i], ctx[j]))
 lcm(ctx::IxMonomialΓ{I}, i::I, j::I) where I = ctx(lcm(ctx.ctx, ctx[i], ctx[j]))
@@ -206,7 +208,6 @@ function divides(ctx::IxMonomialΓ{I, N},
                  i::I,
                  j::I) where {I, N}
 
-    # (bitcheck(ctx.table.bitmasks[i], ctx.table.bitmasks[j], Val(N))
      iszero(ctx.table.bitmasks[i]  & (~ ctx.table.bitmasks[j])) && divides(ctx.ctx, ctx[i], ctx[j])
 end
     

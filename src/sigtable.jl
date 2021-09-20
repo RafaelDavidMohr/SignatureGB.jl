@@ -1,4 +1,5 @@
-const Data{M, T} = NamedTuple{(:poly, :sigtail), Tuple{Polynomial{M, T}, Polynomial{M, T}}}
+const Data{M, T} = NamedTuple{(:poly, :sigtail, :sigratio),
+                              Tuple{Polynomial{M, T}, Polynomial{M, T}, M}}
 const SigTable{I, M, T} = SlicedDict{I, M, Data{M, T}}
 
 mutable struct SigPolynomialΓ{I, M, T, MΓ<:Context{M}, TΓ<:Context{T}}<:Context{Tuple{I, M}}
@@ -30,7 +31,12 @@ end
 function (ctx::SigPolynomialΓ{I, M, T})(sig::Tuple{I, M},
                                         pol::Polynomial{M, T},
                                         sigtail::Polynomial{M, T}) where {I, MO, M, T}
-    val = Data{M, T}((pol, sigtail))
+    if iszero(pol)
+        ratio = one(ctx.po.mo)
+    else
+        ratio = div(ctx.po.mo, sig[2], leadingmonomial(pol))
+    end
+    val = Data{M, T}((pol, sigtail, ratio))
     try
         ctx.tbl[sig] = val
     catch
@@ -53,7 +59,7 @@ function (ctx::SigPolynomialΓ{I, M, T})(m::M, sig::Tuple{I, M}) where {I, M, T}
     key = (sig[1], mul(ctx.po.mo, m, sig[2]))
     get(ctx.tbl, key) do
         val = ctx.tbl[sig]
-        Data{M, T}((mul(ctx.po, val[:poly], m), mul(ctx.po, val[:sigtail], m)))
+        Data{M, T}((mul(ctx.po, val[:poly], m), mul(ctx.po, val[:sigtail], m), val[:sigratio]))
     end
 end
 
