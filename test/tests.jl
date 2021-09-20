@@ -57,7 +57,7 @@ end
 end
 
 @testset "sig polynomials" begin
-    R, (x, y) = Oscar.PolynomialRing(GF(101), ["x", "y"], ordering = :degrevlex)
+    R, (x, y) = Oscar.PolynomialRing(Oscar.GF(101), ["x", "y"], ordering = :degrevlex)
     f, g = x + y, x^2 + x*y + y^2
     
     order = SG.Grevlex(2)
@@ -73,7 +73,7 @@ end
 end
 
 @testset "kd tree" begin
-    R, (x, y) = Oscar.PolynomialRing(GF(101), ["x", "y"], ordering = :degrevlex)
+    R, (x, y) = Oscar.PolynomialRing(Oscar.GF(101), ["x", "y"], ordering = :degrevlex)
     f, g = x + y, y^3 + x*y + y^2
     
     order = SG.Grevlex(2)
@@ -88,6 +88,15 @@ end
     SG.insert_new_basis_element!(ctx, kd_tree, sig2)
     @test SG.div_query(ctx, kd_tree, mo1) == SG.SlicedInd([sig1])
     @test SG.div_query(ctx, kd_tree, mo2) == SG.SlicedInd([sig2])
+end
+
+@testset "f5 data" begin
+    R, (x, y) = Oscar.PolynomialRing(Oscar.GF(101), ["x", "y"], ordering = :degrevlex)
+    I = [x^2, y^2 + x*y]
+    order = SG.Grevlex(2)
+    dat = SG.f5data(I, order=order)
+    sig1, sig2 = dat.ctx(1, R(1)), dat.ctx(2, R(1))
+    @test SG.lt(dat, sig1, sig2)
 end
 
 @testset "monomial hashing" begin

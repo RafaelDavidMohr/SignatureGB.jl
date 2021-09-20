@@ -12,12 +12,12 @@ coeff_type(::SigPolynomialΓ{I, M, T}) where {I, M, T} = T
 
 function idxsigpolynomialctx(coefficients;
                              monomials=nothing,
-                             indices=UInt32,
+                             index_type=UInt32,
                              mask_type=UInt32,
                              pos_type=UInt32,
                              kwargs...)
     if isnothing(monomials)
-        moctx = ixmonomialctx(; indices=indices, mask_type=mask_type, kwargs...)
+        moctx = ixmonomialctx(; indices=index_type, mask_type=mask_type, kwargs...)
     end
     po = polynomialctx(coefficients, monomials = moctx)
     tbl = emptysldict(pos_type, eltype(moctx), Data{eltype(moctx), eltype(coefficients)})
@@ -60,6 +60,30 @@ end
 # forwarding of functions on polynomials
 
 leadingmonomial(ctx::SigPolynomialΓ{I, M}, sig::Tuple{I, M}) where {I, M} = leadingmonomial(ctx(sig)[:poly])
+
+# sorting
+
+@inline @generated function lt(ctx::SigPolynomialΓ{I, M},
+                               a::Tuple{I, M},
+                               b::Tuple{I, M},
+                               ::Val{S}) where {I, M, S}
+
+    if S == :POT
+        quote
+            if a[1] == b[1]
+                return lt(ctx.po.mo, a[2], b[2])
+            end
+            return a[1] < b[1]
+        end
+    elseif S == :TOP
+        quote
+            if a[2] == b[2]
+                return a[1] < b[1]
+            end
+            return lt(ctx.po.mo, a[2], b[2])
+        end
+    end
+end
 
 # Abstract Algebra
 
