@@ -39,7 +39,8 @@ mutable struct MonomialHashTable{N, E, I <: Unsigned, B <: Unsigned}
 
     max_powers::MVector{N, E}
     min_powers::MVector{N, E}
-    bitmask_powers::SVector{N, E}
+    bitmask_powers::Dict{Int, Vector{E}}
+    # bitmask_powers::SVector{N, E}
     mask::I
     size::Int
     maxloop::Int
@@ -47,9 +48,12 @@ mutable struct MonomialHashTable{N, E, I <: Unsigned, B <: Unsigned}
     function MonomialHashTable{N, E, I, B}() where {N, E, I, B}
         tsize = 16
         @assert 2*tsize <= typemax(I)
+        nbits = ndigits(typemax(B), base = 2)
+        masks_per_var = Int(floor(nbits / N))
+        bitmask_powers = Dict([(i, zeros(E, masks_per_var)) for i in 1:N])
         zs = SVector{N, E}(zeros(E, N))
         new(Monomial{N, E}[], B[], zeros(Int, 2*tsize),
-            zs, zs, zs, tsize-1, 0, 4)
+            zs, zs, bitmask_powers, tsize-1, 0, 4)
     end
 end
 
@@ -145,10 +149,10 @@ function findorpush!(table::MonomialHashTable{N, E, I, B}, v::Monomial{N, E}) wh
     return n
 end
 
-function remask!(table::MonomialHashTable{N, E}) where {N, E}
+function remask!(table::MonomialHashTable{N, E, I, B}) where {N, E, I, B}
 
-    avg_int = (x, y) -> floor((x + y) / 2)
-    table.bitmask_powers = @inbounds SVector{N, E}([avg_int(table.max_powers[i], table.min_powers[i]) for i in 1:N])
+    [table.bitmask_powers[i] = rand(table.min_powers[i]:table.max_powers[i], length(table.bitmask_powers[i]))
+     for i in 1:N]
     table.bitmasks = broadcast(v -> bitmask(v, table.bitmask_powers), table.val)
 end
 

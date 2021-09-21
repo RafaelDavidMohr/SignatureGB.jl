@@ -48,6 +48,8 @@ end
 
 # get functions
 
+# WARNING: if sig::Tuple{J, MO} where J != I or MO != M then this will convert sig to a Tuple{I, M}
+
 function (ctx::SigPolynomialΓ{I, M})(sig::Tuple{I, M}) where {I, M, MO}
     get(ctx.tbl, sig) do
         error("Nothing registered under the signature $(sign)")
