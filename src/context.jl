@@ -40,6 +40,6 @@ struct Ordering{Γ<:Context}<:Base.Order.Ordering
 end
 order(ctx::Γ) where Γ = Ordering{Γ}(ctx)
 
-function Base.Order.lt(order::Ordering{Γ}, a, b) where Γ
+function Base.Order.lt(order::Ordering{Γ}, a, b) where {Γ<:Context}
     lt(order.ctx, a, b)
 end

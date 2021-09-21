@@ -62,7 +62,7 @@ end
     
     order = SG.Grevlex(2)
     char = 101
-    ctx = SG.idxsigpolynomialctx(SG.Nmod32Γ(char), order=order)
+    ctx = SG.idxsigpolynomialctx(SG.Nmod32Γ(char), 2, order=order)
     
     sig1, sig2 = ctx(1, R(1)), ctx(2, R(1))
     ctx(sig1, f), ctx(sig2, g)
@@ -78,7 +78,7 @@ end
     
     order = SG.Grevlex(2)
     char = 101
-    ctx = SG.idxsigpolynomialctx(SG.Nmod32Γ(char), order=order)
+    ctx = SG.idxsigpolynomialctx(SG.Nmod32Γ(char), 2, order=order)
     
     sig1, sig2 = ctx(1, R(1)), ctx(2, R(1))
     ctx(sig1, f), ctx(sig2, g)
@@ -91,12 +91,13 @@ end
 end
 
 @testset "f5 data" begin
-    R, (x, y) = Oscar.PolynomialRing(Oscar.GF(101), ["x", "y"], ordering = :degrevlex)
+    R, (x, y) = Oscar.PolynomialRing(Oscar.GF(101), ["x", "y"],
+                                     ordering = :degrevlex)
     I = [x^2, y^2 + x*y]
     order = SG.Grevlex(2)
     dat = SG.f5data(I, order=order)
     sig1, sig2 = dat.ctx(1, R(1)), dat.ctx(2, R(1))
-    @test SG.lt(dat, sig1, sig2)
+    @test SG.lt(dat.ctx, sig1, sig2)
 end
 
 @testset "monomial hashing" begin

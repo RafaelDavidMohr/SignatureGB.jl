@@ -2,28 +2,32 @@ const Data{M, T} = NamedTuple{(:poly, :sigtail, :sigratio),
                               Tuple{Polynomial{M, T}, Polynomial{M, T}, M}}
 const SigTable{I, M, T} = SlicedDict{I, M, Data{M, T}}
 
-mutable struct SigPolynomialΓ{I, M, T, MΓ<:Context{M}, TΓ<:Context{T}}<:Context{Tuple{I, M}}
+mutable struct SigPolynomialΓ{I, M, T, MΓ<:Context{M}, TΓ<:Context{T}, S}<:Context{Tuple{I, M}}
     po::PolynomialΓ{M, T, MΓ, TΓ}
     tbl::SigTable{I, M, T}
+    ord_indices::Dict{I, I}
 end
 
-pos_type(::SigPolynomialΓ{I}) where I = I
+pos_type(::SigPolynomialΓ{I}) where {I} = I
 mon_type(::SigPolynomialΓ{I, M}) where {I, M} = M
 coeff_type(::SigPolynomialΓ{I, M, T}) where {I, M, T} = T
 
-function idxsigpolynomialctx(coefficients;
+function idxsigpolynomialctx(coefficients,
+                             ngens;
                              monomials=nothing,
                              index_type=UInt32,
                              mask_type=UInt32,
                              pos_type=UInt32,
+                             mod_order=:POT,
                              kwargs...)
     if isnothing(monomials)
         moctx = ixmonomialctx(; indices=index_type, mask_type=mask_type, kwargs...)
     end
     po = polynomialctx(coefficients, monomials = moctx)
     tbl = emptysldict(pos_type, eltype(moctx), Data{eltype(moctx), eltype(coefficients)})
+    ord_indices = Dict([(pos_type(i), pos_type(i)) for i in 1:ngens])
     SigPolynomialΓ{pos_type, eltype(moctx), eltype(coefficients),
-                   typeof(moctx), typeof(coefficients)}(po, tbl)
+                   typeof(moctx), typeof(coefficients), mod_order}(po, tbl, ord_indices)
 end
 
 # registration functions
@@ -65,28 +69,31 @@ function (ctx::SigPolynomialΓ{I, M, T})(m::M, sig::Tuple{I, M}) where {I, M, T}
     end
 end
 
-# forwarding of functions on polynomials
+# forwarding of functions on polynomials/monomials
+
+function mul(ctx::SigPolynomialΓ{I, M}, m::M, sig::Tuple{I, M}) where {I, M}
+    (sig[1], mul(ctx.po.mo, m, sig[2]))
+end
 
 leadingmonomial(ctx::SigPolynomialΓ{I, M}, sig::Tuple{I, M}) where {I, M} = leadingmonomial(ctx(sig)[:poly])
 
 # sorting
 
-@inline @generated function lt(ctx::SigPolynomialΓ{I, M},
+@inline @generated function lt(ctx::SigPolynomialΓ{I, M, T, MΓ, TΓ, S},
                                a::Tuple{I, M},
-                               b::Tuple{I, M},
-                               ::Val{S}) where {I, M, S}
+                               b::Tuple{I, M}) where {I, M, T, MΓ, TΓ, S}
 
     if S == :POT
         quote
             if a[1] == b[1]
                 return lt(ctx.po.mo, a[2], b[2])
             end
-            return a[1] < b[1]
+            return ctx.ord_indices[a[1]] < ctx.ord_indices[b[1]]
         end
     elseif S == :TOP
         quote
             if a[2] == b[2]
-                return a[1] < b[1]
+                return ctx.ord_indices[a[1]] < ctx.ord_indices[b[1]]
             end
             return lt(ctx.po.mo, a[2], b[2])
         end
