@@ -13,6 +13,10 @@ end
 const Basis{I, M} = SlicedInd{I, M}
 const PairSet{I, M, SΓ} = MutableBinaryHeap{Tuple{M, Tuple{I, M}}, PairOrdering{SΓ}}
 
+function pairset(ctx::SigPolynomialΓ{I, M}) where {I, M}
+    MutableBinaryHeap(pairordering(ctx), Tuple{M, Tuple{I, M}}[])
+end
+
 function pairs!(ctx::SΓ,
                 pairset::PairSet{I, M, SΓ},
                 sig::Tuple{I, M},
