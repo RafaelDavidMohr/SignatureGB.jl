@@ -1,5 +1,6 @@
 using StaticArrays
 using AbstractTrees
+using DataStructures
 
 @testset "sliceddict" begin
     ind = [(1, "a"), (2, "b")]
@@ -98,6 +99,25 @@ end
     dat = SG.f5data(I, order=order)
     sig1, sig2 = dat.ctx(1, R(1)), dat.ctx(2, R(1))
     @test SG.lt(dat.ctx, sig1, sig2)
+end
+
+@testset "pairs" begin
+    R, (x, y) = Oscar.PolynomialRing(Oscar.GF(101), ["x", "y"],
+                                     ordering = :degrevlex)
+    I = [x^2, y^2 + x*y]
+    order = SG.Grevlex(2)
+    dat = SG.f5data(I, order=order)
+    ctx = dat.ctx
+    mo_t = eltype(ctx.po.mo)
+    pos_t = SG.pos_type(ctx)
+    p_ord = SG.pairordering(ctx)
+    basis = SG.SlicedInd([ctx(1, R(1)), ctx(2, R(1))])
+    syz = SG.SlicedInd(eltype(ctx)[])
+    new_sig = ctx(2, x)
+    ctx(new_sig, y^3)
+    pairset = MutableBinaryHeap(p_ord, Tuple{mo_t, Tuple{pos_t, mo_t}}[])
+    SG.pairs!(ctx, pairset, new_sig, basis, syz)
+    @test isempty(pairset)
 end
 
 @testset "monomial hashing" begin
