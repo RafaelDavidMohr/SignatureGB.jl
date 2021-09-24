@@ -241,13 +241,13 @@ end
 
 
 function monic!(ctx::Γ, p::T) where {T<:Polynomial, Γ<:Context{T}}
-    isepsilon(ctx, p) && error("cannot normalize empty or ε polynomial")
+    isempty(p) && return
     @inbounds begin
         isone(coefficient(p, 1)) && return
 
-        mult = inv(ctx.co, coefficient(p, 1))
+        mult = inv(ctx, coefficient(p, 1))
         for (i, c) in enumerate(p.co)
-            p.co[i] = mul(ctx.co, mult, c)
+            p.co[i] = mul(ctx, mult, c)
         end
     end
     return

@@ -6,13 +6,19 @@
 mutable struct EasyTable{T, I <: Unsigned}
     val::Vector{T}
     rev::Dict{T, I}
-    columnindices::Vector{I}
 
     function EasyTable{T, I}() where {T, I}
         new(T[], Dict{T, I}())
     end
 end
 
+function easytable(val, ind_type = UInt32)
+    tbl_val = collect(val)
+    tbl_rev = Dict{eltype(val), ind_type}(broadcast(x -> reverse(x), enumerate(tbl_val)))
+    EasyTable{eltype(val), ind_type}(tbl_val, tbl_rev)
+end
+
+ind_type(table::EasyTable{T, I}) where {T, I} = I
 Base.getindex(table::EasyTable{T}, i) where T = table.val[i]
 Base.length(table::EasyTable) = length(table.val)
 
@@ -28,6 +34,15 @@ Base.length(table::EasyTable) = length(table.val)
         return n
     end
 end
+
+function indexpolynomial(tbl::EasyTable{M, I}, p::Polynomial{M, T}) where {M, I}
+    Polynomial{I, T}([findorpush!(tbl, m) for m in p.mo], p.co)
+end
+
+function unindexpolynomial(tbl::EasyTable{M, I}, p::Polynomial{I, T}) where {M, I, T}
+    Polynomial{M, T}([tbl[i] for i in p.mo], p.co)
+end
+    
 
 #.. MonomialHashTable
 # Mostly for fun, may not be a good candidate for GB computations
@@ -182,15 +197,6 @@ Base.@propagate_inbounds Base.getindex(ctx::IxMonomialΓ{I}, i::I) where I = ctx
 function lt(ix::IxMonomialΓ{I}, a::I, b::I) where I
     lt(ix.ctx, ix[a], ix[b])
 end
-
-function indexmonomials(ix::IxMonomialΓ{I, N, E}, p::Polynomial{M, T}) where {I, N, E, M <: Monomial{N, E}, T}
-    return Polynomial{I, T}([ix(m) for m in p.mo], p.co)
-end
-
-function unindexmonomials(ix::IxMonomialΓ{I, N, E}, p::Polynomial{I, T}) where {I, N, E, T}
-    return Polynomial{Monomial{N, E}, T}([ix[i] for i in p.mo], p.co)
-end
-
 
 #.. Monomial interface
 
