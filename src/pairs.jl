@@ -28,13 +28,15 @@ function pairs!(ctx::SΓ,
                 G::Basis{I, M},
                 H::Basis{I, M}) where {I, M, SΓ <: SigPolynomialΓ{I, M}}
 
+    pos = sig[1]
     for g in G
+        pos_g = g[1]
         m = lcm(ctx.po.mo, leadingmonomial(ctx, g), leadingmonomial(ctx, sig))
         a = div(ctx.po.mo, m, leadingmonomial(ctx, sig))
         rewriteable_syz(ctx, a, sig, G, H) && continue
         b = div(ctx.po.mo, m , leadingmonomial(ctx, g))
         rewriteable(ctx, b, g, G, H) && continue
-        if lt(ctx, ctx(a, sig)[:sigratio], ctx(b, g)[:sigratio])
+        if lt(ctx, (pos, ctx(a, sig)[:sigratio]), (pos_g, ctx(b, g)[:sigratio]))
             push!(pairset, (b, g))
         else
             push!(pairset, (a, sig))
@@ -50,6 +52,13 @@ function pair!(ctx::SΓ,
 end
 
 #.. Rewrite functions for add rewrite order
+
+function new_rewriter!(ctx::SΓ,
+                       pairset::PairSet{I, M, SΓ},
+                       sig::Tuple{I, M}) where {I, M, SΓ <: SigPolynomialΓ{I, M}}
+    pos, m = sig
+    pairset = filter(p -> p[2][1] != pos || !(divides(ctx.po.mo, m, mul(ctx.po.mo, p[1], p[2][1]))), pairset)
+end
 
 function rewriteable(ctx::SigPolynomialΓ{I, M},
                      m::M,
@@ -97,3 +106,12 @@ function rewriteable(ctx::SigPolynomialΓ{I, M},
 
     rewriteable_syz(ctx, m, sig, G, H) || rewriteable(ctx, m, sig, G)
 end
+
+# selection
+
+function select_one!(ctx::SΓ,
+                     pairs::PairSet{I, M, SΓ}) where {I, M, SΓ <: SigPolynomialΓ{I, M}}
+    pairset(ctx, [pop!(pairs)])
+end
+
+    

@@ -104,3 +104,9 @@ end
 
 (ctx::SigPolynomialΓ)(i, m::AA.MPolyElem) = (pos_type(ctx)(i), ctx.po.mo(m))
 (ctx::SigPolynomialΓ{I, M})(sig::Tuple{I, M}, p::AA.MPolyElem) where {I, M} = ctx(sig, ctx.po(p))
+
+function (R :: AA.MPolyRing)(ctx::SigPolynomialΓ{I, M},
+                             sig::Tuple{I, M}) where {I, M}
+
+    R(ctx.po, ctx(sig)[:poly])
+end

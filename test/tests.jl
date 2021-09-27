@@ -161,3 +161,16 @@ end
     @test SG.divides(idx, i, k)
     @test SG.divides(idx, j, k)
 end
+
+@testset "small groebner" begin
+    R, (x, y) = Oscar.PolynomialRing(Oscar.GF(101), ["x", "y"],
+                                     ordering = :degrevlex)
+    I = [x^2, x*y + y^2]
+    dat, G, H, pairs = SG.f5setup(I)
+    SG.f5core!(dat, G, H, pairs)
+    gb = vcat(I, [y^3])
+    gb_2 = [R(dat.ctx, g) for g in G]
+    @test gb == gb_2
+end
+
+

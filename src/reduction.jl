@@ -27,7 +27,8 @@ function mat_show(mat::F5matrix)
     end
     mat_vis
 end
-            
+
+Base.show(io::IO, mat::F5matrix) = Base.show(io, mat_show(mat))
 
 function reduction!(mat::F5matrix{I, M, T, J, Tbuf}) where {I, M, T, J, Tbuf}
     n_cols = length(mat.tbl)
@@ -97,3 +98,33 @@ function critical_loop!(buffer::Vector{Tbuf},
         return
     end
 end
+
+# rows that need to be added
+
+function new_elems_f5!(ctx::SΓ,
+                       mat::F5matrix{I, M, T},
+                       pairs::PairSet{I, M, SΓ},
+                       G::Basis{I, M},
+                       H::Basis{I, M}) where {I, M, T, SΓ <: SigPolynomialΓ{I, M, T}}
+
+    for (i, sig) in enumerate(mat.sigs)
+        m, (pos, t) = sig
+        new_sig = (pos, mul(ctx.po.mo, m, t))
+        @inbounds begin
+            if iszero(mat.rows[i])
+                insert!(H, new_sig)
+                new_rewriter!(ctx, pairset, new_sig)
+            else
+                p = unindexpolynomial(mat.tbl, mat.rows[i])
+                # add element to basis
+                if isone(ctx.po.mo[m]) || lt(ctx.po.mo, leadingmonomial(p), mul(ctx.po.mo, m, leadingmonomial(ctx, (pos, t))))
+                    ctx(new_sig, p)
+                    new_rewriter!(ctx, pairs, new_sig)
+                    pairs!(ctx, pairs, new_sig, G, H)
+                    insert!(G, new_sig)
+                end
+            end
+        end
+    end
+end
+        

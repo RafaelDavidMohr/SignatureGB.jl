@@ -91,6 +91,7 @@ function bitmask(m::Monomial{N, E}, pwrs::Dict{Int, Vector{E}}; masktype = UInt3
 end
                   
 Base.one(::Type{Monomial{N, E}}) where {N, E} = Monomial{N, E}(SVector{N, E}(zeros(E, N)))
+Base.isone(m::Monomial{N, E}) where {N, E} = m == one(typeof(m))
 
 #.. Monomial context
 
