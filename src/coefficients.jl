@@ -66,9 +66,9 @@ end
     z0 = a - UInt64(b)*UInt64(c)
     z1 = z0 + ctx.maxshift
     z = (z0 > a) ? z1 : z0
-    #if (z%ctx.char + (UInt64(b)%ctx.char)*(UInt64(c)%ctx.char)%ctx.char)%ctx.char != a%ctx.char
+    # if (z%ctx.char + (UInt64(b)%ctx.char)*(UInt64(c)%ctx.char)%ctx.char)%ctx.char != a%ctx.char
     #    error((ctx, a, b, c))
-    #end
+    # end
     return z
 end
 

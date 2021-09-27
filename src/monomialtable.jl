@@ -6,10 +6,6 @@
 mutable struct EasyTable{T, I <: Unsigned}
     val::Vector{T}
     rev::Dict{T, I}
-
-    function EasyTable{T, I}() where {T, I}
-        new(T[], Dict{T, I}())
-    end
 end
 
 function easytable(val, ind_type = UInt32)
@@ -35,7 +31,7 @@ Base.length(table::EasyTable) = length(table.val)
     end
 end
 
-function indexpolynomial(tbl::EasyTable{M, I}, p::Polynomial{M, T}) where {M, I}
+function indexpolynomial(tbl::EasyTable{M, I}, p::Polynomial{M, T}) where {M, I, T}
     Polynomial{I, T}([findorpush!(tbl, m) for m in p.mo], p.co)
 end
 
@@ -150,13 +146,15 @@ function findorpush!(table::MonomialHashTable{N, E, I, B}, v::Monomial{N, E}) wh
             remask_cond = true
             table.max_powers[i] = e
         end
-        if e < table.min_powers[i]
+        if zero(e) < e < table.min_powers[i]
             remask_cond = true
             table.min_powers[i] = e
         end
     end
     remask_cond && remask!(table)
-    push!(table.bitmasks, bitmask(v, table.bitmask_powers, masktype = B))
+    if !(remask_cond)
+        push!(table.bitmasks, bitmask(v, table.bitmask_powers, masktype = B))
+    end
     table.size += 1
     n = I(table.size)
 
