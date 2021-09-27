@@ -44,4 +44,5 @@ function symbolic_pp!(ctx::SΓ,
             union!(todo, ctx(red[1], red[2])[:poly].mo)
         end
     end
+    done
 end     

@@ -158,6 +158,8 @@ end
 
 Base.size(p::Polynomial) = size(p.co)
 Base.@propagate_inbounds Base.getindex(p::Polynomial, i...) = (getindex(p.mo, i...), getindex(p.co, i...))
+# may not be ideal
+Base.@propagate_inbounds Base.getindex(p::Polynomial, r::UnitRange) = [(p.mo[i], p.co[i]) for i in r]
 Base.@propagate_inbounds function Base.setindex!(p::Polynomial{M, T}, t::Tuple{M, T}, i...) where {M, T}
     setindex!(p.mo, t[1], i...)
     setindex!(p.co, t[2], i...)
@@ -240,7 +242,8 @@ function normalize!(ctx::Γ, p::T; onlysort::Bool=false) where {T<:Polynomial, �
 end
 
 
-function monic!(ctx::Γ, p::T) where {T<:Polynomial, Γ<:Context{T}}
+function monic!(ctx::TΓ,
+                p::Polynomial{M, T}) where {M, T, TΓ <: Context{T}}
     isempty(p) && return
     @inbounds begin
         isone(coefficient(p, 1)) && return

@@ -6,10 +6,6 @@
 mutable struct EasyTable{T, I <: Unsigned}
     val::Vector{T}
     rev::Dict{T, I}
-
-    function EasyTable{T, I}() where {T, I}
-        new(T[], Dict{T, I}())
-    end
 end
 
 function easytable(val, ind_type = UInt32)
