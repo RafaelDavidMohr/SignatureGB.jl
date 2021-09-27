@@ -1,4 +1,4 @@
-monomialset(ctx::MonomialContext{M}, mons::Vector{M}) where M = SortedSet(mons, ReverseOrder(order(ctx)))
+monomialset(ctx::MonomialContext{M}, mons::Vector{M}) where M = SortedSet(mons, Base.Order.ReverseOrdering(order(ctx)))
 monomialset(ctx::MonomialContext{M}) where M = monomialset(ctx, M[])
 
 function Base.union!(s::SortedSet{T}, new::Vector{T}) where T
@@ -19,19 +19,19 @@ function find_reducer(ctx::SigPolynomialΓ{I, M},
         if divides(ctx.po.mo, n, m)
             delta = div(ctx.po.mo, m, n)
             rewriteable(ctx, delta, g, G, H) && continue
-            push!(reducers, (n, g))
+            push!(reducers, (delta, g))
         end
     end
     isempty(reducers) && return nothing
     pop!(reducers)
 end
 
-function symbolic_pp!(ctx::SigPolynomialΓ{I, M},
-                      pairs::PairSet{I, M},
+function symbolic_pp!(ctx::SΓ,
+                      pairs::PairSet{I, M, SΓ},
                       G::Basis{I, M},
-                      H::Basis{I, M}) where {I, M <: Integer}
+                      H::Basis{I, M}) where {I, M <: Integer, SΓ <: SigPolynomialΓ{I, M}}
 
-    todo = monomialset(ctx.po.mo, [ctx(p[1], p[2])[:polynomial].monomials... for p in pairs])
+    todo = monomialset(ctx.po.mo, vcat([ctx(p[1], p[2])[:poly].mo for p in pairs]...))
     done = monomialset(ctx.po.mo)
 
     while todo != done
@@ -41,7 +41,7 @@ function symbolic_pp!(ctx::SigPolynomialΓ{I, M},
             red = find_reducer(ctx, G, H, m)
             isnothing(red) && continue
             push!(pairs, red)
-            union!(todo, ctx(red[1], red[2])[:polynomial].monomials)
+            union!(todo, ctx(red[1], red[2])[:poly].mo)
         end
     end
 end     

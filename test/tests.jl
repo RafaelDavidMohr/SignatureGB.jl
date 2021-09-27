@@ -115,11 +115,33 @@ end
     syz = SG.SlicedInd(eltype(ctx)[])
     new_sig = ctx(2, x)
     ctx(new_sig, y^3)
-    pairset = MutableBinaryHeap(p_ord, Tuple{mo_t, Tuple{pos_t, mo_t}}[])
+    pairset = SG.pairset(ctx)
     SG.pairs!(ctx, pairset, new_sig, basis, syz)
     @test isempty(pairset)
 end
 
+@testset "symbolic-pp" begin
+    R, (x, y) = Oscar.PolynomialRing(Oscar.GF(101), ["x", "y"],
+                                     ordering = :degrevlex)
+    I = [x^2, x*y + y^2]
+    order = SG.Grevlex(2)
+    dat = SG.f5data(I, order=order)
+    ctx = dat.ctx
+    mo_t = eltype(ctx.po.mo)
+    pos_t = SG.pos_type(ctx)
+    p_ord = SG.pairordering(ctx)
+    basis = SG.SlicedInd([ctx(1, R(1)), ctx(2, R(1))])
+    syz = SG.SlicedInd(eltype(ctx)[])
+    pair_sig = (ctx.po.mo(x), ctx(2, R(1)))
+    pairset = SG.pairset(ctx)
+    push!(pairset, pair_sig)
+    SG.symbolic_pp!(ctx, pairset, basis, syz)
+    test_sig_1 = (ctx.po.mo(y), ctx(1, R(1)))
+    test_sig_2 = (ctx.po.mo(y), ctx(2, R(1)))
+    test_pairset = SG.pairset(ctx, [pair_sig, test_sig_1, test_sig_2])
+    @test pairset == test_pairset
+end
+    
 @testset "monomial hashing" begin
     order = SG.Grevlex(5)
     ctx = SG.monomialctx(exponents = Int64, order=SG.Grevlex(5))

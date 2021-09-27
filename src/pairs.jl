@@ -11,10 +11,15 @@ function Base.Order.lt(porder::PairOrdering{SΓ}, a, b) where {SΓ <: SigPolynom
 end
 
 const Basis{I, M} = SlicedInd{I, M}
-const PairSet{I, M, SΓ} = MutableBinaryHeap{Tuple{M, Tuple{I, M}}, PairOrdering{SΓ}}
+const PairSet{I, M, SΓ} = SortedSet{Tuple{M, Tuple{I, M}}, PairOrdering{SΓ}}
+
+function pairset(ctx::SigPolynomialΓ{I, M},
+                 pairs::Vector{Tuple{M, Tuple{I, M}}}) where {I, M}
+    SortedSet(pairs, pairordering(ctx))
+end
 
 function pairset(ctx::SigPolynomialΓ{I, M}) where {I, M}
-    MutableBinaryHeap(pairordering(ctx), Tuple{M, Tuple{I, M}}[])
+    SortedSet(Tuple{M, Tuple{I, M}}[], pairordering(ctx))
 end
 
 function pairs!(ctx::SΓ,
@@ -54,7 +59,7 @@ function rewriteable(ctx::SigPolynomialΓ{I, M},
     msig = mul(ctx, m, sig)
     pos = sig[1]
     # can we make this iteration better?
-    curr = iterate(G[pos], gettoken(G[pos], sig)[2][2])
+    curr = iterate(G[pos], gettoken(G[pos], sig[2])[2][2])
     while !(isnothing(curr))
         (n, tk) = curr
         divides(ctx.po.mo, n, msig[2]) && return true

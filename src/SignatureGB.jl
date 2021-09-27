@@ -11,5 +11,6 @@ include("./sigtable.jl")
 include("./f5data.jl")
 include("./kd_tree.jl")
 include("./pairs.jl")
+include("./symbolicpp.jl")
 
 end
