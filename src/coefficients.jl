@@ -82,7 +82,7 @@ function inv(ctx::Nmod32Γ, a::UInt32)
 end
 
 function mul(ctx::Nmod32Γ, a, b)
-    (UInt64(a)*UInt64(b) % ctx.char) % UInt32
+    UInt32((UInt64(a)*UInt64(b) % ctx.char))
 end
 
 function normal(ctx::Nmod32Γ, a::UInt64)

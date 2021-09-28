@@ -14,6 +14,13 @@ function small_example()
     R, (x, y), ctx, basis, syz
 end
 
+function cyclic(vars)
+    n = length(vars)
+    pols = [sum(prod(vars[j%n+1] for j in k:k+i) for k in 1:n) for i in 0:n-2]
+    push!(pols, prod(vars[i] for i in 1:n)-1)
+    return pols
+end
+
 @testset "sliceddict" begin
     ind = [(1, "a"), (2, "b")]
     vs = [1.0, 2.0]
@@ -173,4 +180,14 @@ end
     @test gb == gb_2
 end
 
+@testset "cyclic 4" begin
+    R, (x, y, z, w) = Oscar.PolynomialRing(Oscar.GF(101), ["x", "y", "z", "w"],
+                                           ordering = :degrevlex)
+    I = cyclic([x,y,z,w])
+    dat, G, H, pairs = SG.f5setup(I)
+    SG.f5core!(dat, G, H, pairs)
+    gb = [R(dat.ctx, g) for g in G]
+    @test Oscar.ideal(R, gb) == Oscar.ideal(R, Oscar.groebner_basis(Oscar.ideal(R, I), ordering =:degrevlex))
+    @test Oscar.leading_ideal(gb) == Oscar.leading_ideal(Oscar.ideal(R, I))
+end
 

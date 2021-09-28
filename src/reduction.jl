@@ -71,11 +71,12 @@ function unbuffer!(buffer::Vector{Tbuf},
     mons = J[]
     first_nz = 0
     for (j, c) in enumerate(buffer)
-        iszero(c) && continue
+        mod_coeff = deflate(ctx, normal(ctx, c))
+        iszero(mod_coeff) && continue
         if iszero(first_nz)
             first_nz = J(j)
         end
-        push!(coeffs, deflate(ctx, normal(ctx, c)))
+        push!(coeffs, mod_coeff)
         push!(mons, J(j))
         buffer[j] = zero(Tbuf)
     end
@@ -88,7 +89,7 @@ function critical_loop!(buffer::Vector{Tbuf},
                         pivot::Polynomial{J, T},
                         ctx::NmodLikeΓ{T, Tbuf}) where {J, T, Tbuf}
 
-    mult = deflate(ctx, buffer[monomial(pivot, 1)])
+    mult = deflate(ctx, normal(ctx, buffer[monomial(pivot, 1)]))
     buffer[monomial(pivot, 1)] = zero(Tbuf)
     try
         for (j, c) in pivot[2:end]
@@ -113,11 +114,15 @@ function new_elems_f5!(ctx::SΓ,
         @inbounds begin
             if iszero(mat.rows[i])
                 insert!(H, new_sig)
-                new_rewriter!(ctx, pairset, new_sig)
+                new_rewriter!(ctx, pairs, new_sig)
             else
                 p = unindexpolynomial(mat.tbl, mat.rows[i])
                 # add element to basis
-                if isone(ctx.po.mo[m]) || lt(ctx.po.mo, leadingmonomial(p), mul(ctx.po.mo, m, leadingmonomial(ctx, (pos, t))))
+                # reductions of initial generators are added
+                add_cond_1 = isone(ctx.po.mo[m]) && isone(ctx.po.mo[t]) && !(new_sig in G)
+                # leading term dropped during reduction
+                add_cond_2 = lt(ctx.po.mo, leadingmonomial(p), mul(ctx.po.mo, m, leadingmonomial(ctx, (pos, t))))
+                if add_cond_1 || add_cond_2
                     ctx(new_sig, p)
                     new_rewriter!(ctx, pairs, new_sig)
                     pairs!(ctx, pairs, new_sig, G, H)
@@ -127,4 +132,3 @@ function new_elems_f5!(ctx::SΓ,
         end
     end
 end
-        
