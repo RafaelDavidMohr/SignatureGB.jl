@@ -75,6 +75,10 @@ function mul(ctx::SigPolynomialΓ{I, M}, m::M, sig::Tuple{I, M}) where {I, M}
     (sig[1], mul(ctx.po.mo, m, sig[2]))
 end
 
+function divides(ctx::SigPolynomialΓ{I, M}, s1::Tuple{I, M}, s2::Tuple{I, M}) where {I, M}
+    s1[1] == s2[1] && divides(ctx.po.mo, s1[2], s2[2])
+end
+
 leadingmonomial(ctx::SigPolynomialΓ{I, M}, sig::Tuple{I, M}) where {I, M} = leadingmonomial(ctx(sig)[:poly])
 
 # sorting

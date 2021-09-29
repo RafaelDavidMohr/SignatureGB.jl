@@ -20,3 +20,14 @@ end
         return true
     end
 end
+
+function even_partition(i, nums)
+    fl = typeof(i)(floor(i / nums))
+    part = repeat([fl], nums)
+    while sum(part) != i
+        ind = rand(1:nums)
+        part[ind] += 1
+    end
+    part
+end
+    

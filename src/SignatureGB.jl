@@ -51,7 +51,7 @@ function f5core!(dat::F5Data{I, SΓ},
         to_reduce = select(ctx, pairs)
         pr = first(to_reduce)
         done = symbolic_pp!(ctx, to_reduce, G, H)
-        mat = f5matrix(ctx, done, to_reduce)
+        mat = f5matrix(ctx, done, to_reduce)            
         reduction!(mat)
         new_elems_f5!(ctx, mat, pairs, G, H)
     end

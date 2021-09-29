@@ -60,8 +60,8 @@ mutable struct MonomialHashTable{N, E, I <: Unsigned, B <: Unsigned}
         tsize = 16
         @assert 2*tsize <= typemax(I)
         nbits = ndigits(typemax(B), base = 2)
-        masks_per_var = Int(floor(nbits / N))
-        bitmask_powers = Dict([(i, zeros(E, masks_per_var)) for i in 1:N])
+        masks_per_var = even_partition(nbits, N)
+        bitmask_powers = Dict([(i, zeros(E, masks_per_var[i])) for i in 1:N])
         zs = SVector{N, E}(zeros(E, N))
         new(Monomial{N, E}[], B[], zeros(Int, 2*tsize),
             zs, zs, bitmask_powers, tsize-1, 0, 4)
@@ -197,6 +197,8 @@ function lt(ix::IxMonomialΓ{I}, a::I, b::I) where I
 end
 
 #.. Monomial interface
+
+pretty_print(ctx::IxMonomialΓ{I}, m::I) where I = "$(ctx[m])"
 
 valtype(ctx::IxMonomialΓ) = eltype(ctx.ctx)
 variables(ctx::IxMonomialΓ) = variables(ctx.ctx)

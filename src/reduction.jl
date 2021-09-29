@@ -1,5 +1,5 @@
 mutable struct F5matrix{I, M, T, J, Tbuf, NΓ <: NmodLikeΓ{T, Tbuf}}
-    sigs::PairSet{I, M}
+    sigs::MonSigSet{I, M}
     rows::Vector{Polynomial{J, T}}
     tbl::EasyTable{M, J}
     ctx::NΓ
@@ -7,10 +7,11 @@ end
 
 function f5matrix(ctx::SigPolynomialΓ{I, M, T},
                   mons::MS,
-                  row_sigs::PairSet{I, M}) where {I, M, T, MS <: SortedSet{M}}
+                  row_sigs::MonSigSet{I, M}) where {I, M, T, MS <: SortedSet{M}}
 
     tbl = easytable(mons)
     rows = Array{Polynomial{ind_type(tbl), T}}(undef, length(row_sigs))
+    pols = [ctx(sig...)[:poly] for sig in row_sigs]
     for (i, sig) in enumerate(row_sigs)
         @inbounds rows[i] = indexpolynomial(tbl, ctx(sig...)[:poly])
     end
@@ -36,7 +37,7 @@ function reduction!(mat::F5matrix{I, M, T, J, Tbuf}) where {I, M, T, J, Tbuf}
     buffer = zeros(Tbuf, n_cols)
 
     @inbounds begin
-        for (i, row) in enumerate(mat.rows)
+        for ((i, row), sig) in zip(enumerate(mat.rows), mat.sigs)
             l = leadingmonomial(row)
             if iszero(pivots[l])
                 pivots[l] = J(i)
@@ -97,7 +98,7 @@ function critical_loop!(buffer::Vector{Tbuf},
         end
     catch BoundsError
         return
-    end
+p    end
 end
 
 # rows that need to be added
@@ -110,7 +111,7 @@ function new_elems_f5!(ctx::SΓ,
 
     for (i, sig) in enumerate(mat.sigs)
         m, (pos, t) = sig
-        new_sig = (pos, mul(ctx.po.mo, m, t))
+        new_sig = mul(ctx, sig...)
         @inbounds begin
             if iszero(mat.rows[i])
                 insert!(H, new_sig)
@@ -121,12 +122,12 @@ function new_elems_f5!(ctx::SΓ,
                 # reductions of initial generators are added
                 add_cond_1 = isone(ctx.po.mo[m]) && isone(ctx.po.mo[t]) && !(new_sig in G)
                 # leading term dropped during reduction
-                add_cond_2 = lt(ctx.po.mo, leadingmonomial(p), mul(ctx.po.mo, m, leadingmonomial(ctx, (pos, t))))
+                add_cond_2 = lt(ctx.po.mo, leadingmonomial(p), leadingmonomial(ctx(sig...)[:poly]))
                 if add_cond_1 || add_cond_2
                     ctx(new_sig, p)
                     new_rewriter!(ctx, pairs, new_sig)
-                    pairs!(ctx, pairs, new_sig, G, H)
                     insert!(G, new_sig)
+                    pairs!(ctx, pairs, new_sig, G, H)
                 end
             end
         end

@@ -132,19 +132,19 @@ end
 @testset "symbolic-pp" begin
     R, (x, y), ctx, basis, syz = small_example()
     pair_sig = (ctx.po.mo(x), ctx(2, R(1)))
-    pairset = SG.pairset(ctx)
+    pairset = SG.mpairset(ctx)
     push!(pairset, pair_sig)
     SG.symbolic_pp!(ctx, pairset, basis, syz)
     test_sig_1 = (ctx.po.mo(y), ctx(1, R(1)))
     test_sig_2 = (ctx.po.mo(y), ctx(2, R(1)))
-    test_pairset = SG.pairset(ctx, [pair_sig, test_sig_1, test_sig_2])
+    test_pairset = SG.mpairset(ctx, [pair_sig, test_sig_1, test_sig_2])
     @test pairset == test_pairset
 end
 
 @testset "small-reduction" begin
     R, (x, y), ctx, basis, syz = small_example()
     pair_sig = (ctx.po.mo(x), ctx(2, R(1)))
-    pairset = SG.pairset(ctx)
+    pairset = SG.mpairset(ctx)
     push!(pairset, pair_sig)
     mons = SG.symbolic_pp!(ctx, pairset, basis, syz)
     mat = SG.f5matrix(ctx, mons, pairset)
@@ -180,6 +180,16 @@ end
     @test gb == gb_2
 end
 
+@testset "small groebner 2" begin
+    R, (x, y, z, t) = Oscar.PolynomialRing(Oscar.GF(7), ["x", "y", "z", "t"],
+                                           ordering = :degrevlex)
+    I = [y*z - 2*t^2, x*y + t^2, x^2*z + 3*x*t^2 - 2*y*t^2]
+    dat, G, H, pairs = SG.f5setup(I)
+    SG.f5core!(dat, G, H, pairs)
+    gb = [R(dat.ctx, g) for g in G]
+    @test length(gb) == 7
+end
+
 @testset "cyclic 4" begin
     R, (x, y, z, w) = Oscar.PolynomialRing(Oscar.GF(101), ["x", "y", "z", "w"],
                                            ordering = :degrevlex)
@@ -187,7 +197,16 @@ end
     dat, G, H, pairs = SG.f5setup(I)
     SG.f5core!(dat, G, H, pairs)
     gb = [R(dat.ctx, g) for g in G]
-    @test Oscar.ideal(R, gb) == Oscar.ideal(R, Oscar.groebner_basis(Oscar.ideal(R, I), ordering =:degrevlex))
+    @test Oscar.ideal(R, gb) == Oscar.ideal(R, I)
     @test Oscar.leading_ideal(gb) == Oscar.leading_ideal(Oscar.ideal(R, I))
 end
 
+@testset "cyclic 6" begin
+    R, (x1, x2, x3, x4, x5, x6) = Oscar.PolynomialRing(Oscar.GF(101), ["x$(i)" for i in 1:6], ordering = :degrevlex)
+    I = cyclic([x1,x2,x3,x4,x5])
+    dat, G, H, pairs = SG.f5setup(I)
+    SG.f5core!(dat, G, H, pairs)
+    gb = [R(dat.ctx, g) for g in G]
+    @test Oscar.ideal(R, gb) == Oscar.ideal(R, I)
+    @test Oscar.leading_ideal(gb) == Oscar.leading_ideal(Oscar.ideal(R, I))
+end

@@ -12,13 +12,15 @@ function find_reducer(ctx::SigPolynomialΓ{I, M},
                       H::Basis{I, M},
                       m::M) where {I, M}
 
-    reducers = pairset(ctx)
+    reducers = mpairset(ctx)
     for g in G
         n = leadingmonomial(ctx, g)
         # probably need to check that lt(ctx(n, g)) == n*lt(ctx, g)
         if divides(ctx.po.mo, n, m)
             delta = div(ctx.po.mo, m, n)
-            rewriteable(ctx, delta, g, G, H) && continue
+            if rewriteable(ctx, delta, g, G, H)
+                continue
+            end
             push!(reducers, (delta, g))
         end
     end
@@ -27,7 +29,7 @@ function find_reducer(ctx::SigPolynomialΓ{I, M},
 end
 
 function symbolic_pp!(ctx::SΓ,
-                      pairs::PairSet{I, M, SΓ},
+                      pairs::MonSigSet{I, M, SΓ},
                       G::Basis{I, M},
                       H::Basis{I, M}) where {I, M <: Integer, SΓ <: SigPolynomialΓ{I, M}}
 
