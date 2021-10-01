@@ -1,5 +1,5 @@
-const Data{M, T} = NamedTuple{(:poly, :sigtail, :sigratio),
-                              Tuple{Polynomial{M, T}, Polynomial{M, T}, M}}
+const Data{M, T} = NamedTuple{(:poly, :sigtail, :sigratio, :lm),
+                              Tuple{Polynomial{M, T}, Polynomial{M, T}, M, M}}
 const SigTable{I, M, T} = Dict{Tuple{I, M}, Data{M, T}}
 
 mutable struct SigPolynomialΓ{I, M, T, MΓ<:Context{M}, TΓ<:Context{T}, S}<:Context{Tuple{I, M}}
@@ -40,7 +40,7 @@ function (ctx::SigPolynomialΓ{I, M, T})(sig::Tuple{I, M},
     else
         ratio = div(ctx.po.mo, sig[2], leadingmonomial(pol))
     end
-    val = Data{M, T}((pol, sigtail, ratio))
+    val = Data{M, T}((pol, sigtail, ratio, leadingmonomial(pol)))
     try
         ctx.tbl[sig] = val
     catch
@@ -50,14 +50,17 @@ end
 
 (ctx::SigPolynomialΓ{I, M, T})(sig::Tuple{I, M}, pol::Polynomial{M, T}) where {I, M, T} = ctx(sig, pol, zero(pol))
 
+Base.getindex(ctx::SigPolynomialΓ{I, M}, sig::Tuple{I, M}) where {I, M} = getindex(ctx.tbl, sig)
+
 # get functions
 
 # WARNING: if sig::Tuple{J, MO} where J != I or MO != M then this will convert sig to a Tuple{I, M}
 
-function (ctx::SigPolynomialΓ{I, M})(sig::Tuple{I, M}) where {I, M, MO}
-    get(ctx.tbl, sig) do
-        error("Nothing registered under the signature $(sign)")
-    end
+@inline function (ctx::SigPolynomialΓ{I, M})(sig::Tuple{I, M}) where {I, M, MO}
+    ctx.tbl[sig]
+    # get(ctx.tbl, sig) do
+    #     error("Nothing registered under the signature $(sign)")
+    # end
 end
 
 function (ctx::SigPolynomialΓ{I, M, T})(m::M, sig::Tuple{I, M}) where {I, M, T}
@@ -65,7 +68,7 @@ function (ctx::SigPolynomialΓ{I, M, T})(m::M, sig::Tuple{I, M}) where {I, M, T}
     key = (sig[1], mul(ctx.po.mo, m, sig[2]))
     get(ctx.tbl, key) do
         val = ctx.tbl[sig]
-        Data{M, T}((mul(ctx.po, val[:poly], m), mul(ctx.po, val[:sigtail], m), val[:sigratio]))
+        Data{M, T}((mul(ctx.po, val[:poly], m), mul(ctx.po, val[:sigtail], m), val[:sigratio], mul(ctx.po.mo, val[:lm], m)))
     end
 end
 
@@ -79,7 +82,7 @@ function divides(ctx::SigPolynomialΓ{I, M}, s1::Tuple{I, M}, s2::Tuple{I, M}) w
     s1[1] == s2[1] && divides(ctx.po.mo, s1[2], s2[2])
 end
 
-leadingmonomial(ctx::SigPolynomialΓ{I, M}, sig::Tuple{I, M}) where {I, M} = leadingmonomial(ctx(sig)[:poly])
+@inline leadingmonomial(ctx::SigPolynomialΓ{I, M}, sig::Tuple{I, M}) where {I, M} = ctx[sig][:lm]
 
 # sorting
 

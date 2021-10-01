@@ -2,12 +2,6 @@ monomialset(ctx::MonomialContext{M}, mons::Vector{M}) where M = SortedSet(mons, 
 monomialset(ctx::MonomialContext{M}) where M = monomialset(ctx, M[])
 minmonomialset(ctx::MonomialContext{M}) where M = SortedSet(M[], order(ctx))
 
-function Base.union!(s::SortedSet{T}, new::Vector{T}) where T
-    for n in new
-        push!(s, n)
-    end
-end
-
 function find_reducer(ctx::SigPolynomialΓ{I, M},
                       G::Basis{I, M},
                       H::Basis{I, M},
@@ -44,11 +38,14 @@ function symbolic_pp!(ctx::SΓ,
                       are_pairs=true) where {I, M <: Integer, SΓ <: SigPolynomialΓ{I, M}}
 
     rewrite_checks_time = 0.0
-    todo = monomialset(ctx.po.mo, vcat([ctx(p[1], p[2])[:poly].mo for p in pairs]...))
+    # todo = monomialset(ctx.po.mo, vcat([ctx(p[1], p[2])[:poly].mo for p in pairs]...))
+    todo = Set(vcat([ctx(p[1], p[2])[:poly].mo for p in pairs]...))
     if are_pairs
-        done = monomialset(ctx.po.mo, [leadingmonomial(ctx(p[1], p[2])[:poly]) for p in pairs])
+        # done = monomialset(ctx.po.mo, [ctx(p[1], p[2])[:lm] for p in pairs])
+        done = Set([ctx(p[1], p[2])[:lm] for p in pairs])
     else
-        done = monomialset(ctx.po.mo)
+        # done = monomialset(ctx.po.mo)
+        done = Set(M[])
     end
 
     while todo != done
@@ -62,5 +59,5 @@ function symbolic_pp!(ctx::SΓ,
             union!(todo, ctx(red[1], red[2])[:poly].mo)
         end
     end
-    done, rewrite_checks_time
+    sort(collect(done), lt = (a, b) -> lt(ctx.po.mo, a, b), rev = true), rewrite_checks_time
 end     

@@ -1,3 +1,5 @@
+using DataStructures
+
 #. HASHTABLES
 
 #.. EasyTable
@@ -9,7 +11,8 @@ mutable struct EasyTable{T, I <: Unsigned}
 end
 
 function easytable(val, ind_type = UInt32)
-    tbl_val = collect(val)
+    # tbl_val = collect(val)
+    tbl_val = val
     tbl_rev = Dict{eltype(val), ind_type}(broadcast(x -> reverse(x), enumerate(tbl_val)))
     EasyTable{eltype(val), ind_type}(tbl_val, tbl_rev)
 end
@@ -55,6 +58,8 @@ mutable struct MonomialHashTable{N, E, I <: Unsigned, B <: Unsigned}
     mask::I
     size::Int
     maxloop::Int
+    hits::Int
+    totaldivs::Int
 
     function MonomialHashTable{N, E, I, B}() where {N, E, I, B}
         tsize = 16
@@ -64,7 +69,7 @@ mutable struct MonomialHashTable{N, E, I <: Unsigned, B <: Unsigned}
         bitmask_powers = Dict([(i, zeros(E, masks_per_var[i])) for i in 1:N])
         zs = SVector{N, E}(zeros(E, N))
         new(Monomial{N, E}[], B[], zeros(Int, 2*tsize),
-            zs, zs, bitmask_powers, tsize-1, 0, 4)
+            zs, zs, bitmask_powers, tsize-1, 0, 4, 0, 0)
     end
 end
 
@@ -214,10 +219,16 @@ mul(ctx::IxMonomialΓ{I}, i::I, j::I) where I = ctx(mul(ctx.ctx, ctx[i], ctx[j])
 div(ctx::IxMonomialΓ{I}, i::I, j::I) where I = ctx(div(ctx.ctx, ctx[i], ctx[j]))
 lcm(ctx::IxMonomialΓ{I}, i::I, j::I) where I = ctx(lcm(ctx.ctx, ctx[i], ctx[j]))
 gcd(ctx::IxMonomialΓ{I}, i::I, j::I) where I = ctx(gcd(ctx.ctx, ctx[i], ctx[j]))
+
 function divides(ctx::IxMonomialΓ{I, N},
                  i::I,
                  j::I) where {I, N}
 
-     iszero(ctx.table.bitmasks[i]  & (~ ctx.table.bitmasks[j])) && divides(ctx.ctx, ctx[i], ctx[j])
-end
-    
+    # iszero(ctx.table.bitmasks[i]  & (~ ctx.table.bitmasks[j])) && divides(ctx.ctx, ctx[i], ctx[j])
+    ctx.table.totaldivs += 1
+    if iszero(ctx.table.bitmasks[i]  & (~ ctx.table.bitmasks[j]))
+        return divides(ctx.ctx, ctx[i], ctx[j])
+    end
+    ctx.table.hits += 1
+    false
+end  

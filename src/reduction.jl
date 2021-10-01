@@ -8,8 +8,8 @@ mutable struct F5matrix{I, M, T, J, Tbuf, NΓ <: NmodLikeΓ{T, Tbuf}}
 end
 
 function f5matrix(ctx::SigPolynomialΓ{I, M, T},
-                  mons::MS,
-                  row_sigs::MonSigSet{I, M}) where {I, M, T, MS <: SortedSet{M}}
+                  mons::Vector{M},
+                  row_sigs::MonSigSet{I, M}) where {I, M, T}
 
     tbl = easytable(mons)
     rows = Array{Polynomial{ind_type(tbl), T}}(undef, length(row_sigs))

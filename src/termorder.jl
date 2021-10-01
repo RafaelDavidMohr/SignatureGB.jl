@@ -127,3 +127,10 @@ iscompatible(b::Block{N}, e::SVector{N}, f::SVector{N}) where N =
     end
 end
 
+# @generated function divides(t::TermOrder{N}, e::SVector{N}, f::SVector{N}) where N
+#     quote
+#         $([:(e[$i] > f[$i] && return false) for i in 1:N]...)
+
+#         return true
+#     end
+# end

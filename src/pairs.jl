@@ -176,15 +176,18 @@ end
 function select_all_pos!(ctx::SΓ,
                          pairs::PairSet{I, M, SΓ}) where {I, M, SΓ <: SigPolynomialΓ{I, M}}
 
+    if iszero(pos(pair[2]))
+        return mpairset(ctx, [pair[1]]), false
+    end
     pos = first(pairs)[1][2][1]
     selected = mpairset(ctx)
     for p in pairs
         if p[1][2][1] == pos
             push!(selected, first(p))
+            push!(selected, p[2])
         else
             break
         end
     end
     selected
 end
-    

@@ -56,7 +56,7 @@ function f5core!(dat::F5Data{I, SΓ},
                  G::Basis{I, M},
                  H::Basis{I, M},
                  pairs::PairSet{I, M, SΓ},
-                 select = select_one!) where {I, M, SΓ <: SigPolynomialΓ{I, M}}
+                 select = select_all_pos!) where {I, M, SΓ <: SigPolynomialΓ{I, M}}
 
     times = Timings(0.0, 0.0, 0.0)
     
