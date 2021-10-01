@@ -9,8 +9,11 @@ function small_example()
     order = SG.Grevlex(2)
     dat = SG.f5data(I, order=order)
     ctx = dat.ctx
-    basis = SG.SlicedInd([ctx(1, R(1)), ctx(2, R(1))])
-    syz = SG.SlicedInd(eltype(ctx)[])
+    basis = SG.new_basis(ctx, 2)
+    syz = SG.new_basis(ctx, 2)
+    for i in 1:2
+        push!(basis[SG.pos_type(ctx)(i)], ctx.po.mo(R(1)))
+    end
     R, (x, y), ctx, basis, syz
 end
 
@@ -87,7 +90,7 @@ end
     sig1, sig2 = ctx(1, R(1)), ctx(2, R(1))
     ctx(sig1, f), ctx(sig2, g)
     m1 = ctx.po.mo(x)
-    @test keys(ctx.tbl) == SG.SlicedInd([sig1, sig2])
+    @test collect(keys(ctx.tbl)) == [sig1, sig2]
     @test R(ctx.po, ctx(sig1)[:poly]) == f
     @test R(ctx.po, ctx(m1, sig1)[:poly]) == x*f
 end
@@ -176,8 +179,8 @@ end
     dat, G, H, pairs = SG.f5setup(I)
     SG.f5core!(dat, G, H, pairs)
     gb = vcat(I, [y^3])
-    gb_2 = [R(dat.ctx, g) for g in G]
-    @test gb == gb_2
+    gb_2 = [R(dat.ctx, (i, g)) for i in keys(G) for g in G[i]]
+    @test all(p -> p in gb, gb_2)
 end
 
 @testset "small groebner 2" begin
@@ -186,7 +189,7 @@ end
     I = [y*z - 2*t^2, x*y + t^2, x^2*z + 3*x*t^2 - 2*y*t^2]
     dat, G, H, pairs = SG.f5setup(I)
     SG.f5core!(dat, G, H, pairs)
-    gb = [R(dat.ctx, g) for g in G]
+    gb = [R(dat.ctx, (i, g)) for i in keys(G) for g in G[i]]
     @test length(gb) == 7
 end
 
@@ -196,7 +199,7 @@ end
     I = cyclic([x,y,z,w])
     dat, G, H, pairs = SG.f5setup(I)
     SG.f5core!(dat, G, H, pairs)
-    gb = [R(dat.ctx, g) for g in G]
+    gb = [R(dat.ctx, (i, g)) for i in keys(G) for g in G[i]]
     @test Oscar.ideal(R, gb) == Oscar.ideal(R, I)
     @test Oscar.leading_ideal(gb) == Oscar.leading_ideal(Oscar.ideal(R, I))
 end
@@ -206,7 +209,7 @@ end
     I = cyclic([x1,x2,x3,x4,x5,x6])
     dat, G, H, pairs = SG.f5setup(I)
     times = SG.f5core!(dat, G, H, pairs)
-    gb = [R(dat.ctx, g) for g in G]
+    gb = [R(dat.ctx, (i, g)) for i in keys(G) for g in G[i]]
     println(times)
     @test Oscar.ideal(R, gb) == Oscar.ideal(R, I)
     @test Oscar.leading_ideal(gb) == Oscar.leading_ideal(Oscar.ideal(R, I))

@@ -1,6 +1,6 @@
 const Data{M, T} = NamedTuple{(:poly, :sigtail, :sigratio),
                               Tuple{Polynomial{M, T}, Polynomial{M, T}, M}}
-const SigTable{I, M, T} = SlicedDict{I, M, Data{M, T}}
+const SigTable{I, M, T} = Dict{Tuple{I, M}, Data{M, T}}
 
 mutable struct SigPolynomialΓ{I, M, T, MΓ<:Context{M}, TΓ<:Context{T}, S}<:Context{Tuple{I, M}}
     po::PolynomialΓ{M, T, MΓ, TΓ}
@@ -24,7 +24,7 @@ function idxsigpolynomialctx(coefficients,
         moctx = ixmonomialctx(; indices=index_type, mask_type=mask_type, kwargs...)
     end
     po = polynomialctx(coefficients, monomials = moctx)
-    tbl = emptysldict(pos_type, eltype(moctx), Data{eltype(moctx), eltype(coefficients)})
+    tbl = SigTable{pos_type, index_type, eltype(coefficients)}()
     ord_indices = Dict([(pos_type(i), pos_type(i)) for i in 1:ngens])
     SigPolynomialΓ{pos_type, eltype(moctx), eltype(coefficients),
                    typeof(moctx), typeof(coefficients), mod_order}(po, tbl, ord_indices)

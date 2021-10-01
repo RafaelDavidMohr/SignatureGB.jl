@@ -1,9 +1,12 @@
-using Dictionaries
 using DataStructures
 
 const MonSigPair{I, M} = Tuple{M, Tuple{I, M}}
 const Pair{I, M} = Tuple{MonSigPair{I, M}, MonSigPair{I, M}}
-const Basis{I, M} = SlicedInd{I, M}
+const Basis{I, M, MΓ} = Dict{I, SortedSet{M, Ordering{MΓ}}}
+
+function new_basis(ctx::SigPolynomialΓ, length)
+    Dict([(pos_type(ctx)(i), minmonomialset(ctx.po.mo)) for i in 1:length])
+end
 
 pos(p::MonSigPair{I, M}) where {I, M} = p[2][1]
 
@@ -70,20 +73,22 @@ function pairs!(ctx::SΓ,
                 H::Basis{I, M}) where {I, M, SΓ <: SigPolynomialΓ{I, M}}
 
     pos = sig[1]
-    for g in G
-        pos_g = g[1]
-        m = lcm(ctx.po.mo, leadingmonomial(ctx, g), leadingmonomial(ctx, sig))
-        a = div(ctx.po.mo, m, leadingmonomial(ctx, sig))
-        rewriteable_syz(ctx, a, sig, G, H) && continue
-        b = div(ctx.po.mo, m, leadingmonomial(ctx, g))
-        (pos, ctx(sig)[:sigratio]) == (pos_g, ctx(g)[:sigratio]) && continue
-        rewriteable(ctx, b, g, G, H) && continue
-        if lt(ctx, (pos, ctx(sig)[:sigratio]), (pos_g, ctx(g)[:sigratio]))
-            # @debug "new pair" pretty_print(ctx, (b, g)), pretty_print(ctx, (a, sig))
-            push!(pairset, ((b, g), (a, sig)))
-        else
-            push!(pairset, ((a, sig), (b, g)))
-            # @debug "new pair" pretty_print(ctx, (a, sig)), pretty_print(ctx, (b, g))
+    for i in keys(G)
+        for _g in G[i]
+            g = (i, _g)
+            m = lcm(ctx.po.mo, leadingmonomial(ctx, g), leadingmonomial(ctx, sig))
+            a = div(ctx.po.mo, m, leadingmonomial(ctx, sig))
+            rewriteable_syz(ctx, a, sig, G, H) && continue
+            b = div(ctx.po.mo, m, leadingmonomial(ctx, g))
+            (pos, ctx(sig)[:sigratio]) == (i, ctx(g)[:sigratio]) && continue
+            rewriteable(ctx, b, g, G, H) && continue
+            if lt(ctx, (pos, ctx(sig)[:sigratio]), (i, ctx(g)[:sigratio]))
+                # @debug "new pair" pretty_print(ctx, (b, g)), pretty_print(ctx, (a, sig))
+                push!(pairset, ((b, g), (a, sig)))
+            else
+                push!(pairset, ((a, sig), (b, g)))
+                # @debug "new pair" pretty_print(ctx, (a, sig)), pretty_print(ctx, (b, g))
+            end
         end
     end
 end
@@ -137,9 +142,9 @@ function rewriteable_syz(ctx::SigPolynomialΓ{I, M},
     end
     pos_t = pos_type(ctx)
     for i in pos_t(1):pos_t(pos - 1)
-        for g in G[i]
-            check_sig = (i, g)
-            divides(ctx.po.mo, leadingmonomial(ctx, check_sig), msig[2]) && return true
+        for _g in G[i]
+            g = (i, _g)
+            divides(ctx.po.mo, leadingmonomial(ctx, g), msig[2]) && return true
         end
     end
     return false

@@ -126,20 +126,20 @@ function new_elems_f5!(ctx::SΓ,
         new_sig = mul(ctx, sig...)
         @inbounds begin
             if isempty(mat.rows[i])
-                insert!(H, new_sig)
+                push!(H[pos], new_sig[2])
                 new_rewriter!(ctx, pairs, new_sig)
             else
                 p = unindexpolynomial(mat.tbl, mat.rows[i])
                 # add element to basis
                 # reductions of initial generators are added
-                add_cond_1 = isone(ctx.po.mo[m]) && isone(ctx.po.mo[t]) && !(new_sig in G)
+                add_cond_1 = isone(ctx.po.mo[m]) && isone(ctx.po.mo[t]) && !(new_sig[2] in G[pos])
                 # leading term dropped during reduction
                 add_cond_2 = lt(ctx.po.mo, leadingmonomial(p), leadingmonomial(ctx(sig...)[:poly]))
                 if add_cond_1 || add_cond_2
                     @debug "adding:" pretty_print(ctx, sig)
                     ctx(new_sig, p)
                     new_rewriter_time += @elapsed new_rewriter!(ctx, pairs, new_sig)
-                    !(new_sig in G) && insert!(G, new_sig)
+                    push!(G[pos], new_sig[2])
                     rewrite_checks_time += @elapsed pairs!(ctx, pairs, new_sig, G, H)
                 end
             end

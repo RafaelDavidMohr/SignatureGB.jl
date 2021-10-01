@@ -1,5 +1,6 @@
 monomialset(ctx::MonomialContext{M}, mons::Vector{M}) where M = SortedSet(mons, Base.Order.ReverseOrdering(order(ctx)))
 monomialset(ctx::MonomialContext{M}) where M = monomialset(ctx, M[])
+minmonomialset(ctx::MonomialContext{M}) where M = SortedSet(M[], order(ctx))
 
 function Base.union!(s::SortedSet{T}, new::Vector{T}) where T
     for n in new
@@ -14,19 +15,22 @@ function find_reducer(ctx::SigPolynomialΓ{I, M},
 
     rewrite_checks_time = 0.0
     reducers = mpairset(ctx)
-    for g in G
-        n = leadingmonomial(ctx, g)
-        # probably need to check that lt(ctx(n, g)) == n*lt(ctx, g)
-        if divides(ctx.po.mo, n, m)
-            delta = div(ctx.po.mo, m, n)
-            @debug "found possible reducer:" pretty_print(ctx, (delta, g))
-            rewr = @timed rewriteable(ctx, delta, g, G, H)
-            rewrite_checks_time += rewr.time
-            if rewr.value
-                @debug "it is rewriteable"
-                continue
+    for i in keys(G)
+        for _g in G[i]
+            g = (i, _g)
+            n = leadingmonomial(ctx, g)
+            # probably need to check that lt(ctx(n, g)) == n*lt(ctx, g)
+            if divides(ctx.po.mo, n, m)
+                delta = div(ctx.po.mo, m, n)
+                @debug "found possible reducer:" pretty_print(ctx, (delta, g))
+                rewr = @timed rewriteable(ctx, delta, g, G, H)
+                rewrite_checks_time += rewr.time
+                if rewr.value
+                    @debug "it is rewriteable"
+                    continue
+                end
+                push!(reducers, (delta, g))
             end
-            push!(reducers, (delta, g))
         end
     end
     isempty(reducers) && return nothing, rewrite_checks_time

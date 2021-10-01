@@ -35,12 +35,18 @@ function f5setup(I::Vector{P};
     else
         error("only grevlex order currently supported")
     end
+    if mod_order != :POT
+        error("only position over term order currently supported")
+    end
     dat = f5data(I, mod_order = mod_order, trace_sig_tails = false,
                  index_type = index_type, mask_type = mask_type,
                  pos_type = pos_type, order = order)
     ctx = dat.ctx
-    G = SlicedInd([ctx(i, R(1)) for i in 1:start_gen - 1])
-    H = SlicedInd(eltype(ctx), length(I))
+    G = new_basis(ctx, length(I))
+    for i in 1:(start_gen - 1)
+        push!(G[pos_type(i)], ctx.po.mo(R(1)))
+    end
+    H = new_basis(ctx, length(I))
     pairs = pairset(ctx)
     [pair!(ctx, pairs, ctx(i, R(1))) for i in start_gen:length(I)]
     dat, G, H, pairs
