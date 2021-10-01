@@ -5,6 +5,8 @@ const MonSigPair{I, M} = Tuple{M, Tuple{I, M}}
 const Pair{I, M} = Tuple{MonSigPair{I, M}, MonSigPair{I, M}}
 const Basis{I, M} = SlicedInd{I, M}
 
+pos(p::MonSigPair{I, M}) where {I, M} = p[2][1]
+
 function pretty_print(ctx::SigPolynomialΓ{I, M}, a::MonSigPair{I, M}) where {I, M}
     "$(Vector{Int}(ctx.po.mo[a[1][1]].exponents)), $(Int(a[2][1])), $(Vector{Int}(ctx.po.mo[a[2][2]].exponents))"
 end
@@ -33,7 +35,9 @@ function Base.Order.lt(porder::PairOrdering{SΓ},
                        a::Pair{I, M},
                        b::Pair{I, M}) where {I, M, SΓ <: SigPolynomialΓ{I, M}}
     if mul(porder.ord.ctx, first(a)...) == mul(porder.ord.ctx, first(b)...)
-        return Base.Order.lt(porder.ord, b[2], a[2])
+        if !(iszero(pos(a[2]))) && !(iszero(pos(b[2])))
+            return Base.Order.lt(porder.ord, a[2], b[2])
+        end
     end
     Base.Order.lt(porder.ord, first(a), first(b))
 end
@@ -75,9 +79,11 @@ function pairs!(ctx::SΓ,
         (pos, ctx(sig)[:sigratio]) == (pos_g, ctx(g)[:sigratio]) && continue
         rewriteable(ctx, b, g, G, H) && continue
         if lt(ctx, (pos, ctx(sig)[:sigratio]), (pos_g, ctx(g)[:sigratio]))
+            # @debug "new pair" pretty_print(ctx, (b, g)), pretty_print(ctx, (a, sig))
             push!(pairset, ((b, g), (a, sig)))
         else
             push!(pairset, ((a, sig), (b, g)))
+            # @debug "new pair" pretty_print(ctx, (a, sig)), pretty_print(ctx, (b, g))
         end
     end
 end
@@ -154,7 +160,12 @@ function select_one!(ctx::SΓ,
                      pairs::PairSet{I, M, SΓ}) where {I, M, SΓ <: SigPolynomialΓ{I, M}}
     
     pair = pop!(pairs)
-    mpairset(ctx, [first(pair)])
+    if iszero(pos(pair[2]))
+        return mpairset(ctx, [pair[1]]), false
+    else
+        @debug "selected" pretty_print(ctx, pair[1]), pretty_print(ctx, pair[2])
+        return mpairset(ctx, [pair[1], pair[2]]), true
+    end
 end
 
 function select_all_pos!(ctx::SΓ,

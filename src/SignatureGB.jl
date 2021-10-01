@@ -14,6 +14,12 @@ include("./pairs.jl")
 include("./symbolicpp.jl")
 include("./reduction.jl")
 
+mutable struct Timings
+    reduction::Float64
+    rewrite::Float64
+    new_rewriter::Float64
+end
+
 function f5setup(I::Vector{P};
                  start_gen = 1,
                  mod_order=:POT,
@@ -34,7 +40,7 @@ function f5setup(I::Vector{P};
                  pos_type = pos_type, order = order)
     ctx = dat.ctx
     G = SlicedInd([ctx(i, R(1)) for i in 1:start_gen - 1])
-    H = SlicedInd(eltype(ctx)[])
+    H = SlicedInd(eltype(ctx), length(I))
     pairs = pairset(ctx)
     [pair!(ctx, pairs, ctx(i, R(1))) for i in start_gen:length(I)]
     dat, G, H, pairs
@@ -46,15 +52,25 @@ function f5core!(dat::F5Data{I, SΓ},
                  pairs::PairSet{I, M, SΓ},
                  select = select_one!) where {I, M, SΓ <: SigPolynomialΓ{I, M}}
 
+    times = Timings(0.0, 0.0, 0.0)
+    
     ctx = dat.ctx
     while !(isempty(pairs))
-        to_reduce = select(ctx, pairs)
-        pr = first(to_reduce)
-        done = symbolic_pp!(ctx, to_reduce, G, H)
-        mat = f5matrix(ctx, done, to_reduce)            
-        reduction!(mat)
-        new_elems_f5!(ctx, mat, pairs, G, H)
+        to_reduce, are_pairs = select_one!(ctx, pairs)
+        pr = last(to_reduce)
+        done, rewrite_checks_time =  symbolic_pp!(ctx, to_reduce, G, H, are_pairs = are_pairs)
+        times.rewrite += rewrite_checks_time
+        mat = f5matrix(ctx, done, to_reduce)
+        times.reduction += @elapsed reduction!(mat)
+        @debug "is in row echelon:" check_row_echelon(mat)
+        @debug "row signatures:" [pretty_print(ctx, sig) for sig in mat.sigs if pos(sig) == pos(last(mat.sigs))]
+        new_rewriter_time, rewrite_checks_time = new_elems_f5!(ctx, mat, pairs, G, H)
+        times.rewrite += rewrite_checks_time
+        times.new_rewriter += new_rewriter_time
+        @debug "current basis in relevant position:" [(Int(g[1]), pretty_print(ctx.po.mo, g[2])) for g in G if g[1] == pos(last(mat.sigs))]
     end
+
+    times
 end
 
 

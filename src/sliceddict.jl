@@ -28,13 +28,15 @@ function SlicedInd(ind::Vector{Tuple{I, K}}) where {I, K}
     SlicedInd(dct)
 end
 
-function Base.getindex(Sl::SlicedInd{I, K}, i::I) where {I, K}
-    try
-        return Sl.ind[i]
-    catch
-        return Indices(K[])
+function SlicedInd(::Type{Tuple{I, K}}, length) where {I, K}
+    dct = Dictionary{I, Indices{K}}()
+    for i in 1:length
+        Base.insert!(dct, I(i), Indices(K[]))
     end
+    SlicedInd{I, K}(dct)
 end
+    
+Base.getindex(Sl::SlicedInd{I, K}, i::I) where {I, K} = Sl.ind[i]
 
 function Base.iterate(Sl::SlicedInd, s...)
     iterate([(i, k) for i in Base.keys(Sl.ind) for k in Sl.ind[i]], s...)

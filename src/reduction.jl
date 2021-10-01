@@ -1,3 +1,5 @@
+using Combinatorics
+
 mutable struct F5matrix{I, M, T, J, Tbuf, NΓ <: NmodLikeΓ{T, Tbuf}}
     sigs::MonSigSet{I, M}
     rows::Vector{Polynomial{J, T}}
@@ -16,6 +18,14 @@ function f5matrix(ctx::SigPolynomialΓ{I, M, T},
         @inbounds rows[i] = indexpolynomial(tbl, ctx(sig...)[:poly])
     end
     F5matrix(row_sigs, rows, tbl, ctx.po.co)
+end
+
+function check_row_echelon(mat::F5matrix)
+    for (p1, p2) in combinations(mat.rows, 2)
+        (isempty(p1) || isempty(p2)) && continue
+        leadingmonomial(p1) == leadingmonomial(p2) && return false
+    end
+    return true
 end
 
 # for printing matrices
@@ -109,11 +119,13 @@ function new_elems_f5!(ctx::SΓ,
                        G::Basis{I, M},
                        H::Basis{I, M}) where {I, M, T, SΓ <: SigPolynomialΓ{I, M, T}}
 
+    rewrite_checks_time = 0.0
+    new_rewriter_time = 0.0
     for (i, sig) in enumerate(mat.sigs)
         m, (pos, t) = sig
         new_sig = mul(ctx, sig...)
         @inbounds begin
-            if iszero(mat.rows[i])
+            if isempty(mat.rows[i])
                 insert!(H, new_sig)
                 new_rewriter!(ctx, pairs, new_sig)
             else
@@ -124,12 +136,14 @@ function new_elems_f5!(ctx::SΓ,
                 # leading term dropped during reduction
                 add_cond_2 = lt(ctx.po.mo, leadingmonomial(p), leadingmonomial(ctx(sig...)[:poly]))
                 if add_cond_1 || add_cond_2
+                    @debug "adding:" pretty_print(ctx, sig)
                     ctx(new_sig, p)
-                    new_rewriter!(ctx, pairs, new_sig)
-                    insert!(G, new_sig)
-                    pairs!(ctx, pairs, new_sig, G, H)
+                    new_rewriter_time += @elapsed new_rewriter!(ctx, pairs, new_sig)
+                    !(new_sig in G) && insert!(G, new_sig)
+                    rewrite_checks_time += @elapsed pairs!(ctx, pairs, new_sig, G, H)
                 end
             end
         end
     end
+    new_rewriter_time, rewrite_checks_time
 end
