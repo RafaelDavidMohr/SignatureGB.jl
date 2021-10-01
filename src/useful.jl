@@ -30,4 +30,16 @@ function even_partition(i, nums)
     end
     part
 end
+
+function even_between(a, b, nums)
+    part = even_partition(b - a, nums)
+    part_2 = similar(part)
+    curr = a
+    for (i, p) in enumerate(part)
+        part_2[i] = curr
+        curr += p
+    end
+    part_2
+end
+    
     
