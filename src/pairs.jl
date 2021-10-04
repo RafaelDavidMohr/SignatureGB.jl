@@ -123,8 +123,11 @@ function rewriteable(ctx::SigPolynomialΓ{I, M},
     pos = sig[1]
     # can we make this iteration better?
     flag = false
-    for g in G[pos]
-        lt(ctx.po.mo, sig[2], g) && divides(ctx.po.mo, g, msig) && return true
+    # for g in G[pos]
+    #     lt(ctx.po.mo, sig[2], g) && divides(ctx.po.mo, g, msig) && return true
+    # end
+    for g in inclusive(G[pos], searchsortedafter(G[pos], g), lastindex(G[pos]))
+        divides(ctx.po.mo, g, msig) && return true
     end
     return false
 end
