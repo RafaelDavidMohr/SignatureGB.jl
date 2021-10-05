@@ -44,9 +44,9 @@ function f5setup(I::Vector{P};
     ctx = dat.ctx
     G = new_basis(ctx, length(I))
     for i in 1:(start_gen - 1)
-        push!(G[pos_type(i)], ctx.po.mo(R(1)))
+        new_basis_elem!(G[pos_type(i)], ctx.po.mo(R(1)))
     end
-    H = new_basis(ctx, length(I))
+    H = new_syz(ctx, length(I))
     pairs = pairset(ctx)
     [pair!(ctx, pairs, ctx(i, R(1))) for i in start_gen:length(I)]
     dat, G, H, pairs
@@ -54,7 +54,7 @@ end
 
 function f5core!(dat::F5Data{I, SΓ},
                  G::Basis{I, M},
-                 H::Basis{I, M},
+                 H::Syz{I, M},
                  pairs::PairSet{I, M, SΓ},
                  select = select_all_pos!) where {I, M, SΓ <: SigPolynomialΓ{I, M}}
 
@@ -62,7 +62,7 @@ function f5core!(dat::F5Data{I, SΓ},
     
     ctx = dat.ctx
     while !(isempty(pairs))
-        to_reduce, are_pairs = select_one!(ctx, pairs)
+        to_reduce, are_pairs = select_all_pos_and_degree!(ctx, pairs)
         pr = last(to_reduce)
         done, rewrite_checks_time =  symbolic_pp!(ctx, to_reduce, G, H, are_pairs = are_pairs)
         times.rewrite += rewrite_checks_time

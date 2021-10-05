@@ -4,26 +4,25 @@ minmonomialset(ctx::MonomialContext{M}) where M = SortedSet(M[], order(ctx))
 
 function find_reducer(ctx::SigPolynomialΓ{I, M},
                       G::Basis{I, M},
-                      H::Basis{I, M},
+                      H::Syz{I, M},
                       m::M) where {I, M}
 
     rewrite_checks_time = 0.0
     reducers = mpairset(ctx)
     for i in keys(G)
-        for _g in G[i]
-            g = (i, _g)
-            n = leadingmonomial(ctx, g)
+        for (g, lm) in G[i]
+            g_sig = (i, g)
             # probably need to check that lt(ctx(n, g)) == n*lt(ctx, g)
-            if divides(ctx.po.mo, n, m)
-                delta = div(ctx.po.mo, m, n)
+            if divides(ctx.po.mo, lm, m)
+                delta = div(ctx.po.mo, m, lm)
                 @debug "found possible reducer:" pretty_print(ctx, (delta, g))
-                rewr = @timed rewriteable(ctx, delta, g, G, H)
+                rewr = @timed rewriteable(ctx, delta, g_sig, G, H)
                 rewrite_checks_time += rewr.time
                 if rewr.value
                     @debug "it is rewriteable"
                     continue
                 end
-                push!(reducers, (delta, g))
+                push!(reducers, (delta, g_sig))
             end
         end
     end
@@ -34,7 +33,7 @@ end
 function symbolic_pp!(ctx::SΓ,
                       pairs::MonSigSet{I, M, SΓ},
                       G::Basis{I, M},
-                      H::Basis{I, M};
+                      H::Syz{I, M};
                       are_pairs=true) where {I, M <: Integer, SΓ <: SigPolynomialΓ{I, M}}
 
     rewrite_checks_time = 0.0
@@ -42,7 +41,7 @@ function symbolic_pp!(ctx::SΓ,
     todo = Set(vcat([ctx(p[1], p[2])[:poly].mo for p in pairs]...))
     if are_pairs
         # done = monomialset(ctx.po.mo, [ctx(p[1], p[2])[:lm] for p in pairs])
-        done = Set([ctx(p[1], p[2])[:lm] for p in pairs])
+        done = Set([leadingmonomial(ctx(p[1], p[2])[:poly]) for p in pairs])
     else
         # done = monomialset(ctx.po.mo)
         done = Set(M[])

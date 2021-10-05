@@ -2,10 +2,26 @@ using DataStructures
 
 const MonSigPair{I, M} = Tuple{M, Tuple{I, M}}
 const Pair{I, M} = Tuple{MonSigPair{I, M}, MonSigPair{I, M}}
-const Basis{I, M, MΓ} = Dict{I, SortedSet{M, Ordering{MΓ}}}
+const Basis{I, M, MΓ} = Dict{I, SortedDict{M, M, Ordering{MΓ}}}
+const Syz{I, M} = Dict{I, Vector{M}}
+
+function new_syz(ctx::SigPolynomialΓ, length)
+    I = pos_type(ctx)
+    M = eltype(ctx.po.mo)
+    Dict([(I(i), M[]) for i in 1:length])
+end
 
 function new_basis(ctx::SigPolynomialΓ, length)
-    Dict([(pos_type(ctx)(i), minmonomialset(ctx.po.mo)) for i in 1:length])
+    M = eltype(ctx.po.mo)
+    Dict([(pos_type(ctx)(i), SortedDict(zip(M[], M[]), order(ctx.po.mo))) for i in 1:length])
+end
+
+leadingmonomial(G_pos::SortedDict{M, M}, g::M) where M = G_pos[g]
+
+function new_basis_elem!(ctx::SigPolynomialΓ{I, M},
+                         G::Basis{I, M},
+                         g::Tuple{I, M}) where {I, M}
+    insert!(G[g[1]], g[2], leadingmonomial(ctx, g))
 end
 
 pos(p::MonSigPair{I, M}) where {I, M} = p[2][1]
@@ -69,24 +85,25 @@ end
 function pairs!(ctx::SΓ,
                 pairset::PairSet{I, M, SΓ},
                 sig::Tuple{I, M},
+                lm_sig::M,
                 G::Basis{I, M},
-                H::Basis{I, M}) where {I, M, SΓ <: SigPolynomialΓ{I, M}}
+                H::Syz{I, M}) where {I, M, SΓ <: SigPolynomialΓ{I, M}}
 
     pos = sig[1]
     for i in keys(G)
-        for _g in G[i]
-            g = (i, _g)
-            m = lcm(ctx.po.mo, leadingmonomial(ctx, g), leadingmonomial(ctx, sig))
-            a = div(ctx.po.mo, m, leadingmonomial(ctx, sig))
+        for g in keys(G[i])
+            g_sig = (i, g)
+            m = lcm(ctx.po.mo, leadingmonomial(G[i], g), lm_sig)
+            a = div(ctx.po.mo, m, lm_sig)
             rewriteable_syz(ctx, a, sig, G, H) && continue
-            b = div(ctx.po.mo, m, leadingmonomial(ctx, g))
-            (pos, ctx(sig)[:sigratio]) == (i, ctx(g)[:sigratio]) && continue
-            rewriteable(ctx, b, g, G, H) && continue
-            if lt(ctx, (pos, ctx(sig)[:sigratio]), (i, ctx(g)[:sigratio]))
+            b = div(ctx.po.mo, m, leadingmonomial(G[i], g))
+            (pos, ctx(sig)[:sigratio]) == (i, ctx(g_sig)[:sigratio]) && continue
+            rewriteable(ctx, b, g_sig, G, H) && continue
+            if lt(ctx, (pos, ctx(sig)[:sigratio]), (i, ctx(g_sig)[:sigratio]))
                 # @debug "new pair" pretty_print(ctx, (b, g)), pretty_print(ctx, (a, sig))
-                push!(pairset, ((b, g), (a, sig)))
+                push!(pairset, ((b, g_sig), (a, sig)))
             else
-                push!(pairset, ((a, sig), (b, g)))
+                push!(pairset, ((a, sig), (b, g_sig)))
                 # @debug "new pair" pretty_print(ctx, (a, sig)), pretty_print(ctx, (b, g))
             end
         end
@@ -126,7 +143,7 @@ function rewriteable(ctx::SigPolynomialΓ{I, M},
     # for g in G[pos]
     #     lt(ctx.po.mo, sig[2], g) && divides(ctx.po.mo, g, msig) && return true
     # end
-    for g in inclusive(G[pos], searchsortedafter(G[pos], sig[2]), lastindex(G[pos]))
+    for (g, lm) in inclusive(G[pos], searchsortedafter(G[pos], sig[2]), lastindex(G[pos]))
         divides(ctx.po.mo, g, msig) && return true
     end
     return false
@@ -136,7 +153,7 @@ function rewriteable_syz(ctx::SigPolynomialΓ{I, M},
                          m::M,
                          sig::Tuple{I, M},
                          G::Basis{I, M},
-                         H::Basis{I, M}) where {I, M}
+                         H::Syz{I, M}) where {I, M}
 
     msig = mul(ctx, m, sig)
     pos = sig[1]
@@ -145,9 +162,8 @@ function rewriteable_syz(ctx::SigPolynomialΓ{I, M},
     end
     pos_t = pos_type(ctx)
     for i in pos_t(1):pos_t(pos - 1)
-        for _g in G[i]
-            g = (i, _g)
-            divides(ctx.po.mo, leadingmonomial(ctx, g), msig[2]) && return true
+        for (g, lm) in G[i]
+            divides(ctx.po.mo, lm, msig[2]) && return true
         end
     end
     return false
@@ -157,7 +173,7 @@ function rewriteable(ctx::SigPolynomialΓ{I, M},
                      m::M,
                      sig::Tuple{I, M},
                      G::Basis{I, M},
-                     H::Basis{I, M}) where {I, M}
+                     H::Syz{I, M}) where {I, M}
 
     rewriteable_syz(ctx, m, sig, G, H) || rewriteable(ctx, m, sig, G)
 end
@@ -176,21 +192,41 @@ function select_one!(ctx::SΓ,
     end
 end
 
-function select_all_pos!(ctx::SΓ,
-                         pairs::PairSet{I, M, SΓ}) where {I, M, SΓ <: SigPolynomialΓ{I, M}}
+function select_all_pos_and_degree!(ctx::SΓ,
+                                    pairs::PairSet{I, M, SΓ}) where {I, M, SΓ <: SigPolynomialΓ{I, M}}
 
+    pair = first(pairs)
+    deg = p -> degree(ctx.po.mo, p[1][1]) + degree(ctx.po.mo, p[1][2][2])
     if iszero(pos(pair[2]))
         return mpairset(ctx, [pair[1]]), false
     end
-    pos = first(pairs)[1][2][1]
     selected = mpairset(ctx)
     for p in pairs
-        if p[1][2][1] == pos
+        if p[1][2][1] == pos(pair[1]) && deg(p) == deg(pair)
             push!(selected, first(p))
             push!(selected, p[2])
         else
             break
         end
     end
-    selected
+    selected, true
+end 
+
+function select_all_pos!(ctx::SΓ,
+                         pairs::PairSet{I, M, SΓ}) where {I, M, SΓ <: SigPolynomialΓ{I, M}}
+
+    pair = first(pairs)
+    if iszero(pos(pair[2]))
+        return mpairset(ctx, [pair[1]]), false
+    end
+    selected = mpairset(ctx)
+    for p in pairs
+        if p[1][2][1] == pos(pair[1])
+            push!(selected, first(p))
+            push!(selected, p[2])
+        else
+            break
+        end
+    end
+    selected, true
 end

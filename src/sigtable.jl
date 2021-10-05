@@ -1,5 +1,5 @@
-const Data{M, T} = NamedTuple{(:poly, :sigtail, :sigratio, :lm),
-                              Tuple{Polynomial{M, T}, Polynomial{M, T}, M, M}}
+const Data{M, T} = NamedTuple{(:poly, :sigtail, :sigratio),
+                              Tuple{Polynomial{M, T}, Polynomial{M, T}, M}}
 const SigTable{I, M, T} = Dict{Tuple{I, M}, Data{M, T}}
 
 mutable struct SigPolynomialΓ{I, M, T, MΓ<:Context{M}, TΓ<:Context{T}, S}<:Context{Tuple{I, M}}
@@ -40,7 +40,7 @@ function (ctx::SigPolynomialΓ{I, M, T})(sig::Tuple{I, M},
     else
         ratio = div(ctx.po.mo, sig[2], leadingmonomial(pol))
     end
-    val = Data{M, T}((pol, sigtail, ratio, leadingmonomial(pol)))
+    val = Data{M, T}((pol, sigtail, ratio))
     try
         ctx.tbl[sig] = val
     catch
@@ -68,7 +68,7 @@ function (ctx::SigPolynomialΓ{I, M, T})(m::M, sig::Tuple{I, M}) where {I, M, T}
     key = (sig[1], mul(ctx.po.mo, m, sig[2]))
     get(ctx.tbl, key) do
         val = ctx.tbl[sig]
-        Data{M, T}((mul(ctx.po, val[:poly], m), mul(ctx.po, val[:sigtail], m), val[:sigratio], mul(ctx.po.mo, val[:lm], m)))
+        Data{M, T}((mul(ctx.po, val[:poly], m), mul(ctx.po, val[:sigtail], m), val[:sigratio]))
     end
 end
 
@@ -82,7 +82,7 @@ function divides(ctx::SigPolynomialΓ{I, M}, s1::Tuple{I, M}, s2::Tuple{I, M}) w
     s1[1] == s2[1] && divides(ctx.po.mo, s1[2], s2[2])
 end
 
-@inline leadingmonomial(ctx::SigPolynomialΓ{I, M}, sig::Tuple{I, M}) where {I, M} = ctx[sig][:lm]
+@inline leadingmonomial(ctx::SigPolynomialΓ{I, M}, sig::Tuple{I, M}) where {I, M} = leadingmonomial(ctx(sig)[:poly])
 
 # sorting
 

@@ -10,9 +10,9 @@ function small_example()
     dat = SG.f5data(I, order=order)
     ctx = dat.ctx
     basis = SG.new_basis(ctx, 2)
-    syz = SG.new_basis(ctx, 2)
+    syz = SG.new_syz(ctx, 2)
     for i in 1:2
-        push!(basis[SG.pos_type(ctx)(i)], ctx.po.mo(R(1)))
+        SG.new_basis_elem!(ctx, basis, (SG.pos_type(ctx)(i), ctx.po.mo(R(1))))
     end
     R, (x, y), ctx, basis, syz
 end
@@ -128,7 +128,7 @@ end
     new_sig = ctx(2, x)
     ctx(new_sig, y^3)
     pairset = SG.pairset(ctx)
-    SG.pairs!(ctx, pairset, new_sig, basis, syz)
+    SG.pairs!(ctx, pairset, new_sig, ctx.po.mo(y^3), basis, syz)
     @test isempty(pairset)
 end
 
@@ -179,7 +179,7 @@ end
     dat, G, H, pairs = SG.f5setup(I)
     SG.f5core!(dat, G, H, pairs)
     gb = vcat(I, [y^3])
-    gb_2 = [R(dat.ctx, (i, g)) for i in keys(G) for g in G[i]]
+    gb_2 = [R(dat.ctx, (i, g[1])) for i in keys(G) for g in G[i]]
     @test all(p -> p in gb, gb_2)
 end
 
@@ -189,7 +189,7 @@ end
     I = [y*z - 2*t^2, x*y + t^2, x^2*z + 3*x*t^2 - 2*y*t^2]
     dat, G, H, pairs = SG.f5setup(I)
     SG.f5core!(dat, G, H, pairs)
-    gb = [R(dat.ctx, (i, g)) for i in keys(G) for g in G[i]]
+    gb = [R(dat.ctx, (i, g[1])) for i in keys(G) for g in G[i]]
     @test length(gb) == 7
 end
 
@@ -199,7 +199,7 @@ end
     I = cyclic([x,y,z,w])
     dat, G, H, pairs = SG.f5setup(I)
     SG.f5core!(dat, G, H, pairs)
-    gb = [R(dat.ctx, (i, g)) for i in keys(G) for g in G[i]]
+    gb = [R(dat.ctx, (i, g[1])) for i in keys(G) for g in G[i]]
     @test Oscar.ideal(R, gb) == Oscar.ideal(R, I)
     @test Oscar.leading_ideal(gb) == Oscar.leading_ideal(Oscar.ideal(R, I))
 end
@@ -209,7 +209,7 @@ end
     I = cyclic([x1,x2,x3,x4,x5,x6])
     dat, G, H, pairs = SG.f5setup(I)
     times = SG.f5core!(dat, G, H, pairs)
-    gb = [R(dat.ctx, (i, g)) for i in keys(G) for g in G[i]]
+    gb = [R(dat.ctx, (i, g[1])) for i in keys(G) for g in G[i]]
     println(times)
     @test Oscar.ideal(R, gb) == Oscar.ideal(R, I)
     @test Oscar.leading_ideal(gb) == Oscar.leading_ideal(Oscar.ideal(R, I))

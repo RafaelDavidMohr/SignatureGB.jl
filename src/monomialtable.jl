@@ -216,6 +216,7 @@ exponenttype(ctx::IxMonomialΓ) = exponenttype(ctx.ctx)
 
 termorder(ctx::IxMonomialΓ) = termorder(ctx.ctx)
 exponents(ctx::IxMonomialΓ{I}, i::I) where I = exponents(ctx.ctx, ctx[i])
+degree(ctx::IxMonomialΓ{I}, i::I) where I = sum(exponents(ctx, i))
 
 Base.one(ctx::IxMonomialΓ) = ctx(one(valtype(ctx)))
 

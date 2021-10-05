@@ -117,7 +117,7 @@ function new_elems_f5!(ctx::SΓ,
                        mat::F5matrix{I, M, T},
                        pairs::PairSet{I, M, SΓ},
                        G::Basis{I, M},
-                       H::Basis{I, M}) where {I, M, T, SΓ <: SigPolynomialΓ{I, M, T}}
+                       H::Syz{I, M}) where {I, M, T, SΓ <: SigPolynomialΓ{I, M, T}}
 
     rewrite_checks_time = 0.0
     new_rewriter_time = 0.0
@@ -130,17 +130,18 @@ function new_elems_f5!(ctx::SΓ,
                 new_rewriter!(ctx, pairs, new_sig)
             else
                 p = unindexpolynomial(mat.tbl, mat.rows[i])
-                # add element to basis
+                # add element to basis if any of the following two conditions hold:
                 # reductions of initial generators are added
-                add_cond_1 = isone(ctx.po.mo[m]) && isone(ctx.po.mo[t]) && !(new_sig[2] in G[pos])
+                add_cond_1 = isone(ctx.po.mo[m]) && isone(ctx.po.mo[t]) && !(new_sig[2] in keys(G[pos]))
                 # leading term dropped during reduction
                 add_cond_2 = lt(ctx.po.mo, leadingmonomial(p), leadingmonomial(ctx(sig...)[:poly]))
                 if add_cond_1 || add_cond_2
                     @debug "adding:" pretty_print(ctx, sig)
                     ctx(new_sig, p)
+                    lm = leadingmonomial(p)
                     new_rewriter_time += @elapsed new_rewriter!(ctx, pairs, new_sig)
-                    push!(G[pos], new_sig[2])
-                    rewrite_checks_time += @elapsed pairs!(ctx, pairs, new_sig, G, H)
+                    insert!(G[pos], new_sig[2], lm)
+                    rewrite_checks_time += @elapsed pairs!(ctx, pairs, new_sig, lm, G, H)
                 end
             end
         end
