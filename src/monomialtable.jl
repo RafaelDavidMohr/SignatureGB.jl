@@ -145,7 +145,7 @@ function findorpush!(table::MonomialHashTable{N, E, I, B}, v::Monomial{N, E}) wh
     #@warn "Insert $v"
     push!(table.val, v)
     remask_cond = false
-    @inbounds for i in 1:N
+    @inbounds for i in eachindex(v.exponents)
         e = v.exponents[i]
         if e > table.max_powers[i]
             remask_cond = true
@@ -176,8 +176,8 @@ end
 
 #. INDEXED MONOMIALS
 
-mutable struct IxMonomialΓ{I<:Unsigned, N, E, B}<:MonomialContext{I}
-    ctx::MonomialContext{Monomial{N, E}}
+mutable struct IxMonomialΓ{I<:Unsigned, N, E, B, MΓ<:MonomialContext{Monomial{N, E}}}<:MonomialContext{I}
+    ctx::MΓ
     table::MonomialHashTable{N, E, I, B}
 end
 
@@ -188,7 +188,7 @@ function ixmonomialctx(moctx=nothing; indices=UInt32, mask_type=UInt32, kwargs..
     if isnothing(moctx)
         moctx = monomialctx(;kwargs...)
     end
-    return IxMonomialΓ{indices, params(moctx)..., mask_type}(moctx, MonomialHashTable{params(moctx)..., indices, mask_type}())
+    return IxMonomialΓ{indices, params(moctx)..., mask_type, typeof(moctx)}(moctx, MonomialHashTable{params(moctx)..., indices, mask_type}())
 end
 
 (ctx::IxMonomialΓ{I, N, E, B})(x::Monomial{N, E}) where {I, N, E, B} = findorpush!(ctx.table, ctx.ctx(x))
