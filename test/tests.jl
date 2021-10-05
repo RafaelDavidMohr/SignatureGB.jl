@@ -2,6 +2,11 @@ using StaticArrays
 using AbstractTrees
 using DataStructures
 
+function is_gb(pols::Vector{MP}) where {MP <: MPolyElem}
+    id = Oscar.ideal(parent(first(pols)), pols)
+    Oscar.leading_ideal(pols) == Oscar.leading_ideal(id)
+end
+
 function small_example()
     R, (x, y) = Oscar.PolynomialRing(Oscar.GF(101), ["x", "y"],
                                      ordering = :degrevlex)
@@ -201,7 +206,7 @@ end
     SG.f5core!(dat, G, H, pairs)
     gb = [R(dat.ctx, (i, g[1])) for i in keys(G) for g in G[i]]
     @test Oscar.ideal(R, gb) == Oscar.ideal(R, I)
-    @test Oscar.leading_ideal(gb) == Oscar.leading_ideal(Oscar.ideal(R, I))
+    @test is_gb(gb)
 end
 
 @testset "cyclic 6" begin
@@ -210,7 +215,6 @@ end
     dat, G, H, pairs = SG.f5setup(I)
     times = SG.f5core!(dat, G, H, pairs)
     gb = [R(dat.ctx, (i, g[1])) for i in keys(G) for g in G[i]]
-    println(times)
     @test Oscar.ideal(R, gb) == Oscar.ideal(R, I)
-    @test Oscar.leading_ideal(gb) == Oscar.leading_ideal(Oscar.ideal(R, I))
+    @test is_gb(gb)
 end
