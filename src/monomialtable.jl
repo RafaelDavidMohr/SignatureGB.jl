@@ -171,7 +171,7 @@ end
 function remask!(table::MonomialHashTable{N, E, I, B}) where {N, E, I, B}
 
     table.remask_count = 0
-    [table.bitmask_powers[i] = rand(table.min_powers[i]:table.max_powers[i], length(table.bitmask_powers[i]))
+    [table.bitmask_powers[i] = even_between(table.min_powers[i], table.max_powers[i], length(table.bitmask_powers[i]))
      for i in 1:N]
     table.bitmasks = broadcast(v -> bitmask(v, table.bitmask_powers), table.val)
 end

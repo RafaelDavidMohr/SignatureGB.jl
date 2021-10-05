@@ -55,7 +55,7 @@ end
 function f5core!(dat::F5Data{I, SΓ},
                  G::Basis{I, M},
                  H::Syz{I, M},
-                 pairs::PairSet{I, M, SΓ},
+                 pairs::PairSet{I, M, SΓ};
                  select = select_all_pos!) where {I, M, SΓ <: SigPolynomialΓ{I, M}}
 
     times = Timings(0.0, 0.0, 0.0)
@@ -79,5 +79,23 @@ function f5core!(dat::F5Data{I, SΓ},
     times
 end
 
+function f5(I::Vector{P},
+            start_gen = 1,
+            mod_order=:POT,
+            mon_order=:GREVLEX,
+            index_type=UInt32,
+            mask_type=UInt32,
+            pos_type=UInt32,
+            select = select_all_pos!,
+            kwargs...) where {P <: AA.MPolyElem}
+
+    R = parent(first(I))
+    dat, G, H, pairs = f5setup(I, start_gen = start_gen, mod_order = mod_order,
+                               mon_order = mon_order, index_type = index_type,
+                               mask_type = mask_type, pos_type = pos_type,
+                               kwargs...)
+    f5core!(dat, G, H, pairs, select = select)
+    [R(dat.ctx, (i, g[1])) for i in keys(G) for g in G[i]]
+end
 
 end
