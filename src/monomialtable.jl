@@ -62,15 +62,18 @@ mutable struct MonomialHashTable{N, E, I <: Unsigned, B <: Unsigned}
     hits::Int
     totaldivs::Int
 
-    function MonomialHashTable{N, E, I, B}() where {N, E, I, B}
+    function MonomialHashTable{N, E, I, B}(; deg_bound = 0) where {N, E, I, B}
         tsize = 16
         @assert 2*tsize <= typemax(I)
         nbits = ndigits(typemax(B), base = 2)
         masks_per_var = even_partition(nbits, N)
+        min_powers = SVector{N, E}(zeros(E, N))
+        max_powers = SVector{N, E}(repeat([E(deg_bound)], N))
         bitmask_powers = Dict([(i, zeros(E, masks_per_var[i])) for i in 1:N])
-        zs = SVector{N, E}(zeros(E, N))
+        [bitmask_powers[i] = even_between(min_powers[i], max_powers[i], length(bitmask_powers[i]))
+         for i in 1:N]
         new(Monomial{N, E}[], B[], zeros(Int, 2*tsize),
-            zs, zs, bitmask_powers, 0, 1, tsize-1, 0, 4, 0, 0)
+            max_powers, min_powers, bitmask_powers, 0, 1, tsize-1, 0, 4, 0, 0)
     end
 end
 
@@ -151,10 +154,6 @@ function findorpush!(table::MonomialHashTable{N, E, I, B}, v::Monomial{N, E}) wh
             table.remask_count += 1
             table.max_powers[i] = e
         end
-        if zero(e) < e < table.min_powers[i]
-            table.remask_count += 1
-            table.min_powers[i] = e
-        end
     end
     remask_cond = table.remask_count > table.remask_after
     remask_cond && remask!(table)
@@ -186,11 +185,11 @@ end
 # need to change this?
 const IxPolynomialΓ{I, T, moΓ <: IxMonomialΓ{I}, coΓ} = PolynomialΓ{I, T, moΓ, coΓ}
 
-function ixmonomialctx(moctx=nothing; indices=UInt32, mask_type=UInt32, remask_after=1, kwargs...)
+function ixmonomialctx(moctx=nothing; indices=UInt32, mask_type=UInt32, remask_after=1, deg_bound = 0, kwargs...)
     if isnothing(moctx)
         moctx = monomialctx(;kwargs...)
     end
-    idxmoctx = IxMonomialΓ{indices, params(moctx)..., mask_type, typeof(moctx)}(moctx, MonomialHashTable{params(moctx)..., indices, mask_type}())
+    idxmoctx = IxMonomialΓ{indices, params(moctx)..., mask_type, typeof(moctx)}(moctx, MonomialHashTable{params(moctx)..., indices, mask_type}(deg_bound = deg_bound))
     idxmoctx.table.remask_after = remask_after
     idxmoctx
 end

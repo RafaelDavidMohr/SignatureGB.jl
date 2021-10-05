@@ -19,9 +19,10 @@ function idxsigpolynomialctx(coefficients,
                              mask_type=UInt32,
                              pos_type=UInt32,
                              mod_order=:POT,
+                             deg_bound = 0,
                              kwargs...)
     if isnothing(monomials)
-        moctx = ixmonomialctx(; indices=index_type, mask_type=mask_type, kwargs...)
+        moctx = ixmonomialctx(; indices=index_type, mask_type=mask_type, deg_bound=deg_bound, kwargs...)
     end
     po = polynomialctx(coefficients, monomials = moctx)
     tbl = SigTable{pos_type, index_type, eltype(coefficients)}()

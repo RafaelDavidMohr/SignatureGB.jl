@@ -9,13 +9,20 @@ function f5data(I::Vector{P};
                 index_type=UInt32,
                 mask_type=UInt32,
                 pos_type=UInt32,
+                use_macaulay_bound=true,
                 kwargs...) where {P <: AA.MPolyElem}
 
     R = parent(first(I))
     char = AA.characteristic(R)
     coeffs = Nmod32Γ(char)
+    if use_macaulay_bound
+        deg_bound = mac_bound(I)
+    else
+        deg_bound = 0
+    end
     ctx = idxsigpolynomialctx(coeffs, length(I), index_type=index_type,
-                              mask_type=mask_type, pos_type=pos_type; kwargs...)
+                              mask_type=mask_type, pos_type=pos_type,
+                              deg_bound=deg_bound; kwargs...)
 
     for (i, f) in enumerate(I)
         sig = ctx(i, R(1))

@@ -1,3 +1,6 @@
+using Oscar
+using AbstractAlgebra
+
 """
     @default ex, fs
 
@@ -40,6 +43,12 @@ function even_between(a, b, nums)
         curr += p
     end
     part_2
+end
+
+function mac_bound(I::Vector{P}) where {P <: AbstractAlgebra.MPolyElem}
+    I_sorted = sort(I, by = p -> Oscar.total_degree(p), rev = true)
+    l = min(ngens(parent(first(I))) + 1, length(I))
+    sum([total_degree(I_sorted[j]) for j in 1:l]) - l + 1
 end
     
     
