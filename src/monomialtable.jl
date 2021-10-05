@@ -54,7 +54,8 @@ mutable struct MonomialHashTable{N, E, I <: Unsigned, B <: Unsigned}
     max_powers::MVector{N, E}
     min_powers::MVector{N, E}
     bitmask_powers::Dict{Int, Vector{E}}
-    # bitmask_powers::SVector{N, E}
+    remask_count::Int
+    remask_after::Int
     mask::I
     size::Int
     maxloop::Int
@@ -69,7 +70,7 @@ mutable struct MonomialHashTable{N, E, I <: Unsigned, B <: Unsigned}
         bitmask_powers = Dict([(i, zeros(E, masks_per_var[i])) for i in 1:N])
         zs = SVector{N, E}(zeros(E, N))
         new(Monomial{N, E}[], B[], zeros(Int, 2*tsize),
-            zs, zs, bitmask_powers, tsize-1, 0, 4, 0, 0)
+            zs, zs, bitmask_powers, 0, 1, tsize-1, 0, 4, 0, 0)
     end
 end
 
@@ -144,18 +145,18 @@ function findorpush!(table::MonomialHashTable{N, E, I, B}, v::Monomial{N, E}) wh
 
     #@warn "Insert $v"
     push!(table.val, v)
-    remask_cond = false
     @inbounds for i in eachindex(v.exponents)
         e = v.exponents[i]
         if e > table.max_powers[i]
-            remask_cond = true
+            table.remask_count += 1
             table.max_powers[i] = e
         end
         if zero(e) < e < table.min_powers[i]
-            remask_cond = true
+            table.remask_count += 1
             table.min_powers[i] = e
         end
     end
+    remask_cond = table.remask_count > table.remask_after
     remask_cond && remask!(table)
     if !(remask_cond)
         push!(table.bitmasks, bitmask(v, table.bitmask_powers, masktype = B))
@@ -169,6 +170,7 @@ end
 
 function remask!(table::MonomialHashTable{N, E, I, B}) where {N, E, I, B}
 
+    table.remask_count = 0
     [table.bitmask_powers[i] = rand(table.min_powers[i]:table.max_powers[i], length(table.bitmask_powers[i]))
      for i in 1:N]
     table.bitmasks = broadcast(v -> bitmask(v, table.bitmask_powers), table.val)
@@ -184,11 +186,13 @@ end
 # need to change this?
 const IxPolynomialΓ{I, T, moΓ <: IxMonomialΓ{I}, coΓ} = PolynomialΓ{I, T, moΓ, coΓ}
 
-function ixmonomialctx(moctx=nothing; indices=UInt32, mask_type=UInt32, kwargs...)
+function ixmonomialctx(moctx=nothing; indices=UInt32, mask_type=UInt32, remask_after=1, kwargs...)
     if isnothing(moctx)
         moctx = monomialctx(;kwargs...)
     end
-    return IxMonomialΓ{indices, params(moctx)..., mask_type, typeof(moctx)}(moctx, MonomialHashTable{params(moctx)..., indices, mask_type}())
+    idxmoctx = IxMonomialΓ{indices, params(moctx)..., mask_type, typeof(moctx)}(moctx, MonomialHashTable{params(moctx)..., indices, mask_type}())
+    idxmoctx.table.remask_after = remask_after
+    idxmoctx
 end
 
 (ctx::IxMonomialΓ{I, N, E, B})(x::Monomial{N, E}) where {I, N, E, B} = findorpush!(ctx.table, ctx.ctx(x))
