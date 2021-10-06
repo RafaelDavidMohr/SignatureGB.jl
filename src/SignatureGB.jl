@@ -13,6 +13,7 @@ include("./kd_tree.jl")
 include("./pairs.jl")
 include("./symbolicpp.jl")
 include("./reduction.jl")
+include("./siggbtests.jl")
 
 mutable struct Timings
     reduction::Float64

@@ -16,9 +16,12 @@ function is_gb(pols::Vector{MP}) where {MP <: Singular.MPolyElem}
 end
 
 function f5stats(pols::Vector{MP}) where {MP <: Singular.MPolyElem}
+    R = parent(first(pols))
     dat, G, H, pairs = SignatureGB.f5setup(pols)
     times, stats = SignatureGB.f5core!(dat, G, H, pairs)
-    pretty_print_stats(times, stats)
+    res = [R(dat.ctx, (i, g[1])) for i in keys(G) for g in G[i]]
+    res_stats = pretty_print_stats(times, stats)
+    string("Groebner basis: $(res)\n", "res_stats")
 end
 
 function pretty_print_stats(times, stats)
