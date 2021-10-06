@@ -45,6 +45,7 @@ function reduction!(mat::F5matrix{I, M, T, J, Tbuf}) where {I, M, T, J, Tbuf}
     n_cols = length(mat.tbl)
     pivots = zeros(J, n_cols)
     buffer = zeros(Tbuf, n_cols)
+    arit_operations = 0
 
     @inbounds begin
         for ((i, row), sig) in zip(enumerate(mat.rows), mat.sigs)
@@ -56,6 +57,7 @@ function reduction!(mat::F5matrix{I, M, T, J, Tbuf}) where {I, M, T, J, Tbuf}
             buffer!(row, buffer)
             for (k, c) in enumerate(buffer)
                 (iszero(c) || iszero(pivots[k])) && continue
+                arit_operations += length(mat.rows[pivots[k]])
                 critical_loop!(buffer, mat.rows[pivots[k]], mat.ctx)
             end
             first_nz, new_row = unbuffer!(buffer, mat.ctx, J)
@@ -65,6 +67,7 @@ function reduction!(mat::F5matrix{I, M, T, J, Tbuf}) where {I, M, T, J, Tbuf}
             mat.rows[i] = new_row
         end
     end
+    arit_operations
 end
                            
 
@@ -119,6 +122,8 @@ function new_elems_f5!(ctx::SΓ,
                        G::Basis{I, M},
                        H::Syz{I, M}) where {I, M, T, SΓ <: SigPolynomialΓ{I, M, T}}
 
+    zero_red_stats = Tuple{Int, Int}[]
+    curr_degree = Int(degree(ctx.po.mo, first(mat.tbl.val)))
     rewrite_checks_time = 0.0
     new_rewriter_time = 0.0
     for (i, sig) in enumerate(mat.sigs)
@@ -126,6 +131,7 @@ function new_elems_f5!(ctx::SΓ,
         new_sig = mul(ctx, sig...)
         @inbounds begin
             if isempty(mat.rows[i])
+                push!(zero_red_stats, (Int(pos), curr_degree))
                 push!(H[pos], new_sig[2])
                 new_rewriter!(ctx, pairs, new_sig)
             else
@@ -146,5 +152,5 @@ function new_elems_f5!(ctx::SΓ,
             end
         end
     end
-    new_rewriter_time, rewrite_checks_time
+    new_rewriter_time, rewrite_checks_time, zero_red_stats
 end

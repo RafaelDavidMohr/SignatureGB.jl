@@ -20,6 +20,12 @@ mutable struct Timings
     new_rewriter::Float64
 end
 
+mutable struct Stats
+    matrix_sizes::Vector{Tuple{Int, Int}}
+    zero_reductions::Vector{Tuple{Int, Int}}
+    arit_operations::Int
+end
+
 function f5setup(I::Vector{P};
                  start_gen = 1,
                  mod_order=:POT,
@@ -59,24 +65,29 @@ function f5core!(dat::F5Data{I, SΓ},
                  select = select_all_pos!) where {I, M, SΓ <: SigPolynomialΓ{I, M}}
 
     times = Timings(0.0, 0.0, 0.0)
+    stats = Stats(Tuple{Int, Int}[], Tuple{Int, Int}[], 0)
     
     ctx = dat.ctx
     while !(isempty(pairs))
         to_reduce, are_pairs = select_all_pos_and_degree!(ctx, pairs)
         pr = last(to_reduce)
-        done, rewrite_checks_time =  symbolic_pp!(ctx, to_reduce, G, H, are_pairs = are_pairs)
+        done, rewrite_checks_time = symbolic_pp!(ctx, to_reduce, G, H, are_pairs = are_pairs)
         times.rewrite += rewrite_checks_time
         mat = f5matrix(ctx, done, to_reduce)
-        times.reduction += @elapsed reduction!(mat)
+        push!(stats.matrix_sizes, (length(mat.rows), length(mat.tbl)))
+        reduction_dat = @timed reduction!(mat)
+        times.reduction += reduction_dat.time
+        stats.arit_operations += reduction_dat.value
         @debug "is in row echelon:" check_row_echelon(mat)
         @debug "row signatures:" [pretty_print(ctx, sig) for sig in mat.sigs if pos(sig) == pos(last(mat.sigs))]
-        new_rewriter_time, rewrite_checks_time = new_elems_f5!(ctx, mat, pairs, G, H)
+        new_rewriter_time, rewrite_checks_time, zero_red_stats = new_elems_f5!(ctx, mat, pairs, G, H)
         times.rewrite += rewrite_checks_time
         times.new_rewriter += new_rewriter_time
+        push!(stats.zero_reductions, zero_red_stats...)
         @debug "current basis in relevant position:" [(Int(g[1]), pretty_print(ctx.po.mo, g[2])) for g in G if g[1] == pos(last(mat.sigs))]
     end
 
-    times
+    times, stats
 end
 
 function f5(I::Vector{P},
