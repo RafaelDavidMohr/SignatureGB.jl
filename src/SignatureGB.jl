@@ -69,6 +69,7 @@ function f5core!(dat::F5Data{I, SΓ},
     stats = Stats(Tuple{Int, Int}[], Tuple{Int, Int}[], 0)
     
     ctx = dat.ctx
+    cnt = 1
     while !(isempty(pairs))
         to_reduce, are_pairs = select_all_pos_and_degree!(ctx, pairs)
         pr = last(to_reduce)
@@ -78,6 +79,7 @@ function f5core!(dat::F5Data{I, SΓ},
         push!(stats.matrix_sizes, (length(mat.rows), length(mat.tbl)))
         reduction_dat = @timed reduction!(mat)
         times.reduction += reduction_dat.time
+        println("Matrix $(cnt) : $(reduction_dat.time) secs / size = ", (length(mat.rows), length(mat.tbl)))
         stats.arit_operations += reduction_dat.value
         @debug "is in row echelon:" check_row_echelon(mat)
         @debug "row signatures:" [pretty_print(ctx, sig) for sig in mat.sigs if pos(sig) == pos(last(mat.sigs))]
@@ -86,6 +88,7 @@ function f5core!(dat::F5Data{I, SΓ},
         times.new_rewriter += new_rewriter_time
         push!(stats.zero_reductions, zero_red_stats...)
         @debug "current basis in relevant position:" [(Int(g[1]), pretty_print(ctx.po.mo, g[2])) for g in G if g[1] == pos(last(mat.sigs))]
+        cnt = cnt + 1
     end
 
     times, stats
