@@ -31,7 +31,7 @@ function f5setup(I::Vector{P};
 
     R = parent(first(I))
     if mon_order == :GREVLEX
-        order = Grevlex(AA.ngens(R))
+        order = Grevlex(Singular.nvars(R))
     else
         error("only grevlex order currently supported")
     end

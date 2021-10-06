@@ -2,14 +2,15 @@ using StaticArrays
 using AbstractTrees
 using DataStructures
 
-function is_gb(pols::Vector{MP}) where {MP <: MPolyElem}
-    id = Oscar.ideal(parent(first(pols)), pols)
-    Oscar.leading_ideal(pols) == Oscar.leading_ideal(id)
+function is_gb(pols::Vector{MP}) where {MP <: Singular.MPolyElem}
+    id = Singular.Ideal(parent(first(pols)), pols)
+    id.isGB = true
+    gb_id = std(id)
+    all(p -> iszero(Singular.reduce(p, id)), Singular.gens(gb_id))
 end
 
 function small_example()
-    R, (x, y) = Oscar.PolynomialRing(Oscar.GF(101), ["x", "y"],
-                                     ordering = :degrevlex)
+    R, (x, y) = Singular.PolynomialRing(Singular.Fp(101), ["x", "y"])
     I = [x^2, x*y + y^2]
     order = SG.Grevlex(2)
     dat = SG.f5data(I, order=order)
@@ -85,7 +86,7 @@ end
 end
 
 @testset "sig polynomials" begin
-    R, (x, y) = Oscar.PolynomialRing(Oscar.GF(101), ["x", "y"], ordering = :degrevlex)
+    R, (x, y) = Singular.PolynomialRing(Singular.Fp(101), ["x", "y"])
     f, g = x + y, x^2 + x*y + y^2
     
     order = SG.Grevlex(2)
@@ -101,7 +102,7 @@ end
 end
 
 @testset "kd tree" begin
-    R, (x, y) = Oscar.PolynomialRing(Oscar.GF(101), ["x", "y"], ordering = :degrevlex)
+    R, (x, y) = Singular.PolynomialRing(Singular.Fp(101), ["x", "y"])
     f, g = x + y, y^3 + x*y + y^2
     
     order = SG.Grevlex(2)
@@ -119,8 +120,7 @@ end
 end
 
 @testset "f5 data" begin
-    R, (x, y) = Oscar.PolynomialRing(Oscar.GF(101), ["x", "y"],
-                                     ordering = :degrevlex)
+    R, (x, y) = Singular.PolynomialRing(Singular.Fp(101), ["x", "y"])
     I = [x^2, y^2 + x*y]
     order = SG.Grevlex(2)
     dat = SG.f5data(I, order=order)
@@ -178,8 +178,7 @@ end
 end
 
 @testset "small groebner" begin
-    R, (x, y) = Oscar.PolynomialRing(Oscar.GF(101), ["x", "y"],
-                                     ordering = :degrevlex)
+    R, (x, y) = Singular.PolynomialRing(Singular.Fp(101), ["x", "y"])
     I = [x^2, x*y + y^2]
     dat, G, H, pairs = SG.f5setup(I)
     SG.f5core!(dat, G, H, pairs)
@@ -189,8 +188,7 @@ end
 end
 
 @testset "small groebner 2" begin
-    R, (x, y, z, t) = Oscar.PolynomialRing(Oscar.GF(7), ["x", "y", "z", "t"],
-                                           ordering = :degrevlex)
+    R, (x, y, z, t) = Singular.PolynomialRing(Singular.Fp(7), ["x", "y", "z", "t"])
     I = [y*z - 2*t^2, x*y + t^2, x^2*z + 3*x*t^2 - 2*y*t^2]
     dat, G, H, pairs = SG.f5setup(I)
     SG.f5core!(dat, G, H, pairs)
@@ -199,22 +197,19 @@ end
 end
 
 @testset "cyclic 4" begin
-    R, (x, y, z, w) = Oscar.PolynomialRing(Oscar.GF(101), ["x", "y", "z", "w"],
-                                           ordering = :degrevlex)
+    R, (x, y, z, w) = Singular.PolynomialRing(Singular.Fp(101), ["x", "y", "z", "w"])
     I = cyclic([x,y,z,w])
     dat, G, H, pairs = SG.f5setup(I)
     SG.f5core!(dat, G, H, pairs)
     gb = [R(dat.ctx, (i, g[1])) for i in keys(G) for g in G[i]]
-    @test Oscar.ideal(R, gb) == Oscar.ideal(R, I)
     @test is_gb(gb)
 end
 
 @testset "cyclic 6" begin
-    R, (x1, x2, x3, x4, x5, x6) = Oscar.PolynomialRing(Oscar.GF(101), ["x$(i)" for i in 1:6], ordering = :degrevlex)
+    R, (x1, x2, x3, x4, x5, x6) = Singular.PolynomialRing(Singular.Fp(101), ["x$(i)" for i in 1:6])
     I = cyclic([x1,x2,x3,x4,x5,x6])
     dat, G, H, pairs = SG.f5setup(I)
     times = SG.f5core!(dat, G, H, pairs)
     gb = [R(dat.ctx, (i, g[1])) for i in keys(G) for g in G[i]]
-    @test Oscar.ideal(R, gb) == Oscar.ideal(R, I)
     @test is_gb(gb)
 end

@@ -1,6 +1,6 @@
 using SignatureGB
 using Test
-using Oscar
+using Singular
 
 SG = SignatureGB
 

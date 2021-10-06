@@ -2,7 +2,7 @@ using BenchmarkTools
 using SignatureGB
 using Combinatorics
 using Dictionaries
-using Oscar
+using Singular
 
 SG = SignatureGB
 
@@ -38,7 +38,7 @@ end
 
 function kd_tree_benchmark(npols, nmons)
     suite = BenchmarkGroup()
-    R, vars = PolynomialRing(GF(101), ["x$(i)" for i in 1:32], ordering = :degrevlex)
+    R, vars = PolynomialRing(Fp(101), ["x$(i)" for i in 1:32])
     order = SG.Grevlex(32)
     char = 101
     ctx = SG.idxsigpolynomialctx(SG.Nmod32Γ(char), order = order)

@@ -1,6 +1,7 @@
 #. PREAMBLE
 using StaticArrays
 using Random
+using Singular
 
 import AbstractAlgebra
 import Nemo
@@ -307,18 +308,22 @@ function shift(ctx::PolynomialΓ{M, T}, p :: Polynomial{M, T}, m :: M ;
 end
 
 
-#.. AA interoperability
+#.. AA/Singular interoperability
 
 abstractalgebra(ctx :: PolynomialΓ) = AA.PolynomialRing(abstractalgebra(ctx.co), variables(ctx))
 
 function (ctx :: MonomialΓ)(m ::AA.MPolyElem)
-    exp = AA.exponent_vector(m, 1)
+    exp = first(exponent_vectors(m))
     ctx(Monomial{nvars(ctx), exponenttype(ctx)}(exp))
 end
 
 function (ctx :: PolynomialΓ)(p :: AA.MPolyElem)
     mo = [ctx.mo(m) for m in AA.monomials(p)]
-    co = [ctx.co(AA.coeff(p, i).data) for i in 1:length(p)]
+    if typeof(p) <: Singular.spoly
+        co = [ctx.co(Int(c)) for c in Singular.coefficients(p)]
+    else
+        co = [ctx.co(AA.coeff(p, i)) for i in 1:length(p)]
+    end
     p = ctx(mo, co)
     sort!(p, rev=true, order=order(ctx))
     return p
@@ -326,9 +331,15 @@ end
 
 function (R :: AA.MPolyRing)(ctx, p :: Polynomial)
     br = AA.base_ring(R)
-
-    return R([br(coefficient(p, i)) for i in 1:length(p)],
-             [convert(Vector{Int}, exponents(ctx.mo, monomial(p, i))) for i in 1:length(p)])
-
+    if typeof(R) <: Singular.PolyRing
+        C = MPolyBuildCtx(R)
+        for (m, c) in p
+            push_term!(C, br(Int(c)), Vector{Int}(exponents(ctx.mo, m)))
+        end
+        finish(C)
+    else    
+        return R([br(coefficient(p, i)) for i in 1:length(p)],
+                 [convert(Vector{Int}, exponents(ctx.mo, monomial(p, i))) for i in 1:length(p)])
+    end
 end
 
