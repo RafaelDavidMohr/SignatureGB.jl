@@ -21,7 +21,7 @@ function f5stats(pols::Vector{MP}) where {MP <: Singular.MPolyElem}
     times, stats = SignatureGB.f5core!(dat, G, H, pairs)
     res = [R(dat.ctx, (i, g[1])) for i in keys(G) for g in G[i]]
     res_stats = pretty_print_stats(times, stats)
-    string("Groebner basis: $(res)\n", "res_stats")
+    string("Groebner basis: $(res)\n", "$(res_stats)")
 end
 
 function pretty_print_stats(times, stats)
