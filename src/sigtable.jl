@@ -11,6 +11,7 @@ end
 pos_type(::SigPolynomialΓ{I}) where {I} = I
 mon_type(::SigPolynomialΓ{I, M}) where {I, M} = M
 coeff_type(::SigPolynomialΓ{I, M, T}) where {I, M, T} = T
+mod_order(::SigPolynomialΓ{I, M, T, MΓ, TΓ, S}) where {I, M, T, MΓ, TΓ, S} = S
 
 function idxsigpolynomialctx(coefficients,
                              ngens;

@@ -54,8 +54,6 @@ mutable struct MonomialHashTable{N, E, I <: Unsigned, B <: Unsigned}
     max_powers::MVector{N, E}
     min_powers::MVector{N, E}
     bitmask_powers::Dict{Int, Vector{E}}
-    remask_count::Int
-    remask_after::Int
     mask::I
     size::Int
     maxloop::Int
@@ -73,7 +71,7 @@ mutable struct MonomialHashTable{N, E, I <: Unsigned, B <: Unsigned}
         [bitmask_powers[i] = even_between(min_powers[i], max_powers[i], length(bitmask_powers[i]))
          for i in 1:N]
         new(Monomial{N, E}[], B[], zeros(Int, 2*tsize),
-            max_powers, min_powers, bitmask_powers, 0, 1, tsize-1, 0, 4, 0, 0)
+            max_powers, min_powers, bitmask_powers, tsize-1, 0, 4, 0, 0)
     end
 end
 
@@ -151,15 +149,10 @@ function findorpush!(table::MonomialHashTable{N, E, I, B}, v::Monomial{N, E}) wh
     @inbounds for i in eachindex(v.exponents)
         e = v.exponents[i]
         if e > table.max_powers[i]
-            table.remask_count += 1
             table.max_powers[i] = e
         end
     end
-    remask_cond = table.remask_count > table.remask_after
-    remask_cond && remask!(table)
-    if !(remask_cond)
-        push!(table.bitmasks, bitmask(v, table.bitmask_powers, masktype = B))
-    end
+    push!(table.bitmasks, bitmask(v, table.bitmask_powers, masktype = B))
     table.size += 1
     n = I(table.size)
 
@@ -169,7 +162,6 @@ end
 
 function remask!(table::MonomialHashTable{N, E, I, B}) where {N, E, I, B}
 
-    table.remask_count = 0
     [table.bitmask_powers[i] = even_between(table.min_powers[i], table.max_powers[i], length(table.bitmask_powers[i]))
      for i in 1:N]
     table.bitmasks = broadcast(v -> bitmask(v, table.bitmask_powers), table.val)
@@ -190,7 +182,6 @@ function ixmonomialctx(moctx=nothing; indices=UInt32, mask_type=UInt32, remask_a
         moctx = monomialctx(;kwargs...)
     end
     idxmoctx = IxMonomialΓ{indices, params(moctx)..., mask_type, typeof(moctx)}(moctx, MonomialHashTable{params(moctx)..., indices, mask_type}(deg_bound = deg_bound))
-    idxmoctx.table.remask_after = remask_after
     idxmoctx
 end
 

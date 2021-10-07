@@ -13,7 +13,6 @@ include("./kd_tree.jl")
 include("./pairs.jl")
 include("./symbolicpp.jl")
 include("./reduction.jl")
-include("./siggbtests.jl")
 
 function f5setup(I::Vector{P};
                  start_gen = 1,
@@ -62,13 +61,16 @@ function f5core!(dat::F5Data{I, SΓ},
     while !(isempty(pairs))
         #- PAIR SELECTION -#
         total_num_pairs = length(pairs)
-        to_reduce, are_pairs, nselected = select(ctx, pairs)
+        to_reduce, are_pairs, nselected, indx = select(ctx, pairs)
         sig_degree = deg_pair(first(to_reduce))
-        if verbose && pos(first(to_reduce)) != curr_pos
-            println("-----------")
-            println("STARTING WITH INDEX $(pos(first(to_reduce)))")
-            println("-----------")
-            curr_pos = pos(first(to_reduce))
+        if indx != curr_pos && mod_order(dat.ctx) == :POT
+            remask!(dat.ctx.po.mo.table)
+            if verbose
+                println("-----------")
+                println("STARTING WITH INDEX $(pos(first(to_reduce)))")
+                println("-----------")
+            end
+            curr_pos = indx
         end
 
         #- SYMBOLIC PP -#
@@ -98,7 +100,7 @@ function f5core!(dat::F5Data{I, SΓ},
             println("Pair generation took $(pair_gen_time) seconds.")
         end
         
-        cnt += cnt + 1
+        cnt += 1
     end
 
     if verbose
@@ -115,13 +117,14 @@ function f5(I::Vector{P},
             mask_type=UInt32,
             pos_type=UInt32,
             select = select_all_pos!,
+            verbose = false,
             kwargs...) where {P <: AA.MPolyElem}
 
     R = parent(first(I))
     dat, G, H, pairs = f5setup(I, start_gen = start_gen, mod_order = mod_order,
                                mon_order = mon_order, index_type = index_type,
                                mask_type = mask_type, pos_type = pos_type,
-                               kwargs...)
+                               verbose = verbose, kwargs...)
     f5core!(dat, G, H, pairs, select = select)
     [R(dat.ctx, (i, g[1])) for i in keys(G) for g in G[i]]
 end

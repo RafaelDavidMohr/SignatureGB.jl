@@ -197,13 +197,14 @@ function select_all_pos_and_degree!(ctx::SΓ,
 
     nselected = 0
     pair = first(pairs)
+    indx = pos(pair[1])
     deg = p -> degree(ctx.po.mo, p[1][1]) + degree(ctx.po.mo, p[1][2][2])
     if iszero(pos(pair[2]))
-        return mpairset(ctx, [pair[1]]), false, 1
+        return mpairset(ctx, [pair[1]]), false, 1, indx
     end
     selected = mpairset(ctx)
     for p in pairs
-        if p[1][2][1] == pos(pair[1]) && deg(p) == deg(pair)
+        if p[1][2][1] == indx && deg(p) == deg(pair)
             push!(selected, first(p))
             push!(selected, p[2])
             nselected += 1
@@ -211,24 +212,25 @@ function select_all_pos_and_degree!(ctx::SΓ,
             break
         end
     end
-    selected, true, nselected
+    selected, true, nselected, indx
 end 
 
 function select_all_pos!(ctx::SΓ,
                          pairs::PairSet{I, M, SΓ}) where {I, M, SΓ <: SigPolynomialΓ{I, M}}
 
     pair = first(pairs)
+    indx = pos(pair[1])
     if iszero(pos(pair[2]))
-        return mpairset(ctx, [pair[1]]), false
+        return mpairset(ctx, [pair[1]]), false, indx
     end
     selected = mpairset(ctx)
     for p in pairs
-        if p[1][2][1] == pos(pair[1])
+        if p[1][2][1] == indx
             push!(selected, first(p))
             push!(selected, p[2])
         else
             break
         end
     end
-    selected, true
+    selected, true, indx
 end

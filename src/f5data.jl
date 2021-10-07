@@ -9,7 +9,7 @@ function f5data(I::Vector{P};
                 index_type=UInt32,
                 mask_type=UInt32,
                 pos_type=UInt32,
-                use_macaulay_bound=true,
+                use_macaulay_bound=false,
                 kwargs...) where {P <: AA.MPolyElem}
 
     R = parent(first(I))
