@@ -13,6 +13,7 @@ include("./kd_tree.jl")
 include("./pairs.jl")
 include("./symbolicpp.jl")
 include("./reduction.jl")
+include("../examples/gen_example_file.jl")
 
 function f5setup(I::Vector{P};
                  start_gen = 1,
@@ -109,14 +110,14 @@ function f5core!(dat::F5Data{I, SΓ},
     end
 end
 
-function f5(I::Vector{P},
+function f5(I::Vector{P};
             start_gen = 1,
             mod_order=:POT,
             mon_order=:GREVLEX,
             index_type=UInt32,
             mask_type=UInt32,
             pos_type=UInt32,
-            select = select_all_pos!,
+            select = select_all_pos_and_degree!,
             verbose = false,
             kwargs...) where {P <: AA.MPolyElem}
 
@@ -124,8 +125,8 @@ function f5(I::Vector{P},
     dat, G, H, pairs = f5setup(I, start_gen = start_gen, mod_order = mod_order,
                                mon_order = mon_order, index_type = index_type,
                                mask_type = mask_type, pos_type = pos_type,
-                               verbose = verbose, kwargs...)
-    f5core!(dat, G, H, pairs, select = select)
+                               kwargs...)
+    f5core!(dat, G, H, pairs, select = select, verbose = verbose)
     [R(dat.ctx, (i, g[1])) for i in keys(G) for g in G[i]]
 end
 
