@@ -15,18 +15,6 @@ include("./symbolicpp.jl")
 include("./reduction.jl")
 include("./siggbtests.jl")
 
-mutable struct Timings
-    reduction::Float64
-    rewrite::Float64
-    new_rewriter::Float64
-end
-
-mutable struct Stats
-    matrix_sizes::Vector{Tuple{Int, Int}}
-    zero_reductions::Vector{Tuple{Int, Int}}
-    arit_operations::Int
-end
-
 function f5setup(I::Vector{P};
                  start_gen = 1,
                  mod_order=:POT,
@@ -63,35 +51,60 @@ function f5core!(dat::F5Data{I, SΓ},
                  G::Basis{I, M},
                  H::Syz{I, M},
                  pairs::PairSet{I, M, SΓ};
-                 select = select_all_pos!) where {I, M, SΓ <: SigPolynomialΓ{I, M}}
-
-    times = Timings(0.0, 0.0, 0.0)
-    stats = Stats(Tuple{Int, Int}[], Tuple{Int, Int}[], 0)
+                 select = select_all_pos_and_degree!,
+                 verbose = false) where {I, M, SΓ <: SigPolynomialΓ{I, M}}
     
     ctx = dat.ctx
     cnt = 1
+    num_arit_operations = 0
+    curr_pos = zero(pos_type(ctx))
+    deg_pair = p -> degree(ctx.po.mo, p[1]) + degree(ctx.po.mo, p[2][2])
     while !(isempty(pairs))
-        to_reduce, are_pairs = select_all_pos_and_degree!(ctx, pairs)
-        pr = last(to_reduce)
-        done, rewrite_checks_time = symbolic_pp!(ctx, to_reduce, G, H, are_pairs = are_pairs)
-        times.rewrite += rewrite_checks_time
+        #- PAIR SELECTION -#
+        total_num_pairs = length(pairs)
+        to_reduce, are_pairs, nselected = select(ctx, pairs)
+        sig_degree = deg_pair(first(to_reduce))
+        if verbose && pos(first(to_reduce)) != curr_pos
+            println("-----------")
+            println("STARTING WITH INDEX $(pos(first(to_reduce)))")
+            println("-----------")
+            curr_pos = pos(first(to_reduce))
+        end
+
+        #- SYMBOLIC PP -#
+        symbolic_pp_timed  = @timed symbolic_pp!(ctx, to_reduce, G, H, are_pairs = are_pairs)
+        done = symbolic_pp_timed.value
+        symbolic_pp_time = symbolic_pp_timed.time
         mat = f5matrix(ctx, done, to_reduce)
-        push!(stats.matrix_sizes, (length(mat.rows), length(mat.tbl)))
+        mat_size = (length(mat.rows), length(mat.tbl))
+        mat_dens = sum([length(rw) for rw in mat.rows]) / (mat_size[1] * mat_size[2])
+
+        #- REDUCTION -#
         reduction_dat = @timed reduction!(mat)
-        times.reduction += reduction_dat.time
-        println("Matrix $(cnt) : $(reduction_dat.time) secs / size = ", (length(mat.rows), length(mat.tbl)))
-        stats.arit_operations += reduction_dat.value
-        @debug "is in row echelon:" check_row_echelon(mat)
-        @debug "row signatures:" [pretty_print(ctx, sig) for sig in mat.sigs if pos(sig) == pos(last(mat.sigs))]
-        new_rewriter_time, rewrite_checks_time, zero_red_stats = new_elems_f5!(ctx, mat, pairs, G, H)
-        times.rewrite += rewrite_checks_time
-        times.new_rewriter += new_rewriter_time
-        push!(stats.zero_reductions, zero_red_stats...)
-        @debug "current basis in relevant position:" [(Int(g[1]), pretty_print(ctx.po.mo, g[2])) for g in G if g[1] == pos(last(mat.sigs))]
-        cnt = cnt + 1
+        num_arit_operations += reduction_dat.value
+
+        #- PAIR GENERATION -#
+        pair_gen_time = @elapsed new_elems_f5!(ctx, mat, pairs, G, H)
+
+        if verbose
+            println("selected $(nselected) / $(total_num_pairs) pairs, sig-degree of sel. pairs: $(sig_degree)")
+            println("symbolic pp took $(symbolic_pp_time) seconds.")
+            println("Matrix $(cnt) : $(reduction_dat.time) secs reduction / size = $(mat_size) / density = $(mat_dens)")
+            for (sig, rw) in zip(mat.sigs, mat.rows)
+                if isempty(rw)
+                    println("zero reduction at sig-degree $(deg_pair(sig)) / position $(pos(sig))")
+                end
+            end
+            println("Pair generation took $(pair_gen_time) seconds.")
+        end
+        
+        cnt += cnt + 1
     end
 
-    times, stats
+    if verbose
+        println("-----")
+        println("total number of arithmetic operations: $(num_arit_operations)")
+    end
 end
 
 function f5(I::Vector{P},

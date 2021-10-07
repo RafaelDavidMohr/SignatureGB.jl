@@ -154,7 +154,7 @@ end
     pair_sig = (ctx.po.mo(x), ctx(2, R(1)))
     pairset = SG.mpairset(ctx)
     push!(pairset, pair_sig)
-    mons, time = SG.symbolic_pp!(ctx, pairset, basis, syz, are_pairs = false)
+    mons = SG.symbolic_pp!(ctx, pairset, basis, syz, are_pairs = false)
     mat = SG.f5matrix(ctx, mons, pairset)
     @test SG.mat_show(mat) == [1 0 0; 0 1 1; 1 1 0]
     SG.reduction!(mat)
@@ -200,7 +200,7 @@ end
     R, (x, y, z, w) = Singular.PolynomialRing(Singular.Fp(101), ["x", "y", "z", "w"])
     I = cyclic([x,y,z,w])
     dat, G, H, pairs = SG.f5setup(I)
-    SG.f5core!(dat, G, H, pairs)
+    SG.f5core!(dat, G, H, pairs, verbose = true)
     gb = [R(dat.ctx, (i, g[1])) for i in keys(G) for g in G[i]]
     @test is_gb(gb)
 end

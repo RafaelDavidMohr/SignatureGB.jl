@@ -122,16 +122,11 @@ function new_elems_f5!(ctx::SΓ,
                        G::Basis{I, M},
                        H::Syz{I, M}) where {I, M, T, SΓ <: SigPolynomialΓ{I, M, T}}
 
-    zero_red_stats = Tuple{Int, Int}[]
-    curr_degree = Int(degree(ctx.po.mo, first(mat.tbl.val)))
-    rewrite_checks_time = 0.0
-    new_rewriter_time = 0.0
     for (i, sig) in enumerate(mat.sigs)
         m, (pos, t) = sig
         new_sig = mul(ctx, sig...)
         @inbounds begin
             if isempty(mat.rows[i])
-                push!(zero_red_stats, (Int(pos), curr_degree))
                 push!(H[pos], new_sig[2])
                 new_rewriter!(ctx, pairs, new_sig)
             else
@@ -142,15 +137,13 @@ function new_elems_f5!(ctx::SΓ,
                 # leading term dropped during reduction
                 add_cond_2 = lt(ctx.po.mo, leadingmonomial(p), leadingmonomial(ctx(sig...)[:poly]))
                 if add_cond_1 || add_cond_2
-                    @debug "adding:" pretty_print(ctx, sig)
                     ctx(new_sig, p)
                     lm = leadingmonomial(p)
-                    new_rewriter_time += @elapsed new_rewriter!(ctx, pairs, new_sig)
+                    new_rewriter!(ctx, pairs, new_sig)
                     insert!(G[pos], new_sig[2], lm)
-                    rewrite_checks_time += @elapsed pairs!(ctx, pairs, new_sig, lm, G, H)
+                    pairs!(ctx, pairs, new_sig, lm, G, H)
                 end
             end
         end
     end
-    new_rewriter_time, rewrite_checks_time, zero_red_stats
 end
