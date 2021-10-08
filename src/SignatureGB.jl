@@ -55,15 +55,17 @@ function f5core!(dat::F5Data{I, SΓ},
                  verbose = false) where {I, M, SΓ <: SigPolynomialΓ{I, M}}
     
     ctx = dat.ctx
+    use_max_sig_degree = (select == select_all_pos_and_degree! || select == select_one!)
+    
     cnt = 1
     num_arit_operations = 0
     curr_pos = zero(pos_type(ctx))
-    deg_pair = p -> degree(ctx.po.mo, p[1]) + degree(ctx.po.mo, p[2][2])
+
     while !(isempty(pairs))
         #- PAIR SELECTION -#
         total_num_pairs = length(pairs)
         to_reduce, are_pairs, nselected, indx = select(ctx, pairs)
-        sig_degree = deg_pair(first(to_reduce))
+        sig_degree = degree(ctx, last(to_reduce))
         if indx != curr_pos && mod_order(dat.ctx) == :POT
             remask!(dat.ctx.po.mo.table)
             if verbose
@@ -75,7 +77,9 @@ function f5core!(dat::F5Data{I, SΓ},
         end
 
         #- SYMBOLIC PP -#
-        symbolic_pp_timed  = @timed symbolic_pp!(ctx, to_reduce, G, H, are_pairs = are_pairs)
+        symbolic_pp_timed  = @timed symbolic_pp!(ctx, to_reduce, G, H,
+                                                 use_max_sig_degree = use_max_sig_degree,
+                                                 are_pairs = are_pairs)
         done = symbolic_pp_timed.value
         symbolic_pp_time = symbolic_pp_timed.time
         mat = f5matrix(ctx, done, to_reduce)
@@ -95,7 +99,7 @@ function f5core!(dat::F5Data{I, SΓ},
             println("Matrix $(cnt) : $(reduction_dat.time) secs reduction / size = $(mat_size) / density = $(mat_dens)")
             for (sig, rw) in zip(mat.sigs, mat.rows)
                 if isempty(rw)
-                    println("zero reduction at sig-degree $(deg_pair(sig)) / position $(pos(sig))")
+                    println("zero reduction at sig-degree $(degree(ctx, sig)) / position $(pos(sig))")
                 end
             end
             println("Pair generation took $(pair_gen_time) seconds.")

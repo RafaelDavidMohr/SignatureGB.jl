@@ -5,6 +5,10 @@ const Pair{I, M} = Tuple{MonSigPair{I, M}, MonSigPair{I, M}}
 const Basis{I, M, MΓ} = Dict{I, SortedDict{M, M, Ordering{MΓ}}}
 const Syz{I, M} = Dict{I, Vector{M}}
 
+function degree(ctx::SigPolynomialΓ{I, M}, p::MonSigPair{I, M}) where {I, M}
+    degree(ctx.po.mo, p[1]) + degree(ctx.po.mo, p[2][2])
+end
+
 function new_syz(ctx::SigPolynomialΓ, length)
     I = pos_type(ctx)
     M = eltype(ctx.po.mo)
@@ -138,11 +142,6 @@ function rewriteable(ctx::SigPolynomialΓ{I, M},
 
     msig = mul(ctx.po.mo, m, sig[2])
     pos = sig[1]
-    # can we make this iteration better?
-    flag = false
-    # for g in G[pos]
-    #     lt(ctx.po.mo, sig[2], g) && divides(ctx.po.mo, g, msig) && return true
-    # end
     for (g, lm) in inclusive(G[pos], searchsortedafter(G[pos], sig[2]), lastindex(G[pos]))
         divides(ctx.po.mo, g, msig) && return true
     end
@@ -198,13 +197,12 @@ function select_all_pos_and_degree!(ctx::SΓ,
     nselected = 0
     pair = first(pairs)
     indx = pos(pair[1])
-    deg = p -> degree(ctx.po.mo, p[1][1]) + degree(ctx.po.mo, p[1][2][2])
     if iszero(pos(pair[2]))
         return mpairset(ctx, [pair[1]]), false, 1, indx
     end
     selected = mpairset(ctx)
     for p in pairs
-        if p[1][2][1] == indx && deg(p) == deg(pair)
+        if p[1][2][1] == indx && degree(ctx, p[1]) == degree(ctx, pair[1])
             push!(selected, first(p))
             push!(selected, p[2])
             nselected += 1
