@@ -14,6 +14,7 @@ function find_reducer(ctx::SigPolynomialΓ{I, M},
             # probably need to check that lt(ctx(n, g)) == n*lt(ctx, g)
             if divides(ctx.po.mo, lm, m)
                 delta = div(ctx.po.mo, m, lm)
+                @debug "possible reducer $(pretty_print(ctx, (delta, (i, g)))) for $(pretty_print(ctx.po.mo, m))"
                 rewriteable(ctx, delta, g_sig, G, H) && continue
                 push!(reducers, (delta, g_sig))
             end
