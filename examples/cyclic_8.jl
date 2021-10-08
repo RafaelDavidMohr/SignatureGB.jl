@@ -5,4 +5,4 @@ I = spoly{n_Zp}[x1 + x2 + x3 + x4 + x5 + x6 + x7 + x8, x1*x2 + x2*x3 + x3*x4 + x
 comp_ideal = gens(R)
 SignatureGB.f5(comp_ideal)
 gb = SignatureGB.f5(I, verbose = true)
-SignatureGB.is_gb(gb)
+println(SignatureGB.is_gb(gb))
