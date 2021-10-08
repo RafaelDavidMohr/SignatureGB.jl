@@ -28,6 +28,7 @@ function symbolic_pp!(ctx::SΓ,
                       pairs::MonSigSet{I, M, SΓ},
                       G::Basis{I, M},
                       H::Syz{I, M};
+                      use_max_sig_degree = false,
                       are_pairs=true) where {I, M <: Integer, SΓ <: SigPolynomialΓ{I, M}}
 
     todo = Set(vcat([ctx(p[1], p[2])[:poly].mo for p in pairs]...))
