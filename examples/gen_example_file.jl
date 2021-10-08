@@ -21,7 +21,8 @@ function gen_example_file(I::Vector{MP},
     println(f, "using SignatureGB")
     R = parent(first(I))
     vars = ["x$(i)" for i in 1:Singular.nvars(R)]
-    println(f, "R, ($(["x$(i), " for i in 1:Singular.nvars(R)]...)) = Singular.PolynomialRing(Fp($(Singular.characteristic(R))), $(vars))") 
+    nvr = Singular.nvars(R)
+    println(f, "R, ($(["x$(i), " for i in 1:nvr-1]...), $("x$(nvr)")) = Singular.PolynomialRing(Fp($(Singular.characteristic(R))), $(vars))") 
     println(f, "I = $(I)")
     println(f, "comp_ideal = gens(R)")
     println(f, "SignatureGB.f5(comp_ideal)")
