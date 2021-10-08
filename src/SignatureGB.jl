@@ -94,13 +94,17 @@ function f5core!(dat::F5Data{I, SΓ},
         pair_gen_time = @elapsed new_elems_f5!(ctx, mat, pairs, G, H)
 
         if verbose
+            zero_red_count = 0
             println("selected $(nselected) / $(total_num_pairs) pairs, sig-degree of sel. pairs: $(sig_degree)")
             println("symbolic pp took $(symbolic_pp_time) seconds.")
             println("Matrix $(cnt) : $(reduction_dat.time) secs reduction / size = $(mat_size) / density = $(mat_dens)")
             for (sig, rw) in zip(mat.sigs, mat.rows)
                 if isempty(rw)
-                    println("zero reduction at sig-degree $(degree(ctx, sig)) / position $(pos(sig))")
+                    zero_red_count += 1
                 end
+            end
+            if !(iszero(zero_red_count))
+                println("$(zero_red_count) zero reductions at sig-degree $(degree(ctx, last(mat.sigs))) / position $(pos(last(mat.sigs)))")
             end
             println("Pair generation took $(pair_gen_time) seconds.")
         end
