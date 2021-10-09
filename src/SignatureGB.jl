@@ -13,7 +13,7 @@ include("./kd_tree.jl")
 include("./pairs.jl")
 include("./symbolicpp.jl")
 include("./reduction.jl")
-include("../examples/gen_example_file.jl")
+include("./gen_example_file.jl")
 
 function f5setup(I::Vector{P};
                  start_gen = 1,
