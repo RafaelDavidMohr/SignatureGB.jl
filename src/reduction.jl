@@ -51,6 +51,7 @@ function reduction!(mat::F5matrix{I, M, T, J, Tbuf}) where {I, M, T, J, Tbuf}
         for ((i, row), sig) in zip(enumerate(mat.rows), mat.sigs)
             l = leadingmonomial(row)
             if iszero(pivots[l])
+                monic!(mat.ctx, row)
                 pivots[l] = J(i)
                 continue
             end
@@ -126,7 +127,7 @@ function new_elems_f5!(ctx::SΓ,
         m, (pos, t) = sig
         new_sig = mul(ctx, sig...)
         @inbounds begin
-            @debug "considering $(pretty_print(ctx, sig))"
+            # @debug "considering $(pretty_print(ctx, sig))"
             if isempty(mat.rows[i])
                 @debug "syzygy $(pretty_print(ctx, sig))"
                 push!(H[pos], new_sig[2])
@@ -139,15 +140,13 @@ function new_elems_f5!(ctx::SΓ,
                 # leading term dropped during reduction
                 add_cond_2 = lt(ctx.po.mo, leadingmonomial(p), leadingmonomial(ctx(sig...)[:poly]))
                 if add_cond_1 || add_cond_2
-                    @debug "adding $(pretty_print(ctx, sig))"
-                    if new_sig[2] in keys(G[pos])
-                        @error "element $(pretty_print(ctx, sig)) already in basis"
-                    end
+                    
+                    @debug "adding $(pretty_print(ctx, sig)) with lm $(pretty_print(ctx.po.mo, leadingmonomial(p)))"
                     ctx(new_sig, p)
                     lm = leadingmonomial(p)
                     new_rewriter!(ctx, pairs, new_sig)
-                    insert!(G[pos], new_sig[2], lm)
                     pairs!(ctx, pairs, new_sig, lm, G, H)
+                    insert!(G[pos], new_sig[2], lm)
                 end
             end
         end

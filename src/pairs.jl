@@ -94,13 +94,15 @@ function pairs!(ctx::SΓ,
                 H::Syz{I, M}) where {I, M, SΓ <: SigPolynomialΓ{I, M}}
 
     pos = sig[1]
-    for i in keys(G)
-        for g in keys(G[i])
+    for (i, Gi) in G
+        for (g, lm) in Gi
             g_sig = (i, g)
-            m = lcm(ctx.po.mo, leadingmonomial(G[i], g), lm_sig)
+            g_sig == sig && continue
+            m = lcm(ctx.po.mo, lm, lm_sig)
             a = div(ctx.po.mo, m, lm_sig)
+            # @debug "checking pair $(pretty_print(ctx, (a, sig)))"
             rewriteable_syz(ctx, a, sig, G, H) && continue
-            b = div(ctx.po.mo, m, leadingmonomial(G[i], g))
+            b = div(ctx.po.mo, m, leadingmonomial(Gi, g))
             (pos, ctx(sig)[:sigratio]) == (i, ctx(g_sig)[:sigratio]) && continue
             rewriteable(ctx, b, g_sig, G, H) && continue
             if lt(ctx, (pos, ctx(sig)[:sigratio]), (i, ctx(g_sig)[:sigratio]))
@@ -183,11 +185,12 @@ function select_one!(ctx::SΓ,
                      pairs::PairSet{I, M, SΓ}) where {I, M, SΓ <: SigPolynomialΓ{I, M}}
     
     pair = pop!(pairs)
+    indx = pos(pair[1])
     if iszero(pos(pair[2]))
-        return mpairset(ctx, [pair[1]]), false
+        return mpairset(ctx, [pair[1]]), false, 1, indx
     else
         @debug "selected" pretty_print(ctx, pair[1]), pretty_print(ctx, pair[2])
-        return mpairset(ctx, [pair[1], pair[2]]), true
+        return mpairset(ctx, [pair[1], pair[2]]), true, 1, indx
     end
 end
 

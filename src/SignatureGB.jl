@@ -39,7 +39,8 @@ function f5setup(I::Vector{P};
     ctx = dat.ctx
     G = new_basis(ctx, length(I))
     for i in 1:(start_gen - 1)
-        new_basis_elem!(G[pos_type(i)], ctx.po.mo(R(1)))
+        lm = leadingmonomial(ctx, (pos_type(i), ctx.po.mo(R(1))))
+        insert!(G[pos_type(i)], ctx.po.mo(R(1)), lm)
     end
     H = new_syz(ctx, length(I))
     pairs = pairset(ctx)
@@ -55,7 +56,7 @@ function f5core!(dat::F5Data{I, SΓ},
                  verbose = false) where {I, M, SΓ <: SigPolynomialΓ{I, M}}
     
     ctx = dat.ctx
-    use_max_sig_degree = (select == select_all_pos_and_degree! || select == select_one!)
+    use_max_sig = (select == select_all_pos_and_degree! || select == select_one!)
     
     cnt = 1
     num_arit_operations = 0
@@ -78,7 +79,7 @@ function f5core!(dat::F5Data{I, SΓ},
 
         #- SYMBOLIC PP -#
         symbolic_pp_timed  = @timed symbolic_pp!(ctx, to_reduce, G, H,
-                                                 use_max_sig_degree = use_max_sig_degree,
+                                                 use_max_sig = use_max_sig,
                                                  are_pairs = are_pairs)
         done = symbolic_pp_timed.value
         symbolic_pp_time = symbolic_pp_timed.time
