@@ -2,8 +2,8 @@ const Data{M, T} = NamedTuple{(:poly, :sigtail, :sigratio),
                               Tuple{Polynomial{M, T}, Polynomial{M, T}, M}}
 const SigTable{I, M, T} = Dict{Tuple{I, M}, Data{M, T}}
 
-mutable struct SigPolynomialΓ{I, M, T, MΓ<:Context{M}, TΓ<:Context{T}, S}<:Context{Tuple{I, M}}
-    po::PolynomialΓ{M, T, MΓ, TΓ}
+mutable struct SigPolynomialΓ{I, M, T, MΓ<:Context{M}, TΓ<:Context{T}, PΓ<:PolynomialΓ{M, T, MΓ, TΓ}, S}<:Context{Tuple{I, M}}
+    po::PΓ
     tbl::SigTable{I, M, T}
     ord_indices::Dict{I, I}
 end
@@ -11,7 +11,7 @@ end
 pos_type(::SigPolynomialΓ{I}) where {I} = I
 mon_type(::SigPolynomialΓ{I, M}) where {I, M} = M
 coeff_type(::SigPolynomialΓ{I, M, T}) where {I, M, T} = T
-mod_order(::SigPolynomialΓ{I, M, T, MΓ, TΓ, S}) where {I, M, T, MΓ, TΓ, S} = S
+mod_order(::SigPolynomialΓ{I, M, T, MΓ, TΓ, PΓ, S}) where {I, M, T, MΓ, TΓ, PΓ, S} = S
 
 function idxsigpolynomialctx(coefficients,
                              ngens;
@@ -29,7 +29,7 @@ function idxsigpolynomialctx(coefficients,
     tbl = SigTable{pos_type, index_type, eltype(coefficients)}()
     ord_indices = Dict([(pos_type(i), pos_type(i)) for i in 1:ngens])
     SigPolynomialΓ{pos_type, eltype(moctx), eltype(coefficients),
-                   typeof(moctx), typeof(coefficients), mod_order}(po, tbl, ord_indices)
+                   typeof(moctx), typeof(coefficients), typeof(po), mod_order}(po, tbl, ord_indices)
 end
 
 # registration functions
@@ -88,9 +88,9 @@ end
 
 # sorting
 
-@inline @generated function lt(ctx::SigPolynomialΓ{I, M, T, MΓ, TΓ, S},
+@inline @generated function lt(ctx::SigPolynomialΓ{I, M, T, MΓ, TΓ, PΓ, S},
                                a::Tuple{I, M},
-                               b::Tuple{I, M}) where {I, M, T, MΓ, TΓ, S}
+                               b::Tuple{I, M}) where {I, M, T, MΓ, TΓ, PΓ, S}
 
     if S == :POT
         quote

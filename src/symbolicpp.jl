@@ -5,19 +5,19 @@ minmonomialset(ctx::MonomialContext{M}) where M = SortedSet(M[], order(ctx))
 function find_reducer(ctx::SigPolynomialΓ{I, M},
                       G::Basis{I, M},
                       H::Syz{I, M},
-                      m::M;
+                      m::M,
                       use_max_sig_degree = false,
                       max_sig_degree = 0,
                       max_sig_pos = 0) where {I, M}
 
-    reducers = mpairset(ctx)
-    for i in keys(G)
-        for (g, lm) in G[i]
+    reducers = MonSigPair{I, M}[]
+    for (i, Gi) in G
+        for (g, lm) in Gi
             g_sig = (i, g)
             # probably need to check that lt(ctx(n, g)) == n*lt(ctx, g)
             if divides(ctx.po.mo, lm, m)
                 delta = div(ctx.po.mo, m, lm)
-                @debug "possible reducer $(pretty_print(ctx, (delta, (i, g)))) for $(pretty_print(ctx.po.mo, m))"
+                # @debug "possible reducer $(pretty_print(ctx, (delta, (i, g)))) for $(pretty_print(ctx.po.mo, m))"
                 use_max_sig_degree && i == max_sig_pos && degree(ctx, (delta, g_sig)) > max_sig_degree && continue
                 rewriteable(ctx, delta, g_sig, G, H) && continue
                 push!(reducers, (delta, g_sig))
@@ -25,7 +25,9 @@ function find_reducer(ctx::SigPolynomialΓ{I, M},
         end
     end
     isempty(reducers) && return nothing
-    pop!(reducers)
+    mpairord = mpairordering(ctx)
+    sort!(reducers, lt = (a, b) -> Base.Order.lt(mpairord, a, b))
+    first(reducers)
 end
 
 function symbolic_pp!(ctx::SΓ,
@@ -46,8 +48,8 @@ function symbolic_pp!(ctx::SΓ,
         max_sig_degree = degree(ctx, last(pairs))
         max_sig_pos = pos(last(pairs))
     else
-        max_sig_degree = 0
-        max_sig_pos = 0
+        max_sig_degree = zero(exponenttype(ctx.po.mo))
+        max_sig_pos = zero(pos_type(ctx))
     end
     
     while todo != done
@@ -55,9 +57,9 @@ function symbolic_pp!(ctx::SΓ,
             m in done && continue
             push!(done, m)
             red = find_reducer(ctx, G, H, m,
-                               use_max_sig_degree = use_max_sig_degree,
-                               max_sig_degree = max_sig_degree,
-                               max_sig_pos = max_sig_pos)
+                               use_max_sig_degree,
+                               max_sig_degree,
+                               max_sig_pos)
             isnothing(red) && continue
             push!(pairs, red)
             union!(todo, ctx(red[1], red[2])[:poly].mo)
