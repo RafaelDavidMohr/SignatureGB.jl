@@ -157,8 +157,11 @@ end
     mons = SG.symbolic_pp!(ctx, pairset, basis, syz, are_pairs = false)
     mat = SG.f5matrix(ctx, mons, pairset)
     @test SG.mat_show(mat) == [1 0 0; 0 1 1; 1 1 0]
-    SG.reduction!(mat)
-    @test SG.mat_show(mat) == [1 0 0; 0 1 1; 0 0 1]
+    SG.reduction!(mat, ctx, trace_sig_tails = true)
+    @test SG.mat_show(mat) == [1 0 0; 0 1 1; 0 0 100]
+    p = SG.unindexpolynomial(mat.sigtail_mat.tbl,
+                             mat.sigtail_mat.rows[last(mat.sigs)])
+    @test R(ctx.po, p) == x - y
 end
     
 @testset "monomial hashing" begin
@@ -182,7 +185,7 @@ end
     I = [x^2, x*y + y^2]
     dat, G, H, pairs = SG.f5setup(I)
     SG.f5core!(dat, G, H, pairs)
-    gb = vcat(I, [y^3])
+    gb = vcat(I, [-y^3])
     gb_2 = [R(dat.ctx, (i, g[1])) for i in keys(G) for g in G[i]]
     @test all(p -> p in gb, gb_2)
 end
@@ -203,6 +206,22 @@ end
     SG.f5core!(dat, G, H, pairs, verbose = true)
     gb = [R(dat.ctx, (i, g[1])) for i in keys(G) for g in G[i]]
     @test is_gb(gb)
+end
+
+@testset "cyclic 4 sigtails" begin
+    R, (x, y, z, w) = Singular.PolynomialRing(Singular.Fp(101), ["x", "y", "z", "w"])
+    I = cyclic([x,y,z,w])
+    dat, G, H, pairs = SG.f5setup(I, trace_sig_tails = true)
+    SG.f5core!(dat, G, H, pairs)
+    basis_sigs = [(i, g[1]) for i in keys(G) for g in G[i]]
+    gb = [R(dat.ctx, s) for s in basis_sigs]
+    projs = [R(dat.ctx.po, SG.project(dat.ctx, s)) for s in basis_sigs]
+    gb_s = [std(Ideal(R, I[1:k])) for k in 1:3]
+    for (p, g, sig) in zip(projs, gb, basis_sigs)
+        isone(sig[1]) && continue
+        k = sig[1]
+        @test iszero(Singular.reduce(p*I[k] - g, gb_s[k - 1]))
+    end
 end
 
 @testset "cyclic 6" begin

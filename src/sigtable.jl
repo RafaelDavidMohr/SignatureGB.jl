@@ -74,6 +74,19 @@ function (ctx::SigPolynomialΓ{I, M, T})(m::M, sig::Tuple{I, M}) where {I, M, T}
     end
 end
 
+# get projection to highest index
+
+function project(sig::Tuple{I, M},
+                 sigtail::Polynomial{M, T}) where {I, M, T}
+    
+    Polynomial{M, T}(vcat(sig[2], sigtail.mo), vcat(one(T), sigtail.co))
+end
+
+function project(ctx::SigPolynomialΓ{I, M},
+                 sig::Tuple{I, M}) where {I, M}
+    project(sig, ctx(sig)[:sigtail])
+end
+
 # forwarding of functions on polynomials/monomials
 
 function mul(ctx::SigPolynomialΓ{I, M}, m::M, sig::Tuple{I, M}) where {I, M}

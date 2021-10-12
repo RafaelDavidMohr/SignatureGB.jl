@@ -172,6 +172,13 @@ Base.isempty(p::Polynomial) = isempty(p.co)
 Base.@propagate_inbounds coefficient(p::Polynomial, i) = p.co[i]
 Base.@propagate_inbounds monomial(p::Polynomial, i) = p.mo[i]
 Base.@propagate_inbounds leadingmonomial(p::Polynomial) = monomial(p, 1)
+Base.@propagate_inbounds function tail(p::Polynomial)
+    if length(p.mo) > 1
+        typeof(p)(p.mo[2:end], p.co[2:end])
+    else
+        zero(p)
+    end
+end
 monomials(p::Polynomial) = p.mo
 Base.zero(::Type{Polynomial{M, T}}) where {M, T} = Polynomial(M[], T[])
 Base.zero(p::Polynomial) = zero(typeof(p))
@@ -210,7 +217,7 @@ function lt(ctx::Γ, a::Tuple{M, T}, b :: Tuple{M, T}) where {M, T, Γ<:Polynomi
 end
 
 function normalize!(ctx::Γ, p::T; onlysort::Bool=false) where {T<:Polynomial, Γ<:Context{T}}
-    sort!(p, rev=true, order=order(ctx))
+    sort!(p, by = mon_coeff -> first(mon_coeff), rev=true, order=order(ctx.mo))
     onlysort && return
 
     # collapse like terms, remove zeros
@@ -295,6 +302,10 @@ function mul(ctx::PolynomialΓ{M, T}, p::Polynomial{M, T}, m::M) where {M, T}
     eltype(ctx)(newmo, p.co)
 end
 
+function mul_scalar(ctx::PolynomialΓ{M, T}, p::Polynomial{M, T}, c::T) where {M, T}
+    newco = [mul(ctx.co, c, coeff) for coeff in p.co]
+    eltype(ctx)(p.mo, newco)
+end
 
 # The basic operation in symbolic preprocessing
 function shift(ctx::PolynomialΓ{M, T}, p :: Polynomial{M, T}, m :: M ;

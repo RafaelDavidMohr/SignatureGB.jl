@@ -22,6 +22,7 @@ function f5setup(I::Vector{P};
                  index_type=UInt32,
                  mask_type=UInt32,
                  pos_type=UInt32,
+                 trace_sig_tails = false,
                  kwargs...) where {P <: AA.MPolyElem}
 
     R = parent(first(I))
@@ -33,7 +34,7 @@ function f5setup(I::Vector{P};
     if mod_order != :POT
         error("only position over term order currently supported")
     end
-    dat = f5data(I, mod_order = mod_order, trace_sig_tails = false,
+    dat = f5data(I, mod_order = mod_order, trace_sig_tails = trace_sig_tails,
                  index_type = index_type, mask_type = mask_type,
                  pos_type = pos_type, order = order)
     ctx = dat.ctx
@@ -88,7 +89,7 @@ function f5core!(dat::F5Data{I, SΓ},
         mat_dens = sum([length(rw) for rw in mat.rows]) / (mat_size[1] * mat_size[2])
 
         #- REDUCTION -#
-        reduction_dat = @timed reduction!(mat)
+        reduction_dat = @timed reduction!(mat, ctx, trace_sig_tails = dat.trace_sig_tails)
         num_arit_operations += reduction_dat.value
 
         #- PAIR GENERATION -#
@@ -121,6 +122,7 @@ end
 
 function f5(I::Vector{P};
             start_gen = 1,
+            trace_sig_tails = false,
             mod_order=:POT,
             mon_order=:GREVLEX,
             index_type=UInt32,
@@ -134,7 +136,7 @@ function f5(I::Vector{P};
     dat, G, H, pairs = f5setup(I, start_gen = start_gen, mod_order = mod_order,
                                mon_order = mon_order, index_type = index_type,
                                mask_type = mask_type, pos_type = pos_type,
-                               kwargs...)
+                               trace_sig_tails = trace_sig_tails, kwargs...)
     f5core!(dat, G, H, pairs, select = select, verbose = verbose)
     [R(dat.ctx, (i, g[1])) for i in keys(G) for g in G[i]]
 end
