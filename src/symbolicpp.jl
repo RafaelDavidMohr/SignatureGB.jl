@@ -12,14 +12,14 @@ function find_reducer(ctx::SigPolynomialΓ{I, M},
     reducer = nothing
     mpairord = mpairordering(ctx)
     for (i, Gi) in G
-        for (g, lm) in Gi
+        for (j, (g, lm)) in enumerate(Gi)
             g_sig = (i, g)
             # probably need to check that lt(ctx(n, g)) == n*lt(ctx, g)
             if divides(ctx.po.mo, lm, m)
                 delta = div(ctx.po.mo, m, lm)
                 # @debug "possible reducer $(pretty_print(ctx, (delta, (i, g)))) for $(pretty_print(ctx.po.mo, m))"
                 use_max_sig && !(lt(ctx, mul(ctx, delta, g_sig), max_sig)) && continue
-                rewriteable(ctx, delta, g_sig, G, H) && continue
+                rewriteable(ctx, delta, g_sig, j, G, H) && continue
                 if isnothing(reducer) || lt(mpairord, (delta, g_sig), reducer)
                     reducer = (delta, g_sig)
                 end

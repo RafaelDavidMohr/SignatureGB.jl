@@ -42,7 +42,7 @@ function f5setup(I::Vector{P};
     G = new_basis(ctx, length(I))
     for i in 1:(start_gen - 1)
         lm = leadingmonomial(ctx, (pos_type(i), ctx.po.mo(R(1))))
-        insert!(G[pos_type(i)], ctx.po.mo(R(1)), lm)
+        push!(G[pos_type(i)], (ctx.po.mo(R(1)), lm))
     end
     H = new_syz(ctx, length(I))
     pairs = pairset(ctx)

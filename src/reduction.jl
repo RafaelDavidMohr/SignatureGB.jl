@@ -146,7 +146,7 @@ function new_elems_f5!(ctx::SΓ,
                     lm = leadingmonomial(p)
                     new_rewriter!(ctx, pairs, new_sig)
                     pairs!(ctx, pairs, new_sig, lm, G, H)
-                    insert!(G[pos], new_sig[2], lm)
+                    push!(G[pos], (new_sig[2], lm))
                 end
             end
         end
