@@ -22,6 +22,7 @@ function f5setup(I::Vector{P};
                  index_type=UInt32,
                  mask_type=UInt32,
                  pos_type=UInt32,
+                 max_remasks=3,
                  kwargs...) where {P <: AA.MPolyElem}
 
     R = parent(first(I))
@@ -35,7 +36,8 @@ function f5setup(I::Vector{P};
     end
     dat = f5data(I, mod_order = mod_order, trace_sig_tails = false,
                  index_type = index_type, mask_type = mask_type,
-                 pos_type = pos_type, order = order)
+                 pos_type = pos_type, order = order,
+                 max_remasks = max_remasks)
     ctx = dat.ctx
     G = new_basis(ctx, length(I))
     for i in 1:(start_gen - 1)
@@ -68,7 +70,10 @@ function f5core!(dat::F5Data{I, SΓ},
         to_reduce, are_pairs, nselected, indx = select(ctx, pairs)
         sig_degree = degree(ctx, last(to_reduce))
         if indx != curr_pos && mod_order(dat.ctx) == :POT
-            remask!(dat.ctx.po.mo.table)
+            if dat.remasks_left > 0
+                remask!(dat.ctx.po.mo.table)
+                dat.remasks_left -= 1
+            end
             if verbose
                 println("-----------")
                 println("STARTING WITH INDEX $(pos(first(to_reduce)))")
@@ -128,13 +133,14 @@ function f5(I::Vector{P};
             pos_type=UInt32,
             select = select_all_pos_and_degree!,
             verbose = false,
+            max_remasks = 3,
             kwargs...) where {P <: AA.MPolyElem}
 
     R = parent(first(I))
     dat, G, H, pairs = f5setup(I, start_gen = start_gen, mod_order = mod_order,
                                mon_order = mon_order, index_type = index_type,
                                mask_type = mask_type, pos_type = pos_type,
-                               kwargs...)
+                               max_remasks = max_remasks, kwargs...)
     f5core!(dat, G, H, pairs, select = select, verbose = verbose)
     [R(dat.ctx, (i, g[1])) for i in keys(G) for g in G[i]]
 end

@@ -88,7 +88,8 @@ Base.isequal(x::Monomial, y::Monomial) = x.exponents == y.exponents
 
 # Compute a bitmask for the monomial M, TODO: make this generated
 function bitmask(m::Monomial{N, E}, pwrs::Dict{Int, Vector{E}}; masktype = UInt32) where {N, E<:Signed}
-    @inbounds parse(masktype, join(["$(Int(p <= m.exponents[i]))" for i in 1:N for p in pwrs[i]]), base = 2)
+    @inbounds arr = BitArray([p <= m.exponents[i] for i in 1:N for p in pwrs[i]])
+    reverse(arr).chunks[1] % masktype
 end
                   
 Base.one(::Type{Monomial{N, E}}) where {N, E} = Monomial{N, E}(SVector{N, E}(zeros(E, N)))

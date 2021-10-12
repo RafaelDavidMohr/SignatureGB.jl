@@ -17,11 +17,10 @@ end
 
 #.. Helpers for BitVectors
 
-@generated function bitcheck(a::BitArray, b::BitArray, ::Val{N}) where N
-    quote
-        $([:(b[$i] < a[$i] && return false) for i in 1:N]...)
-        return true
-    end
+function bitarray_to_int(arr::BitArray,
+                         B::Type{U}) where {U <: Integer}
+    arr = reverse(arr)
+    sum(((i, x),) -> B(x) << ((i-1) * sizeof(x)), enumerate(arr.chunks))
 end
 
 function even_partition(i, nums)

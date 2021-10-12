@@ -9,7 +9,8 @@ function find_reducer(ctx::SigPolynomialΓ{I, M},
                       use_max_sig = false,
                       max_sig = (zero(I), zero(M))) where {I, M}
 
-    reducers = MonSigPair{I, M}[]
+    reducer = nothing
+    mpairord = mpairordering(ctx)
     for (i, Gi) in G
         for (g, lm) in Gi
             g_sig = (i, g)
@@ -19,14 +20,13 @@ function find_reducer(ctx::SigPolynomialΓ{I, M},
                 # @debug "possible reducer $(pretty_print(ctx, (delta, (i, g)))) for $(pretty_print(ctx.po.mo, m))"
                 use_max_sig && !(lt(ctx, mul(ctx, delta, g_sig), max_sig)) && continue
                 rewriteable(ctx, delta, g_sig, G, H) && continue
-                push!(reducers, (delta, g_sig))
+                if isnothing(reducer) || lt(mpairord, (delta, g_sig), reducer)
+                    reducer = (delta, g_sig)
+                end
             end
         end
     end
-    isempty(reducers) && return nothing
-    mpairord = mpairordering(ctx)
-    sort!(reducers, lt = (a, b) -> Base.Order.lt(mpairord, a, b))
-    first(reducers)
+    return reducer
 end
 
 function symbolic_pp!(ctx::SΓ,
