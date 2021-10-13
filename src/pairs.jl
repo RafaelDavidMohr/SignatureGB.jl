@@ -30,11 +30,13 @@ function new_basis_elem!(ctx::SigPolynomialΓ{I, M},
 end
 
 function pos(ctx::SigPolynomialΓ{I, M},
-             p::MonSigPair{I, M}) where {I, M}
-
-    iszero(p[2][1]) && return zero(I)
-    ctx.ord_indices[p[2][1]][:position]
+             p::Tuple{I, M}) where {I, M}
+    
+    iszero(p[1]) && return zero(I)
+    ctx.ord_indices[p[1]][:position]
 end
+
+pos(ctx::SigPolynomialΓ{I, M}, p::MonSigPair{I, M}) where {I, M} = pos(ctx, p[2])
 
 function pretty_print(ctx::SigPolynomialΓ{I, M}, a::MonSigPair{I, M}) where {I, M}
     "$(Vector{Int}(ctx.po.mo[a[1][1]].exponents)), $(Int(ctx.ord_indices[a[2][1]][:position])), $(Vector{Int}(ctx.po.mo[a[2][2]].exponents))"

@@ -166,7 +166,46 @@ function critical_loop!(buffer::Vector{Tbuf},
     end
 end
 
-# rows that need to be added
+# managing the basis and syzygies after reduction
+
+function new_syz!(ctx::SΓ,
+                  sig::MonSigPair{I, M},
+                  sig_tail::Polynomial{M, T},
+                  pairs::PairSet{I, M, SΓ},
+                  H::Syz{I, M}) where {I, M, T, SΓ <: SigPolynomialΓ{I, M, T}}
+
+    new_sig = mul(ctx, sig...)
+    ctx(new_sig, zero(eltype(ctx.po)), sig_tail)
+    push!(H[new_sig[1]], new_sig[2])
+    new_rewriter!(ctx, pairs, new_sig)
+end
+
+function new_basis!(ctx::SΓ,
+                    sig::MonSigPair{I, M},
+                    poly::Polynomial{M, T},
+                    sig_tail::Polynomial{M, T},
+                    pairs::PairSet{I, M, SΓ},
+                    G::Basis{I, M},
+                    H::Syz{I, M}) where {I, M, T, SΓ <: SigPolynomialΓ{I, M, T}}
+
+    m, (pos_key, t) = sig
+    posit = pos(ctx, sig)
+    new_sig = mul(ctx, sig...)
+    # add element to basis if any of the following two conditions hold:
+    # reductions of initial generators are added
+    add_cond_1 = isone(ctx.po.mo[m]) && isone(ctx.po.mo[t]) && !(new_sig[2] in keys(G[posit]))
+    # leading term dropped during reduction
+    add_cond_2 = lt(ctx.po.mo, leadingmonomial(poly), leadingmonomial(ctx(sig...)[:poly]))
+    if add_cond_1 || add_cond_2                 
+        @debug "adding $(pretty_print(ctx, sig)) with lm $(pretty_print(ctx.po.mo, leadingmonomial(poly)))"
+        ctx(new_sig, poly, sig_tail)
+        lm = leadingmonomial(poly)
+        new_rewriter!(ctx, pairs, new_sig)
+        pairs!(ctx, pairs, new_sig, lm, G, H)
+        push!(G[pos_key], (new_sig[2], lm))
+    end
+end
+                    
 
 function new_elems_f5!(ctx::SΓ,
                        mat::F5matrix{I, M, T},
@@ -175,37 +214,26 @@ function new_elems_f5!(ctx::SΓ,
                        H::Syz{I, M}) where {I, M, T, SΓ <: SigPolynomialΓ{I, M, T}}
 
     for (i, sig) in enumerate(mat.sigs)
-        m, (pos, t) = sig
-        new_sig = mul(ctx, sig...)
         @inbounds begin
-            if pos == mat.max_pos
+            if pos(ctx, sig) == mat.max_pos
                 sig_tail = tail(unindexpolynomial(mat.sigtail_mat.tbl, mat.sigtail_mat.rows[sig]))
             else
                 sig_tail = zero(eltype(ctx.po))
             end
-            # @debug "considering $(pretty_print(ctx, sig))"
             if isempty(mat.rows[i])
-                @debug "syzygy $(pretty_print(ctx, sig))"
-                ctx(new_sig, zero(eltype(ctx.po)), sig_tail)
-                push!(H[pos], new_sig[2])
-                new_rewriter!(ctx, pairs, new_sig)
+                new_syz!(ctx, sig, sig_tail, pairs, H)
             else     
                 p = unindexpolynomial(mat.tbl, mat.rows[i])
-                # add element to basis if any of the following two conditions hold:
-                # reductions of initial generators are added
-                add_cond_1 = isone(ctx.po.mo[m]) && isone(ctx.po.mo[t]) && !(new_sig[2] in keys(G[pos]))
-                # leading term dropped during reduction
-                add_cond_2 = lt(ctx.po.mo, leadingmonomial(p), leadingmonomial(ctx(sig...)[:poly]))
-                if add_cond_1 || add_cond_2
-                    
-                    @debug "adding $(pretty_print(ctx, sig)) with lm $(pretty_print(ctx.po.mo, leadingmonomial(p)))"
-                    ctx(new_sig, p, sig_tail)
-                    lm = leadingmonomial(p)
-                    new_rewriter!(ctx, pairs, new_sig)
-                    pairs!(ctx, pairs, new_sig, lm, G, H)
-                    push!(G[pos], (new_sig[2], lm))
-                end
+                new_basis!(ctx, sig, p, sig_tail, pairs, G, H)
             end
         end
     end
 end
+
+function new_elems_decomp!(ctx::SΓ,
+                           mat::F5matrix{I, M, T},
+                           pairs::PairSet{I, M, SΓ},
+                           G::Basis{I, M},
+                           H::Syz{I, M}) where {I, M, T, SΓ <: SigPolynomialΓ{I, M, T}}
+    return
+end 
