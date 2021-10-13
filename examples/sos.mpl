@@ -35,7 +35,8 @@ for n from 4 to 10 do
    fprintf(fd, "gb = SignatureGB.f5(%a);", vars[1..n]);
 
    fprintf(fd, "F = %a;\n", F);
-   fprintf(fd, "println(@elapsed SignatureGB.f5(%a, verbose=true));", F);
+   fprintf(fd, "sort!(F, by = p -> leading_monomial(p))\n");
+   fprintf(fd, "println(@elapsed SignatureGB.f5(F, verbose=true));");
    fprintf(fd, "exit()\n");
    fclose(fd):
   od:
