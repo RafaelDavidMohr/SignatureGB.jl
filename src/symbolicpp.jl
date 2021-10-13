@@ -7,7 +7,8 @@ function find_reducer(ctx::SigPolynomialΓ{I, M},
                       H::Syz{I, M},
                       m::M,
                       use_max_sig = false,
-                      max_sig = (zero(I), zero(M))) where {I, M}
+                      max_sig_pos = zero(pos_type(ctx)),
+                      sig_degree = zero(exponenttype(ctx.po.mo))) where {I, M}
 
     reducer = nothing
     mpairord = mpairordering(ctx)
@@ -18,7 +19,7 @@ function find_reducer(ctx::SigPolynomialΓ{I, M},
             if divides(ctx.po.mo, lm, m)
                 delta = div(ctx.po.mo, m, lm)
                 # @debug "possible reducer $(pretty_print(ctx, (delta, (i, g)))) for $(pretty_print(ctx.po.mo, m))"
-                use_max_sig && !(lt(ctx, mul(ctx, delta, g_sig), max_sig)) && continue
+                use_max_sig && i == max_sig_pos && degree(ctx, (delta, g_sig)) > sig_degree && continue
                 rewriteable(ctx, delta, g_sig, j, G, H) && continue
                 if isnothing(reducer) || lt(mpairord, (delta, g_sig), reducer)
                     reducer = (delta, g_sig)
@@ -34,19 +35,15 @@ function symbolic_pp!(ctx::SΓ,
                       G::Basis{I, M},
                       H::Syz{I, M};
                       use_max_sig = false,
+                      sig_degree = zero(exponenttype(ctx.po.mo)),
+                      max_sig_pos = zero(pos_type(ctx)),
                       are_pairs= true) where {I, M <: Integer, SΓ <: SigPolynomialΓ{I, M}}
 
-    todo = Set(vcat([ctx(p[1], p[2])[:poly].mo for p in pairs]...))
+    todo = Set{M}(vcat([ctx(p[1], p[2])[:poly].mo for p in pairs]...))
     if are_pairs
-        done = Set([mul(ctx.po.mo, p[1], leadingmonomial(ctx, p[2])) for p in pairs])
+        done = Set{M}([mul(ctx.po.mo, p[1], leadingmonomial(ctx, p[2])) for p in pairs])
     else
         done = Set(M[])
-    end
-
-    if use_max_sig
-        max_sig = mul(ctx, last(pairs)...)
-    else
-        max_sig = (zero(I), zero(M))
     end
     
     while todo != done
@@ -55,7 +52,8 @@ function symbolic_pp!(ctx::SΓ,
             push!(done, m)
             red = find_reducer(ctx, G, H, m,
                                use_max_sig,
-                               max_sig)
+                               max_sig_pos,
+                               sig_degree)
             isnothing(red) && continue
             push!(pairs, red)
             union!(todo, ctx(red[1], red[2])[:poly].mo)

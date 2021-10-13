@@ -85,6 +85,8 @@ function f5core!(dat::F5Data{I, SΓ},
         #- SYMBOLIC PP -#
         symbolic_pp_timed  = @timed symbolic_pp!(ctx, to_reduce, G, H,
                                                  use_max_sig = use_max_sig,
+                                                 sig_degree = sig_degree,
+                                                 max_sig_pos = curr_pos,
                                                  are_pairs = are_pairs)
         done = symbolic_pp_timed.value
         symbolic_pp_time = symbolic_pp_timed.time
