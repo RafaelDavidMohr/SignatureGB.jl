@@ -1,6 +1,7 @@
 mutable struct F5Data{I, SΓ<:SigPolynomialΓ{I}}
     ctx::SΓ
     trace_sig_tails::Bool
+    remasks_left::Int
 end
 
 function f5data(I::Vector{P};
@@ -9,6 +10,7 @@ function f5data(I::Vector{P};
                 index_type=UInt32,
                 mask_type=UInt32,
                 pos_type=UInt32,
+                max_remasks=3,
                 use_macaulay_bound=false,
                 kwargs...) where {P <: AA.MPolyElem}
 
@@ -28,7 +30,7 @@ function f5data(I::Vector{P};
         sig = ctx(i, R(1))
         ctx(sig, f)
     end
-    F5Data{pos_type, typeof(ctx)}(ctx, trace_sig_tails)
+    F5Data{pos_type, typeof(ctx)}(ctx, trace_sig_tails, max_remasks)
 end
 
 # method forwarding
