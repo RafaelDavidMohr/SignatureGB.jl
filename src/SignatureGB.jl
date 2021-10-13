@@ -22,11 +22,8 @@ function f5setup(I::Vector{P};
                  index_type=UInt32,
                  mask_type=UInt32,
                  pos_type=UInt32,
-<<<<<<< HEAD
                  trace_sig_tails = false,
-=======
                  max_remasks=3,
->>>>>>> master
                  kwargs...) where {P <: AA.MPolyElem}
 
     R = parent(first(I))

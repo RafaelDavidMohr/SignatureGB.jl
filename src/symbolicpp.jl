@@ -21,7 +21,7 @@ function find_reducer(ctx::SigPolynomialΓ{I, M},
                 # @debug "possible reducer $(pretty_print(ctx, (delta, (i, g)))) for $(pretty_print(ctx.po.mo, m))"
                 use_max_sig && i == max_sig_pos && degree(ctx, (delta, g_sig)) > sig_degree && continue
                 rewriteable(ctx, delta, g_sig, j, G, H) && continue
-                if isnothing(reducer) || lt(mpairord, (delta, g_sig), reducer)
+                if isnothing(reducer) || Base.Order.lt(mpairord, (delta, g_sig), reducer)
                     reducer = (delta, g_sig)
                 end
             end

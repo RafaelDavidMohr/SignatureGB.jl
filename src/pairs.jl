@@ -25,7 +25,8 @@ end
 function new_basis_elem!(ctx::SigPolynomialΓ{I, M},
                          G::Basis{I, M},
                          g::Tuple{I, M}) where {I, M}
-    insert!(G[g[1]], g[2], leadingmonomial(ctx, g))
+    
+    push!(G[g[1]], (g[2], leadingmonomial(ctx, g)))
 end
 
 pos(p::MonSigPair{I, M}) where {I, M} = p[2][1]
