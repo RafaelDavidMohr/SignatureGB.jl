@@ -29,10 +29,15 @@ function new_basis_elem!(ctx::SigPolynomialΓ{I, M},
     push!(G[g[1]], (g[2], leadingmonomial(ctx, g)))
 end
 
-pos(p::MonSigPair{I, M}) where {I, M} = p[2][1]
+function pos(ctx::SigPolynomialΓ{I, M},
+             p::MonSigPair{I, M}) where {I, M}
+
+    iszero(p[2][1]) && return zero(I)
+    ctx.ord_indices[p[2][1]][:position]
+end
 
 function pretty_print(ctx::SigPolynomialΓ{I, M}, a::MonSigPair{I, M}) where {I, M}
-    "$(Vector{Int}(ctx.po.mo[a[1][1]].exponents)), $(Int(a[2][1])), $(Vector{Int}(ctx.po.mo[a[2][2]].exponents))"
+    "$(Vector{Int}(ctx.po.mo[a[1][1]].exponents)), $(Int(ctx.ord_indices[a[2][1]][:position])), $(Vector{Int}(ctx.po.mo[a[2][2]].exponents))"
 end
 
 function nullmonsigpair(ctx::SigPolynomialΓ)
@@ -59,7 +64,7 @@ function Base.Order.lt(porder::PairOrdering{SΓ},
                        a::Pair{I, M},
                        b::Pair{I, M}) where {I, M, SΓ <: SigPolynomialΓ{I, M}}
     if mul(porder.ord.ctx, first(a)...) == mul(porder.ord.ctx, first(b)...)
-        if !(iszero(pos(a[2]))) && !(iszero(pos(b[2])))
+        if !(iszero(pos(porder.ord.ctx, a[2]))) && !(iszero(pos(porder.ord.ctx, b[2])))
             return Base.Order.lt(porder.ord, a[2], b[2])
         end
     end
@@ -192,8 +197,8 @@ function select_one!(ctx::SΓ,
                      pairs::PairSet{I, M, SΓ}) where {I, M, SΓ <: SigPolynomialΓ{I, M}}
     
     pair = pop!(pairs)
-    indx = pos(pair[1])
-    if iszero(pos(pair[2]))
+    indx = pos(ctx, pair[1])
+    if iszero(pos(ctx, pair[2]))
         return mpairset(ctx, [pair[1]]), false, 1, indx
     else
         @debug "selected" pretty_print(ctx, pair[1]), pretty_print(ctx, pair[2])
@@ -206,8 +211,8 @@ function select_all_pos_and_degree!(ctx::SΓ,
 
     nselected = 0
     pair = first(pairs)
-    indx = pos(pair[1])
-    if iszero(pos(pair[2]))
+    indx = pos(ctx, pair[1])
+    if iszero(pos(ctx, pair[2]))
         return mpairset(ctx, [pair[1]]), false, 1, indx
     end
     selected = mpairset(ctx)
@@ -227,8 +232,8 @@ function select_all_pos!(ctx::SΓ,
                          pairs::PairSet{I, M, SΓ}) where {I, M, SΓ <: SigPolynomialΓ{I, M}}
 
     pair = first(pairs)
-    indx = pos(pair[1])
-    if iszero(pos(pair[2]))
+    indx = pos(ctx, pair[1])
+    if iszero(pos(ctx, pair[2]))
         return mpairset(ctx, [pair[1]]), false, indx
     end
     selected = mpairset(ctx)

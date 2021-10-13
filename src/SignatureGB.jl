@@ -77,7 +77,7 @@ function f5core!(dat::F5Data{I, SΓ},
             end
             if verbose
                 println("-----------")
-                println("STARTING WITH INDEX $(pos(first(to_reduce)))")
+                println("STARTING WITH INDEX $(pos(ctx, first(to_reduce)))")
                 println("-----------")
             end
             curr_pos = indx
@@ -113,7 +113,7 @@ function f5core!(dat::F5Data{I, SΓ},
                 end
             end
             if !(iszero(zero_red_count))
-                println("$(zero_red_count) zero reductions at sig-degree $(degree(ctx, last(mat.sigs))) / position $(pos(last(mat.sigs)))")
+                println("$(zero_red_count) zero reductions at sig-degree $(degree(ctx, last(mat.sigs))) / position $(pos(ctx, last(mat.sigs)))")
             end
             println("Pair generation took $(pair_gen_time) seconds.")
         end

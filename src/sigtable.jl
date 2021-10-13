@@ -1,11 +1,14 @@
 const Data{M, T} = NamedTuple{(:poly, :sigtail, :sigratio),
                               Tuple{Polynomial{M, T}, Polynomial{M, T}, M}}
 const SigTable{I, M, T} = Dict{Tuple{I, M}, Data{M, T}}
+const GenData{I} = NamedTuple{(:position, :tag),
+                              Tuple{I, Symbol}}
+gendata(i::I, tg::Symbol) where I = (position = i, tag = tg)
 
 mutable struct SigPolynomialΓ{I, M, T, MΓ<:Context{M}, TΓ<:Context{T}, PΓ<:PolynomialΓ{M, T, MΓ, TΓ}, S}<:Context{Tuple{I, M}}
     po::PΓ
     tbl::SigTable{I, M, T}
-    ord_indices::Dict{I, I}
+    ord_indices::Dict{I, GenData{I}}
 end
 
 pos_type(::SigPolynomialΓ{I}) where {I} = I
@@ -27,7 +30,7 @@ function idxsigpolynomialctx(coefficients,
     end
     po = polynomialctx(coefficients, monomials = moctx)
     tbl = SigTable{pos_type, index_type, eltype(coefficients)}()
-    ord_indices = Dict([(pos_type(i), pos_type(i)) for i in 1:ngens])
+    ord_indices = Dict([(pos_type(i), gendata(pos_type(i), :f)) for i in 1:ngens])
     SigPolynomialΓ{pos_type, eltype(moctx), eltype(coefficients),
                    typeof(moctx), typeof(coefficients), typeof(po), mod_order}(po, tbl, ord_indices)
 end
@@ -110,12 +113,12 @@ end
             if a[1] == b[1]
                 return lt(ctx.po.mo, a[2], b[2])
             end
-            return ctx.ord_indices[a[1]] < ctx.ord_indices[b[1]]
+            return ctx.ord_indices[a[1]][:position] < ctx.ord_indices[b[1]][:position]
         end
     elseif S == :TOP
         quote
             if a[2] == b[2]
-                return ctx.ord_indices[a[1]] < ctx.ord_indices[b[1]]
+                return ctx.ord_indices[a[1]][:position] < ctx.ord_indices[b[1]][:position]
             end
             return lt(ctx.po.mo, a[2], b[2])
         end

@@ -18,7 +18,7 @@ function f5matrix(ctx::SigPolynomialΓ{I, M, T},
                   row_sigs::MonSigSet{I, M}) where {I, M, T}
 
     sigs = collect(row_sigs)
-    max_pos = pos(last(row_sigs))
+    max_pos = pos(ctx, last(row_sigs))
     tbl = easytable(mons)
     rows = Array{Polynomial{ind_type(tbl), T}}(undef, length(sigs))
     pols = [ctx(sig...)[:poly] for sig in sigs]
@@ -27,7 +27,7 @@ function f5matrix(ctx::SigPolynomialΓ{I, M, T},
     end
 
     # matrix to track the sigtails
-    sigtails = [(sig, project(mul(ctx, sig...), ctx(sig...)[:sigtail])) for sig in sigs if pos(sig) == max_pos]
+    sigtails = [(sig, project(mul(ctx, sig...), ctx(sig...)[:sigtail])) for sig in sigs if pos(ctx, sig) == max_pos]
     sigtail_mons = sort(unique(vcat([s[2].mo for s in sigtails]...)), rev=true,
                         order = order(ctx.po.mo))
     sigtail_tbl = easytable(sigtail_mons)
@@ -74,7 +74,7 @@ function reduction!(mat::F5matrix{I, M, T, J},
 
     @inbounds begin
         for ((i, row), sig) in zip(enumerate(mat.rows), mat.sigs)
-            should_add_sig_tails = trace_sig_tails && pos(sig) == mat.max_pos
+            should_add_sig_tails = trace_sig_tails && pos(ctx, sig) == mat.max_pos
             l = leadingmonomial(row)
             if iszero(pivots[l])
                 pivots[l] = J(i)
@@ -88,7 +88,7 @@ function reduction!(mat::F5matrix{I, M, T, J},
                 mult = critical_loop!(buffer, mat.rows[pivots[k]], ctx.po.co)
 
                 # add sig tails
-                if should_add_sig_tails && pos(mat.sigs[pivots[k]]) == mat.max_pos
+                if should_add_sig_tails && pos(ctx, mat.sigs[pivots[k]]) == mat.max_pos
                     add_sig = mat.sigs[pivots[k]]
                     sub_row!(sig_tail_buffer, mat.sigtail_mat.rows[add_sig], mult, ctx.po.co) 
                 end
