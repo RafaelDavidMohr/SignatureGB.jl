@@ -38,6 +38,15 @@ end
 
 pos(ctx::SigPolynomialΓ{I, M}, p::MonSigPair{I, M}) where {I, M} = pos(ctx, p[2])
 
+function gettag(ctx::SigPolynomialΓ{I, M},
+                p::Tuple{I, M}) where {I, M}
+
+    iszero(p[1]) && return :nil
+    ctx.ord_indices[p[1]][:tag]
+end
+
+gettag(ctx::SigPolynomialΓ{I, M}, p::MonSigPair{I, M}) where {I, M} = gettag(ctx, p[2])
+
 function pretty_print(ctx::SigPolynomialΓ{I, M}, a::MonSigPair{I, M}) where {I, M}
     "$(Vector{Int}(ctx.po.mo[a[1][1]].exponents)), $(Int(ctx.ord_indices[a[2][1]][:position])), $(Vector{Int}(ctx.po.mo[a[2][2]].exponents))"
 end
@@ -175,7 +184,7 @@ function rewriteable_syz(ctx::SigPolynomialΓ{I, M},
         divides(ctx.po.mo, h, msig[2]) && return true
     end
     pos_t = pos_type(ctx)
-    for i in pos_t(1):pos_t(pos - 1)
+    for i in filter(j -> ctx.ord_indices[j] < ctx.ord_indices[pos], keys(G))
         for (g, lm) in G[i]
             divides(ctx.po.mo, lm, msig[2]) && return true
         end
@@ -196,20 +205,21 @@ end
 # selection
 
 function select_one!(ctx::SΓ,
-                     pairs::PairSet{I, M, SΓ}) where {I, M, SΓ <: SigPolynomialΓ{I, M}}
+                     pairs::PairSet{I, M, SΓ};
+                     select_both = true) where {I, M, SΓ <: SigPolynomialΓ{I, M}}
     
     pair = pop!(pairs)
     indx = pos(ctx, pair[1])
-    if iszero(pos(ctx, pair[2]))
+    if iszero(pos(ctx, pair[2])) || !(select_both)
         return mpairset(ctx, [pair[1]]), false, 1, indx
     else
-        @debug "selected" pretty_print(ctx, pair[1]), pretty_print(ctx, pair[2])
         return mpairset(ctx, [pair[1], pair[2]]), true, 1, indx
     end
 end
 
 function select_all_pos_and_degree!(ctx::SΓ,
-                                    pairs::PairSet{I, M, SΓ}) where {I, M, SΓ <: SigPolynomialΓ{I, M}}
+                                    pairs::PairSet{I, M, SΓ};
+                                    select_both = true) where {I, M, SΓ <: SigPolynomialΓ{I, M}}
 
     nselected = 0
     pair = first(pairs)
@@ -219,19 +229,20 @@ function select_all_pos_and_degree!(ctx::SΓ,
     end
     selected = mpairset(ctx)
     for p in pairs
-        if p[1][2][1] == indx && degree(ctx, p[1]) == degree(ctx, pair[1])
+        if pos(ctx, p[1]) == indx && degree(ctx, p[1]) == degree(ctx, pair[1])
             push!(selected, first(p))
-            push!(selected, p[2])
+            select_both && push!(selected, p[2])
             nselected += 1
         else
             break
         end
     end
-    selected, true, nselected, indx
+    selected, select_both, nselected, indx
 end 
 
 function select_all_pos!(ctx::SΓ,
-                         pairs::PairSet{I, M, SΓ}) where {I, M, SΓ <: SigPolynomialΓ{I, M}}
+                         pairs::PairSet{I, M, SΓ};
+                         select_both = true) where {I, M, SΓ <: SigPolynomialΓ{I, M}}
 
     pair = first(pairs)
     indx = pos(ctx, pair[1])
@@ -240,12 +251,12 @@ function select_all_pos!(ctx::SΓ,
     end
     selected = mpairset(ctx)
     for p in pairs
-        if p[1][2][1] == indx
+        if pos(ctx, p[1]) == indx
             push!(selected, first(p))
-            push!(selected, p[2])
+            select_both && push!(selected, p[2])
         else
             break
         end
     end
-    selected, true, indx
+    selected, select_both, indx
 end

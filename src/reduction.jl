@@ -90,6 +90,7 @@ function reduction!(mat::F5matrix{I, M, T, J},
                 # add sig tails
                 if should_add_sig_tails && pos(ctx, mat.sigs[pivots[k]]) == mat.max_pos
                     add_sig = mat.sigs[pivots[k]]
+                    arit_operations += length(mat.sigtail_mat.rows[add_sig])
                     sub_row!(sig_tail_buffer, mat.sigtail_mat.rows[add_sig], mult, ctx.po.co) 
                 end
                     
@@ -197,7 +198,6 @@ function new_basis!(ctx::SΓ,
     # leading term dropped during reduction
     add_cond_2 = lt(ctx.po.mo, leadingmonomial(poly), leadingmonomial(ctx(sig...)[:poly]))
     if add_cond_1 || add_cond_2                 
-        @debug "adding $(pretty_print(ctx, sig)) with lm $(pretty_print(ctx.po.mo, leadingmonomial(poly)))"
         ctx(new_sig, poly, sig_tail)
         lm = leadingmonomial(poly)
         new_rewriter!(ctx, pairs, new_sig)
@@ -228,6 +228,7 @@ function new_elems_f5!(ctx::SΓ,
             end
         end
     end
+    pairs
 end
 
 function new_elems_decomp!(ctx::SΓ,
@@ -235,5 +236,29 @@ function new_elems_decomp!(ctx::SΓ,
                            pairs::PairSet{I, M, SΓ},
                            G::Basis{I, M},
                            H::Syz{I, M}) where {I, M, T, SΓ <: SigPolynomialΓ{I, M, T}}
-    return
+
+    gettag(ctx, last(mat.sigs)) != :f && return new_elems_f5!(ctx, mat, pairs, G, H)
+    zero_red = filter!(row -> isempty(mat.rows[row[1]]) && gettag(ctx, mat.sigs[row[1]]) == :f,
+                       collect(enumerate(mat.sigs)))
+    isempty(zero_red) && return new_elems_f5!(ctx, mat, pairs, G, H)
+    for (i, sig) in zero_red
+        prj = unindexpolynomial(mat.sigtail_mat.tbl, mat.sigtail_mat.rows[sig])
+        new_gen!(ctx, pos(ctx, sig), :g, prj)
+    end
+    filter!(pos_elems -> ctx.ord_indices[pos_elems[1]][:position] < mat.max_pos, G)
+    pairs = pairset(ctx)
+    for posit_key in keys(ctx.ord_indices)
+        sg = (posit_key, one(ctx.po.mo))
+        if pos(ctx, sg) >= mat.max_pos
+            pair!(ctx, pairs, sg)
+            if !(posit_key in keys(G))
+                G[posit_key] = Tuple{M, M}[]
+            end
+            if !(posit_key in keys(H))
+                H[posit_key] = Tuple{M, M}[]
+            end
+        end
+    end
+    @debug "current pairset (new) $([pretty_print(ctx, p[1]) for p in pairs])"
+    pairs
 end 

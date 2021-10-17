@@ -56,6 +56,8 @@ function f5core!(dat::F5Data{I, SΓ},
                  H::Syz{I, M},
                  pairs::PairSet{I, M, SΓ};
                  select = select_all_pos_and_degree!,
+                 new_elems = new_elems_f5!,
+                 select_both = true,
                  verbose = false) where {I, M, SΓ <: SigPolynomialΓ{I, M}}
     
     ctx = dat.ctx
@@ -68,7 +70,10 @@ function f5core!(dat::F5Data{I, SΓ},
     while !(isempty(pairs))
         #- PAIR SELECTION -#
         total_num_pairs = length(pairs)
-        to_reduce, are_pairs, nselected, indx = select(ctx, pairs)
+        to_reduce, are_pairs, nselected, indx = select(ctx, pairs,
+                                                       select_both = select_both)
+        @debug isempty(to_reduce)
+        @debug isempty(pairs)
         sig_degree = degree(ctx, last(to_reduce))
         if indx != curr_pos && mod_order(dat.ctx) == :POT
             if dat.remasks_left > 0
@@ -100,8 +105,11 @@ function f5core!(dat::F5Data{I, SΓ},
         num_arit_operations += reduction_dat.value
 
         #- PAIR GENERATION -#
-        pair_gen_time = @elapsed new_elems_f5!(ctx, mat, pairs, G, H)
+        pair_gen_dat = @timed new_elems(ctx, mat, pairs, G, H)
+        pairs = pair_gen_dat.value
+        pair_gen_time = pair_gen_dat.time
 
+        #- PRINTING INFORMAtION -#
         if verbose
             zero_red_count = 0
             println("selected $(nselected) / $(total_num_pairs) pairs, sig-degree of sel. pairs: $(sig_degree)")
@@ -150,4 +158,27 @@ function f5(I::Vector{P};
     [R(dat.ctx, (i, g[1])) for i in keys(G) for g in G[i]]
 end
 
+function naive_decomp(I::Vector{P};
+                      start_gen = 1,
+                      trace_sig_tails = false,
+                      mod_order=:POT,
+                      mon_order=:GREVLEX,
+                      index_type=UInt32,
+                      mask_type=UInt32,
+                      pos_type=UInt32,
+                      select = select_all_pos_and_degree!,
+                      verbose = false,
+                      max_remasks = 3,
+                      kwargs...) where {P <: AA.MPolyElem}
+    
+    R = parent(first(I))
+    dat, G, H, pairs = f5setup(I, start_gen = start_gen, mod_order = mod_order,
+                               mon_order = mon_order, index_type = index_type,
+                               mask_type = mask_type, pos_type = pos_type,
+                               trace_sig_tails = trace_sig_tails,
+                               max_remasks = max_remasks, kwargs...)
+    f5core!(dat, G, H, pairs, select = select, verbose = verbose,
+            new_elems = new_elems_decomp!, select_both = false)
+    [R(dat.ctx, (i, g[1])) for i in keys(G) for g in G[i]]
+end   
 end

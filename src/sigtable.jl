@@ -16,6 +16,22 @@ mon_type(::SigPolynomialΓ{I, M}) where {I, M} = M
 coeff_type(::SigPolynomialΓ{I, M, T}) where {I, M, T} = T
 mod_order(::SigPolynomialΓ{I, M, T, MΓ, TΓ, PΓ, S}) where {I, M, T, MΓ, TΓ, PΓ, S} = S
 
+function new_gen!(ctx::SigPolynomialΓ{I, M, T},
+                  posit::I,
+                  tagg::Symbol,
+                  pol::Polynomial{M, T}) where {I, M, T}
+
+    # register new generator
+    posit_key = maximum(keys(ctx.ord_indices)) + one(I)
+    ctx((posit_key, one(ctx.po.mo)), pol)
+
+    # rebuild ord_indices
+    new_dict_arr = [(k, i >= posit ? (position = i + one(I), tag = tg) : (position = i, tag = tg))
+                    for (k, (i, tg)) in ctx.ord_indices]
+    push!(new_dict_arr, (posit_key, (position = posit, tag = tagg)))
+    ctx.ord_indices = Dict(new_dict_arr)
+end
+
 function idxsigpolynomialctx(coefficients,
                              ngens;
                              monomials=nothing,

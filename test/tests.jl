@@ -232,3 +232,15 @@ end
     gb = [R(dat.ctx, (i, g[1])) for i in keys(G) for g in G[i]]
     @test is_gb(gb)
 end
+
+@testset "small-decomp" begin
+    R, (x, y, z) = Singular.PolynomialRing(Singular.Fp(101), ["x", "y", "z"])
+    I = [x*y, x*z]
+    gb = SG.naive_decomp(I)
+    @test Ideal(R, gb) == Ideal(R, [y, x*z])
+    R, (x, y, z, w) = Singular.PolynomialRing(Singular.Fp(101), ["x", "y", "z", "w"])
+    I = [x*y, x*z, x*w]
+    gb = SG.naive_decomp(I)
+    @test Ideal(R, gb) == Ideal(R, [y, z, x*w])
+end
+    
