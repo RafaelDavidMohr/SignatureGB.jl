@@ -118,6 +118,8 @@ end
 
 @inline leadingmonomial(ctx::SigPolynomialΓ{I, M}, sig::Tuple{I, M}) where {I, M} = leadingmonomial(ctx(sig)[:poly])
 
+@inline leadingmonomial(ctx::SigPolynomialΓ{I, M}, m::M, sig::Tuple{I, M}) where {I, M} = leadingmonomial(ctx(m, sig)[:poly])
+
 # sorting
 
 @inline @generated function lt(ctx::SigPolynomialΓ{I, M, T, MΓ, TΓ, PΓ, S},

@@ -15,11 +15,9 @@ function find_reducer(ctx::SigPolynomialΓ{I, M},
     for (i, Gi) in G
         for (j, (g, lm)) in enumerate(Gi)
             g_sig = (i, g)
-            # probably need to check that lt(ctx(n, g)) == n*lt(ctx, g)
             if divides(ctx.po.mo, lm, m)
                 delta = div(ctx.po.mo, m, lm)
-                # @debug "possible reducer $(pretty_print(ctx, (delta, (i, g)))) for $(pretty_print(ctx.po.mo, m))"
-                use_max_sig && i == max_sig_pos && degree(ctx, (delta, g_sig)) > sig_degree && continue
+                use_max_sig && ctx.ord_indices[i] == max_sig_pos && degree(ctx, (delta, g_sig)) > sig_degree && continue
                 rewriteable(ctx, delta, g_sig, j, G, H) && continue
                 if isnothing(reducer) || Base.Order.lt(mpairord, (delta, g_sig), reducer)
                     reducer = (delta, g_sig)

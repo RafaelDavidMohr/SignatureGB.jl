@@ -69,7 +69,7 @@ function reduction!(mat::F5matrix{I, M, T, J},
     n_cols = length(mat.tbl)
     pivots = zeros(J, n_cols)
     buffer = zeros(buftype(ctx.po.co), n_cols)
-    sig_tail_buffer = copy(buffer)
+    sig_tail_buffer = zeros(buftype(ctx.po.co), length(mat.sigtail_mat.tbl))
     arit_operations = 0
 
     @inbounds begin
@@ -190,13 +190,12 @@ function new_basis!(ctx::SΓ,
                     H::Syz{I, M}) where {I, M, T, SΓ <: SigPolynomialΓ{I, M, T}}
 
     m, (pos_key, t) = sig
-    posit = pos(ctx, sig)
     new_sig = mul(ctx, sig...)
     # add element to basis if any of the following two conditions hold:
     # reductions of initial generators are added
-    add_cond_1 = isone(ctx.po.mo[m]) && isone(ctx.po.mo[t]) && !(new_sig[2] in keys(G[posit]))
+    add_cond_1 = isone(ctx.po.mo[m]) && isone(ctx.po.mo[t]) && !(t in keys(G[pos_key]))
     # leading term dropped during reduction
-    add_cond_2 = lt(ctx.po.mo, leadingmonomial(poly), leadingmonomial(ctx(sig...)[:poly]))
+    add_cond_2 = lt(ctx.po.mo, leadingmonomial(poly), mul(ctx.po.mo, m, leadingmonomial(ctx, (pos_key, t))))
     if add_cond_1 || add_cond_2                 
         ctx(new_sig, poly, sig_tail)
         lm = leadingmonomial(poly)
@@ -241,9 +240,10 @@ function new_elems_decomp!(ctx::SΓ,
     zero_red = filter!(row -> isempty(mat.rows[row[1]]) && gettag(ctx, mat.sigs[row[1]]) == :f,
                        collect(enumerate(mat.sigs)))
     isempty(zero_red) && return new_elems_f5!(ctx, mat, pairs, G, H)
-    for (i, sig) in zero_red
+    for (j, (i, sig)) in enumerate(zero_red)
         prj = unindexpolynomial(mat.sigtail_mat.tbl, mat.sigtail_mat.rows[sig])
-        new_gen!(ctx, pos(ctx, sig), :g, prj)
+        ctx(mul(ctx, sig...), zero(eltype(ctx.po)), tail(prj))
+        new_gen!(ctx, pos(ctx, sig) + I(j) - one(I), :g, prj)
     end
     filter!(pos_elems -> ctx.ord_indices[pos_elems[1]][:position] < mat.max_pos, G)
     pairs = pairset(ctx)
@@ -251,14 +251,11 @@ function new_elems_decomp!(ctx::SΓ,
         sg = (posit_key, one(ctx.po.mo))
         if pos(ctx, sg) >= mat.max_pos
             pair!(ctx, pairs, sg)
-            if !(posit_key in keys(G))
-                G[posit_key] = Tuple{M, M}[]
-            end
+            G[posit_key] = Tuple{M, M}[]
             if !(posit_key in keys(H))
                 H[posit_key] = Tuple{M, M}[]
             end
         end
     end
-    @debug "current pairset (new) $([pretty_print(ctx, p[1]) for p in pairs])"
     pairs
 end 

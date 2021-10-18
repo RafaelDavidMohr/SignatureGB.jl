@@ -117,17 +117,14 @@ function pairs!(ctx::SΓ,
             g_sig == sig && continue
             m = lcm(ctx.po.mo, lm, lm_sig)
             a = div(ctx.po.mo, m, lm_sig)
-            # @debug "checking pair $(pretty_print(ctx, (a, sig)))"
             rewriteable_syz(ctx, a, sig, G, H) && continue
             b = div(ctx.po.mo, m, lm)
             (pos, ctx(sig)[:sigratio]) == (i, ctx(g_sig)[:sigratio]) && continue
             rewriteable(ctx, b, g_sig, j, G, H) && continue
             if lt(ctx, (pos, ctx(sig)[:sigratio]), (i, ctx(g_sig)[:sigratio]))
-                # @debug "new pair" pretty_print(ctx, (b, g)), pretty_print(ctx, (a, sig))
                 push!(pairset, ((b, g_sig), (a, sig)))
             else
                 push!(pairset, ((a, sig), (b, g_sig)))
-                # @debug "new pair" pretty_print(ctx, (a, sig)), pretty_print(ctx, (b, g))
             end
         end
     end
@@ -137,6 +134,7 @@ function pair!(ctx::SΓ,
                pairset::PairSet{I, M, SΓ},
                sig::Tuple{I, M}) where {I, M, SΓ <: SigPolynomialΓ{I, M}}
 
+    iszero(ctx(sig)[:poly]) && return
     push!(pairset, ((ctx.po.mo(one(valtype(ctx.po.mo))), sig), nullmonsigpair(ctx)))
 end
 

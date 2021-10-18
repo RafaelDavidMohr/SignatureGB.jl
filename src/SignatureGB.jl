@@ -72,8 +72,6 @@ function f5core!(dat::F5Data{I, SΓ},
         total_num_pairs = length(pairs)
         to_reduce, are_pairs, nselected, indx = select(ctx, pairs,
                                                        select_both = select_both)
-        @debug isempty(to_reduce)
-        @debug isempty(pairs)
         sig_degree = degree(ctx, last(to_reduce))
         if indx != curr_pos && mod_order(dat.ctx) == :POT
             if dat.remasks_left > 0
@@ -160,7 +158,6 @@ end
 
 function naive_decomp(I::Vector{P};
                       start_gen = 1,
-                      trace_sig_tails = false,
                       mod_order=:POT,
                       mon_order=:GREVLEX,
                       index_type=UInt32,
@@ -175,7 +172,7 @@ function naive_decomp(I::Vector{P};
     dat, G, H, pairs = f5setup(I, start_gen = start_gen, mod_order = mod_order,
                                mon_order = mon_order, index_type = index_type,
                                mask_type = mask_type, pos_type = pos_type,
-                               trace_sig_tails = trace_sig_tails,
+                               trace_sig_tails = true,
                                max_remasks = max_remasks, kwargs...)
     f5core!(dat, G, H, pairs, select = select, verbose = verbose,
             new_elems = new_elems_decomp!, select_both = false)
