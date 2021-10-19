@@ -10,6 +10,7 @@ mutable struct F5matrix{I, M, T, J}
     sigs_rows::OrderedDict{MonSigPair{I, M}, Polynomial{J, T}}
     tbl::EasyTable{M, J}
     max_pos::I
+    max_posit_key::I
     tag::Symbol
 end
 
@@ -18,6 +19,7 @@ function f5matrix(ctx::SigPolynomialΓ{I, M, T},
                   row_sigs::MonSigSet{I, M}) where {I, M, T}
 
     max_pos = pos(ctx, last(row_sigs))
+    max_posit_key = last(row_sigs)[2][1]
     tag = gettag(ctx, last(row_sigs))
     tbl = easytable(mons)
     sigtail_mons = M[]
@@ -44,6 +46,7 @@ function f5matrix(ctx::SigPolynomialΓ{I, M, T},
              OrderedDict(sigs_rows),
              tbl,
              max_pos,
+             max_posit_key,
              tag)
 end
 
@@ -85,40 +88,39 @@ function reduction!(mat::F5matrix{I, M, T, J},
     arit_operations_groebner = 0
     arit_operations_module_overhead = 0
 
-    @inbounds begin
-        for (sig, row) in mat.sigs_rows
-            should_add_sig_tails = trace_sig_tails && pos(ctx, sig) == mat.max_pos
-            l = leadingmonomial(row)
-            if isnull(pivots[l])
-                pivots[l] = sig
-                continue
-            end
-            buffer!(row, buffer)
-            should_add_sig_tails && buffer!(mat.sigtail_mat.rows[sig], sig_tail_buffer)
-            for (k, c) in enumerate(buffer)
-                (iszero(c) || isnull(pivots[k])) && continue
-                arit_operations_groebner += length(mat.sigs_rows[pivots[k]])
-                mult = critical_loop!(buffer, mat.sigs_rows[pivots[k]], ctx.po.co)
 
-                # add sig tails
-                if should_add_sig_tails && pos(ctx, pivots[k]) == mat.max_pos
-                    arit_operations_module_overhead += length(mat.sigtail_mat.rows[pivots[k]])
-                    sub_row!(sig_tail_buffer, mat.sigtail_mat.rows[pivots[k]], mult, ctx.po.co) 
-                end
-                    
-            end
-            first_nz, new_row = unbuffer!(buffer, ctx.po.co, J)
-            if !(iszero(first_nz))
-                pivots[first_nz] = sig
-            end
-
-            if should_add_sig_tails
-                _, new_sig_tail = unbuffer!(sig_tail_buffer, ctx.po.co, J)
-                mat.sigtail_mat.rows[sig] = new_sig_tail
+    for (sig, row) in mat.sigs_rows
+        should_add_sig_tails = trace_sig_tails && pos(ctx, sig) == mat.max_pos
+        l = leadingmonomial(row)
+        if isnull(pivots[l])
+            pivots[l] = sig
+            continue
+        end
+        buffer!(row, buffer)
+        should_add_sig_tails && buffer!(mat.sigtail_mat.rows[sig], sig_tail_buffer)
+        for (k, c) in enumerate(buffer)
+            (iszero(c) || isnull(pivots[k])) && continue
+            arit_operations_groebner += length(mat.sigs_rows[pivots[k]])
+            mult = critical_loop!(buffer, mat.sigs_rows[pivots[k]], ctx.po.co)
+            
+            # add sig tails
+            if should_add_sig_tails && pos(ctx, pivots[k]) == mat.max_pos
+                arit_operations_module_overhead += length(mat.sigtail_mat.rows[pivots[k]])
+                sub_row!(sig_tail_buffer, mat.sigtail_mat.rows[pivots[k]], mult, ctx.po.co) 
             end
             
-            mat.sigs_rows[sig] = new_row
         end
+        first_nz, new_row = unbuffer!(buffer, ctx.po.co, J)
+        if !(iszero(first_nz))
+                pivots[first_nz] = sig
+        end
+        
+        if should_add_sig_tails
+            _, new_sig_tail = unbuffer!(sig_tail_buffer, ctx.po.co, J)
+            mat.sigtail_mat.rows[sig] = new_sig_tail
+        end
+        
+        mat.sigs_rows[sig] = new_row
     end
     arit_operations_groebner, arit_operations_module_overhead
 end
@@ -256,9 +258,10 @@ function new_elems_decomp!(ctx::SΓ,
     for (j, (sig, _)) in enumerate(zero_red)
         prj = unindexpolynomial(mat.sigtail_mat.tbl, mat.sigtail_mat.rows[sig])
         ctx(mul(ctx, sig...), zero(eltype(ctx.po)), tail(prj))
-        new_gen!(ctx, pos(ctx, sig) + I(j) - one(I), :g, prj)
+        new_gen!(ctx, pos(ctx, sig), :g, prj)
     end
-    
+
+    non_triv_syz = [g[2] for g in G[mat.max_posit_key]]
     filter!(pos_elems -> ctx.ord_indices[pos_elems[1]][:position] < mat.max_pos, G)
     pairs = pairset(ctx)
     for posit_key in keys(ctx.ord_indices)
@@ -267,7 +270,8 @@ function new_elems_decomp!(ctx::SΓ,
             pair!(ctx, pairs, sg)
             G[posit_key] = Tuple{M, M}[]
             if !(posit_key in keys(H))
-                H[posit_key] = Tuple{M, M}[]
+                # H[posit_key] = non_triv_syz
+                H[posit_key] = M[]
             end
         end
     end
