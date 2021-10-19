@@ -51,9 +51,15 @@ function pretty_print(ctx::SigPolynomialΓ{I, M}, a::MonSigPair{I, M}) where {I,
     "$(Vector{Int}(ctx.po.mo[a[1][1]].exponents)), $(Int(ctx.ord_indices[a[2][1]][:position])), $(Vector{Int}(ctx.po.mo[a[2][2]].exponents))"
 end
 
+function pretty_print(ctx::SigPolynomialΓ{I, M}, a::Tuple{I, M}) where {I, M}
+    "$(Vector{Int}(ctx.po.mo[a[2]].exponents)), $(Int(ctx.ord_indices[a[1]][:position]))"
+end
+
 function nullmonsigpair(ctx::SigPolynomialΓ)
     (zero(mon_type(ctx)), (zero(pos_type(ctx)), zero(mon_type(ctx))))
 end
+
+isnull(p::MonSigPair) = iszero(p[2][1])
 
 struct MPairOrdering{SΓ <: SigPolynomialΓ}<:Base.Order.Ordering
     ctx::SΓ
@@ -75,7 +81,7 @@ function Base.Order.lt(porder::PairOrdering{SΓ},
                        a::Pair{I, M},
                        b::Pair{I, M}) where {I, M, SΓ <: SigPolynomialΓ{I, M}}
     if mul(porder.ord.ctx, first(a)...) == mul(porder.ord.ctx, first(b)...)
-        if !(iszero(pos(porder.ord.ctx, a[2]))) && !(iszero(pos(porder.ord.ctx, b[2])))
+        if !(isnull(a[2])) && !(isnull(b[2]))
             return Base.Order.lt(porder.ord, a[2], b[2])
         end
     end
@@ -144,7 +150,7 @@ function new_rewriter!(ctx::SΓ,
                        pairset::PairSet{I, M, SΓ},
                        sig::Tuple{I, M}) where {I, M, SΓ <: SigPolynomialΓ{I, M}}
     pos, m = sig
-    crit = p -> (divides(ctx, sig, mul(ctx, p[1]...)) || (!(iszero(p[2][2][1])) && divides(ctx, sig, mul(ctx, p[2]...))))
+    crit = p -> (divides(ctx, sig, mul(ctx, p[1]...)) || (!(isnull(p[2])) && divides(ctx, sig, mul(ctx, p[2]...))))
     for p in pairset
         if crit(p)
             delete!(pairset, p)
@@ -160,9 +166,6 @@ function rewriteable(ctx::SigPolynomialΓ{I, M},
 
     msig = mul(ctx.po.mo, m, sig[2])
     pos = sig[1]
-    # for (g, lm) in inclusive(G[pos], searchsortedafter(G[pos], sig[2]), lastindex(G[pos]))
-    #     divides(ctx.po.mo, g, msig) && return true
-    # end
     for (g, lm) in view(G[pos], indx + 1:length(G[pos]))
         divides(ctx.po.mo, g, msig) && return true
     end
@@ -208,7 +211,7 @@ function select_one!(ctx::SΓ,
     
     pair = pop!(pairs)
     indx = pos(ctx, pair[1])
-    if iszero(pos(ctx, pair[2])) || !(select_both)
+    if isnull(pair[2]) || !(select_both)
         return mpairset(ctx, [pair[1]]), false, 1, indx
     else
         return mpairset(ctx, [pair[1], pair[2]]), true, 1, indx
@@ -222,7 +225,7 @@ function select_all_pos_and_degree!(ctx::SΓ,
     nselected = 0
     pair = first(pairs)
     indx = pos(ctx, pair[1])
-    if iszero(pos(ctx, pair[2]))
+    if isnull(pair[2])
         return mpairset(ctx, [pair[1]]), false, 1, indx
     end
     selected = mpairset(ctx)
@@ -244,7 +247,7 @@ function select_all_pos!(ctx::SΓ,
 
     pair = first(pairs)
     indx = pos(ctx, pair[1])
-    if iszero(pos(ctx, pair[2]))
+    if isnull(pair[2])
         return mpairset(ctx, [pair[1]]), false, indx
     end
     selected = mpairset(ctx)

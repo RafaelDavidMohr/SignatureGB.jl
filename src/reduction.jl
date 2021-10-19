@@ -1,43 +1,54 @@
 using Combinatorics
 
 mutable struct SimpleMatrix{I, M, T, J}
-    rows::Dict{I, Polynomial{J, T}}
+    rows::Dict{MonSigPair{I, M}, Polynomial{J, T}}
     tbl::EasyTable{M, J}
 end
 
 mutable struct F5matrix{I, M, T, J}
-    sigs::Vector{MonSigPair{I, M}}
-    sigtail_mat::SimpleMatrix{MonSigPair{I, M}, M, T, J}
-    rows::Vector{Polynomial{J, T}}
+    sigtail_mat::SimpleMatrix{I, M, T, J}
+    sigs_rows::OrderedDict{MonSigPair{I, M}, Polynomial{J, T}}
     tbl::EasyTable{M, J}
     max_pos::I
+    tag::Symbol
 end
 
 function f5matrix(ctx::SigPolynomialΓ{I, M, T},
                   mons::Vector{M},
                   row_sigs::MonSigSet{I, M}) where {I, M, T}
 
-    sigs = collect(row_sigs)
     max_pos = pos(ctx, last(row_sigs))
+    tag = gettag(ctx, last(row_sigs))
     tbl = easytable(mons)
-    rows = Array{Polynomial{ind_type(tbl), T}}(undef, length(sigs))
-    pols = [ctx(sig...)[:poly] for sig in sigs]
-    for (i, sig) in enumerate(sigs)
-        @inbounds rows[i] = indexpolynomial(tbl, ctx(sig...)[:poly])
+    sigtail_mons = M[]
+
+    sigs_rows = Array{Tuple{MonSigPair{I, M}, Polynomial{ind_type(tbl), T}}}(undef, length(row_sigs))
+    sigtail_sigs_rows_unind = Tuple{MonSigPair{I, M}, Polynomial{M, T}}[]
+    for (i, sig) in enumerate(row_sigs)
+        sig_dat = ctx(sig...)
+        sigs_rows[i] = (sig, indexpolynomial(tbl, sig_dat[:poly]))
+        if pos(ctx, sig) == max_pos
+            sig_tail = project(mul(ctx, sig...), sig_dat[:sigtail])
+            append!(sigtail_mons, sig_tail.mo)
+            push!(sigtail_sigs_rows_unind, (sig, sig_tail))
+        end
     end
 
-    # matrix to track the sigtails
-    sigtails = [(sig, project(mul(ctx, sig...), ctx(sig...)[:sigtail])) for sig in sigs if pos(ctx, sig) == max_pos]
-    sigtail_mons = sort(unique(vcat([s[2].mo for s in sigtails]...)), rev=true,
-                        order = order(ctx.po.mo))
-    sigtail_tbl = easytable(sigtail_mons)
-    sigtail_mat = SimpleMatrix(Dict([(s[1], indexpolynomial(sigtail_tbl, s[2])) for s in sigtails]), sigtail_tbl)
-    
-    F5matrix(sigs, sigtail_mat, rows, tbl, max_pos)
+    sigtail_tbl = easytable(sort(unique(sigtail_mons),
+                                 rev=true,
+                                 order=order(ctx.po.mo)))
+    sigtail_sigs_rows = Dict([(sig, indexpolynomial(sigtail_tbl, p))
+                              for (sig, p) in sigtail_sigs_rows_unind])
+
+    F5matrix(SimpleMatrix(sigtail_sigs_rows, sigtail_tbl),
+             OrderedDict(sigs_rows),
+             tbl,
+             max_pos,
+             tag)
 end
 
 function check_row_echelon(mat::F5matrix)
-    for (p1, p2) in combinations(mat.rows, 2)
+    for ((s, p1), (t, p2)) in combinations(mat.sigs_rows, 2)
         (isempty(p1) || isempty(p2)) && continue
         leadingmonomial(p1) == leadingmonomial(p2) && return false
     end
@@ -46,8 +57,8 @@ end
 
 # for printing matrices
 function mat_show(mat)
-    mat_vis = zeros(Int, length(mat.rows), length(mat.tbl.val))
-    for (i, row) in enumerate(mat.rows)
+    mat_vis = zeros(Int, length(mat.sigs_rows), length(mat.tbl.val))
+    for (i, (sig, row)) in enumerate(mat.sigs_rows)
         if typeof(mat) <: SimpleMatrix
             for (j, c) in row[2]
                 mat_vis[i, j] = Int(c)
@@ -66,38 +77,39 @@ Base.show(io::IO, mat::F5matrix) = Base.show(io, mat_show(mat))
 function reduction!(mat::F5matrix{I, M, T, J},
                     ctx::SigPolynomialΓ{I, M};
                     trace_sig_tails = false) where {I, M, T, J, Tbuf}
+    
     n_cols = length(mat.tbl)
-    pivots = zeros(J, n_cols)
+    pivots = collect(Base.Iterators.repeated(nullmonsigpair(ctx), n_cols))
     buffer = zeros(buftype(ctx.po.co), n_cols)
     sig_tail_buffer = zeros(buftype(ctx.po.co), length(mat.sigtail_mat.tbl))
-    arit_operations = 0
+    arit_operations_groebner = 0
+    arit_operations_module_overhead = 0
 
     @inbounds begin
-        for ((i, row), sig) in zip(enumerate(mat.rows), mat.sigs)
+        for (sig, row) in mat.sigs_rows
             should_add_sig_tails = trace_sig_tails && pos(ctx, sig) == mat.max_pos
             l = leadingmonomial(row)
-            if iszero(pivots[l])
-                pivots[l] = J(i)
+            if isnull(pivots[l])
+                pivots[l] = sig
                 continue
             end
             buffer!(row, buffer)
             should_add_sig_tails && buffer!(mat.sigtail_mat.rows[sig], sig_tail_buffer)
             for (k, c) in enumerate(buffer)
-                (iszero(c) || iszero(pivots[k])) && continue
-                arit_operations += length(mat.rows[pivots[k]])
-                mult = critical_loop!(buffer, mat.rows[pivots[k]], ctx.po.co)
+                (iszero(c) || isnull(pivots[k])) && continue
+                arit_operations_groebner += length(mat.sigs_rows[pivots[k]])
+                mult = critical_loop!(buffer, mat.sigs_rows[pivots[k]], ctx.po.co)
 
                 # add sig tails
-                if should_add_sig_tails && pos(ctx, mat.sigs[pivots[k]]) == mat.max_pos
-                    add_sig = mat.sigs[pivots[k]]
-                    arit_operations += length(mat.sigtail_mat.rows[add_sig])
-                    sub_row!(sig_tail_buffer, mat.sigtail_mat.rows[add_sig], mult, ctx.po.co) 
+                if should_add_sig_tails && pos(ctx, pivots[k]) == mat.max_pos
+                    arit_operations_module_overhead += length(mat.sigtail_mat.rows[pivots[k]])
+                    sub_row!(sig_tail_buffer, mat.sigtail_mat.rows[pivots[k]], mult, ctx.po.co) 
                 end
                     
             end
             first_nz, new_row = unbuffer!(buffer, ctx.po.co, J)
             if !(iszero(first_nz))
-                pivots[first_nz] = J(i)
+                pivots[first_nz] = sig
             end
 
             if should_add_sig_tails
@@ -105,10 +117,10 @@ function reduction!(mat::F5matrix{I, M, T, J},
                 mat.sigtail_mat.rows[sig] = new_sig_tail
             end
             
-            mat.rows[i] = new_row
+            mat.sigs_rows[sig] = new_row
         end
     end
-    arit_operations
+    arit_operations_groebner, arit_operations_module_overhead
 end
                            
 
@@ -212,18 +224,16 @@ function new_elems_f5!(ctx::SΓ,
                        G::Basis{I, M},
                        H::Syz{I, M}) where {I, M, T, SΓ <: SigPolynomialΓ{I, M, T}}
 
-    for (i, sig) in enumerate(mat.sigs)
+    for (sig, row) in mat.sigs_rows
         @inbounds begin
             if pos(ctx, sig) == mat.max_pos
                 sig_tail = tail(unindexpolynomial(mat.sigtail_mat.tbl, mat.sigtail_mat.rows[sig]))
-            else
-                sig_tail = zero(eltype(ctx.po))
-            end
-            if isempty(mat.rows[i])
-                new_syz!(ctx, sig, sig_tail, pairs, H)
-            else     
-                p = unindexpolynomial(mat.tbl, mat.rows[i])
-                new_basis!(ctx, sig, p, sig_tail, pairs, G, H)
+                if isempty(row)
+                    new_syz!(ctx, sig, sig_tail, pairs, H)
+                else     
+                    p = unindexpolynomial(mat.tbl, row)
+                    new_basis!(ctx, sig, p, sig_tail, pairs, G, H)
+                end
             end
         end
     end
@@ -236,15 +246,19 @@ function new_elems_decomp!(ctx::SΓ,
                            G::Basis{I, M},
                            H::Syz{I, M}) where {I, M, T, SΓ <: SigPolynomialΓ{I, M, T}}
 
-    gettag(ctx, last(mat.sigs)) != :f && return new_elems_f5!(ctx, mat, pairs, G, H)
-    zero_red = filter!(row -> isempty(mat.rows[row[1]]) && gettag(ctx, mat.sigs[row[1]]) == :f,
-                       collect(enumerate(mat.sigs)))
+    mat.tag != :f && return new_elems_f5!(ctx, mat, pairs, G, H)
+    
+    zero_red = filter(sig_row -> isempty(sig_row[2]) && gettag(ctx, sig_row[1]) == :f,
+                      mat.sigs_rows)
     isempty(zero_red) && return new_elems_f5!(ctx, mat, pairs, G, H)
-    for (j, (i, sig)) in enumerate(zero_red)
+
+    # insert g's s.t. g*f in I
+    for (j, (sig, _)) in enumerate(zero_red)
         prj = unindexpolynomial(mat.sigtail_mat.tbl, mat.sigtail_mat.rows[sig])
         ctx(mul(ctx, sig...), zero(eltype(ctx.po)), tail(prj))
         new_gen!(ctx, pos(ctx, sig) + I(j) - one(I), :g, prj)
     end
+    
     filter!(pos_elems -> ctx.ord_indices[pos_elems[1]][:position] < mat.max_pos, G)
     pairs = pairset(ctx)
     for posit_key in keys(ctx.ord_indices)

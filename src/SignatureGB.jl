@@ -64,7 +64,8 @@ function f5core!(dat::F5Data{I, SΓ},
     use_max_sig = (select == select_all_pos_and_degree! || select == select_one!)
     
     cnt = 1
-    num_arit_operations = 0
+    num_arit_operations_groebner = 0
+    num_arit_operations_module_overhead = 0
     curr_pos = zero(pos_type(ctx))
 
     while !(isempty(pairs))
@@ -85,6 +86,8 @@ function f5core!(dat::F5Data{I, SΓ},
             end
             curr_pos = indx
         end
+        @debug "current pair: $(pretty_print(ctx, first(to_reduce)))"
+        @debug "current basis: $([pretty_print(ctx, (i, g[1])) for i in keys(G) for g in G[i]])"
 
         #- SYMBOLIC PP -#
         symbolic_pp_timed  = @timed symbolic_pp!(ctx, to_reduce, G, H,
@@ -95,31 +98,32 @@ function f5core!(dat::F5Data{I, SΓ},
         done = symbolic_pp_timed.value
         symbolic_pp_time = symbolic_pp_timed.time
         mat = f5matrix(ctx, done, to_reduce)
-        mat_size = (length(mat.rows), length(mat.tbl))
-        mat_dens = sum([length(rw) for rw in mat.rows]) / (mat_size[1] * mat_size[2])
+        mat_size = (length(mat.sigs_rows), length(mat.tbl))
+        mat_dens = sum([length(rw) for (sig, rw) in mat.sigs_rows]) / (mat_size[1] * mat_size[2])
 
         #- REDUCTION -#
         reduction_dat = @timed reduction!(mat, ctx, trace_sig_tails = dat.trace_sig_tails)
-        num_arit_operations += reduction_dat.value
+        num_arit_operations_groebner += reduction_dat.value[1]
+        num_arit_operations_module_overhead += reduction_dat.value[2]
 
         #- PAIR GENERATION -#
         pair_gen_dat = @timed new_elems(ctx, mat, pairs, G, H)
         pairs = pair_gen_dat.value
         pair_gen_time = pair_gen_dat.time
 
-        #- PRINTING INFORMAtION -#
+        #- PRINTING INFORMATION -#
         if verbose
             zero_red_count = 0
             println("selected $(nselected) / $(total_num_pairs) pairs, sig-degree of sel. pairs: $(sig_degree)")
             println("symbolic pp took $(symbolic_pp_time) seconds.")
             println("Matrix $(cnt) : $(reduction_dat.time) secs reduction / size = $(mat_size) / density = $(mat_dens)")
-            for (sig, rw) in zip(mat.sigs, mat.rows)
+            for (sig, rw) in mat.sigs_rows
                 if isempty(rw)
                     zero_red_count += 1
                 end
             end
             if !(iszero(zero_red_count))
-                println("$(zero_red_count) zero reductions at sig-degree $(degree(ctx, last(mat.sigs))) / position $(pos(ctx, last(mat.sigs)))")
+                println("$(zero_red_count) zero reductions at sig-degree $(sig_degree) / position $(curr_pos)")
             end
             println("Pair generation took $(pair_gen_time) seconds.")
         end
@@ -129,7 +133,8 @@ function f5core!(dat::F5Data{I, SΓ},
 
     if verbose
         println("-----")
-        println("total number of arithmetic operations: $(num_arit_operations)")
+        println("total number of arithmetic operations (groebner): $(num_arit_operations_groebner)")
+        println("total number of arithmetic operations (module overhead): $(num_arit_operations_module_overhead)")
     end
 end
 

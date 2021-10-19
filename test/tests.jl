@@ -184,7 +184,7 @@ end
     SG.reduction!(mat, ctx, trace_sig_tails = true)
     @test SG.mat_show(mat) == [1 0 0; 0 1 1; 0 0 100]
     p = SG.unindexpolynomial(mat.sigtail_mat.tbl,
-                             mat.sigtail_mat.rows[last(mat.sigs)])
+                             mat.sigtail_mat.rows[pair_sig])
     @test R(ctx.po, p) == x - y
 end
     
