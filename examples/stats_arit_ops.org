@@ -1,6 +1,5 @@
 | name                    | arith. operations(decomp): | arith.operations(f5): |
-|                         |                   groebner |              groebner |
-|                         |            module overhead |                       |
+|                         |   groebner/module overhead |              groebner |
 |-------------------------+----------------------------+-----------------------|
 |-------------------------+----------------------------+-----------------------|
 | =sing_deg_2_nvars_10=   |                   61517410 |              50970711 |
