@@ -29,8 +29,9 @@ for n from 4 to 10 do
    fprintf(fd, "gb = SignatureGB.f5(%a);", vars[1..n]);
 
    fprintf(fd, "F = %a;\n", F);
-   fprintf(fd, "@time gb = SignatureGB.f5(%a, verbose=true);", F);
-   fprintf(fd, "[leading_monomial(g) for g in gb];");
+   fprintf(fd, "sort!(F, by = p -> leading_monomial(p))\n");			
+   fprintf(fd, "@time gb = SignatureGB.f5(F, verbose=true)\n");
+   fprintf(fd, "@time gb_2 = SignatureGB.naive_decomp(F, verbose=true)\n");
    fprintf(fd, "exit()\n");
    fclose(fd):
 

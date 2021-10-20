@@ -1,6 +1,6 @@
 #You can also play with deg
 deg:=2:
-for n from 4 to 10 do 
+for n from 4 to 6 do 
   for s from 2 to n-1 do 
     vars:=[seq(cat(x,i),i=1..n)]:
     f:=expand(add(randpoly(vars,degree=deg)^2,i=1..s)):
@@ -36,7 +36,8 @@ for n from 4 to 10 do
 
    fprintf(fd, "F = %a;\n", F);
    fprintf(fd, "sort!(F, by = p -> leading_monomial(p))\n");
-   fprintf(fd, "println(@elapsed SignatureGB.f5(F, verbose=true));");
+   fprintf(fd, "println(@elapsed SignatureGB.f5(F, verbose=true))\n");
+   fprintf(fd, "println(@elapsed SignatureGB.naive_decomp(F, verbose=true))\n");
    fprintf(fd, "exit()\n");
    fclose(fd):
   od:
