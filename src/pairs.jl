@@ -182,10 +182,12 @@ function rewriteable_syz(ctx::SigPolynomialΓ{I, M},
     msig = mul(ctx, m, sig)
     pos = sig[1]
     for h in H[pos]
-        divides(ctx.po.mo, h, msig[2]) && return true
+        if divides(ctx.po.mo, h, msig[2])
+            return true
+        end
     end
     pos_t = pos_type(ctx)
-    for i in filter(j -> ctx.ord_indices[j] < ctx.ord_indices[pos], keys(G))
+    for i in filter(j -> ctx.ord_indices[j][:position] < ctx.ord_indices[pos][:position], keys(G))
         for (g, lm) in G[i]
             divides(ctx.po.mo, lm, msig[2]) && return true
         end

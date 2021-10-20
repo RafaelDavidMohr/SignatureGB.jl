@@ -86,8 +86,6 @@ function f5core!(dat::F5Data{I, SΓ},
             end
             curr_pos = indx
         end
-        @debug "current pair: $(pretty_print(ctx, first(to_reduce)))"
-        @debug "current basis: $([pretty_print(ctx, (i, g[1])) for i in keys(G) for g in G[i]])"
 
         #- SYMBOLIC PP -#
         symbolic_pp_timed  = @timed symbolic_pp!(ctx, to_reduce, G, H,

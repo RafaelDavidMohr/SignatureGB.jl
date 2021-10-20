@@ -85,7 +85,6 @@ Base.getindex(ctx::SigPolynomialΓ{I, M}, sig::Tuple{I, M}) where {I, M} = getin
 end
 
 function (ctx::SigPolynomialΓ{I, M, T})(m::M, sig::Tuple{I, M}) where {I, M, T}
-    @assert sig in keys(ctx.tbl)
     key = (sig[1], mul(ctx.po.mo, m, sig[2]))
     get(ctx.tbl, key) do
         val = ctx.tbl[sig]

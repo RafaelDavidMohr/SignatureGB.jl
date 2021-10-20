@@ -210,7 +210,7 @@ function new_basis!(ctx::SΓ,
     add_cond_1 = isone(ctx.po.mo[m]) && isone(ctx.po.mo[t]) && !(t in keys(G[pos_key]))
     # leading term dropped during reduction
     add_cond_2 = lt(ctx.po.mo, leadingmonomial(poly), mul(ctx.po.mo, m, leadingmonomial(ctx, (pos_key, t))))
-    if add_cond_1 || add_cond_2                 
+    if add_cond_1 || add_cond_2
         ctx(new_sig, poly, sig_tail)
         lm = leadingmonomial(poly)
         new_rewriter!(ctx, pairs, new_sig)
@@ -232,7 +232,7 @@ function new_elems_f5!(ctx::SΓ,
                 sig_tail = tail(unindexpolynomial(mat.sigtail_mat.tbl, mat.sigtail_mat.rows[sig]))
                 if isempty(row)
                     new_syz!(ctx, sig, sig_tail, pairs, H)
-                else     
+                else
                     p = unindexpolynomial(mat.tbl, row)
                     new_basis!(ctx, sig, p, sig_tail, pairs, G, H)
                 end
@@ -270,8 +270,7 @@ function new_elems_decomp!(ctx::SΓ,
             pair!(ctx, pairs, sg)
             G[posit_key] = Tuple{M, M}[]
             if !(posit_key in keys(H))
-                # H[posit_key] = non_triv_syz
-                H[posit_key] = M[]
+                H[posit_key] = copy(non_triv_syz)
             end
         end
     end
