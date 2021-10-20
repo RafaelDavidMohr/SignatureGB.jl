@@ -1,0 +1,522 @@
+-----------
+STARTING WITH INDEX 1
+-----------
+selected 1 / 6 pairs, sig-degree of sel. pairs: 0
+symbolic pp took 3.6342e-5 seconds.
+Matrix 1 : 2.414e-6 secs reduction / size = (1, 84) / density = 1.0
+Pair generation took 7.825e-6 seconds.
+-----------
+STARTING WITH INDEX 2
+-----------
+selected 1 / 5 pairs, sig-degree of sel. pairs: 0
+symbolic pp took 4.5419e-5 seconds.
+Matrix 2 : 0.018749567 secs reduction / size = (2, 84) / density = 1.0
+Pair generation took 3.1329e-5 seconds.
+selected 1 / 5 pairs, sig-degree of sel. pairs: 1
+symbolic pp took 0.012717599 seconds.
+Matrix 3 : 1.9314e-5 secs reduction / size = (13, 209) / density = 0.3993375046006625
+Pair generation took 1.8238e-5 seconds.
+selected 1 / 5 pairs, sig-degree of sel. pairs: 2
+symbolic pp took 0.000449349 seconds.
+Matrix 4 : 4.0258e-5 secs reduction / size = (43, 449) / density = 0.22696431346143886
+Pair generation took 1.9572e-5 seconds.
+-----------
+STARTING WITH INDEX 3
+-----------
+selected 1 / 4 pairs, sig-degree of sel. pairs: 0
+symbolic pp took 3.1909e-5 seconds.
+Matrix 5 : 6.106e-6 secs reduction / size = (3, 84) / density = 0.996031746031746
+Pair generation took 1.3635e-5 seconds.
+selected 2 / 6 pairs, sig-degree of sel. pairs: 1
+symbolic pp took 0.02050084 seconds.
+Matrix 6 : 3.351e-5 secs reduction / size = (19, 208) / density = 0.4273785425101215
+Pair generation took 3.42e-5 seconds.
+selected 3 / 7 pairs, sig-degree of sel. pairs: 2
+symbolic pp took 0.000356468 seconds.
+Matrix 7 : 0.000116864 secs reduction / size = (64, 442) / density = 0.26877121040723984
+Pair generation took 5.1407e-5 seconds.
+selected 2 / 5 pairs, sig-degree of sel. pairs: 3
+symbolic pp took 0.001012628 seconds.
+Matrix 8 : 0.000223912 secs reduction / size = (112, 787) / density = 0.19282083862770014
+1 zero reductions at sig-degree 3 / position 3
+Pair generation took 8.3547e-5 seconds.
+selected 1 / 4 pairs, sig-degree of sel. pairs: 4
+symbolic pp took 0.002130548 seconds.
+Matrix 9 : 0.000258091 secs reduction / size = (230, 1342) / density = 0.13291647767770362
+1 zero reductions at sig-degree 4 / position 3
+Pair generation took 0.000139887 seconds.
+-----------
+STARTING WITH INDEX 4
+-----------
+selected 1 / 3 pairs, sig-degree of sel. pairs: 0
+symbolic pp took 3.7585e-5 seconds.
+Matrix 10 : 7.119e-6 secs reduction / size = (4, 84) / density = 0.9910714285714286
+Pair generation took 1.561e-5 seconds.
+selected 3 / 7 pairs, sig-degree of sel. pairs: 1
+symbolic pp took 0.000128845 seconds.
+Matrix 11 : 5.4293e-5 secs reduction / size = (25, 207) / density = 0.4618357487922705
+Pair generation took 6.171e-5 seconds.
+selected 7 / 10 pairs, sig-degree of sel. pairs: 2
+symbolic pp took 0.000409288 seconds.
+Matrix 12 : 0.000319416 secs reduction / size = (79, 429) / density = 0.28851317458912396
+1 zero reductions at sig-degree 2 / position 4
+Pair generation took 0.000132084 seconds.
+selected 6 / 14 pairs, sig-degree of sel. pairs: 3
+symbolic pp took 0.000991657 seconds.
+Matrix 13 : 0.000596673 secs reduction / size = (152, 752) / density = 0.22737611982082867
+4 zero reductions at sig-degree 3 / position 4
+Pair generation took 0.000150679 seconds.
+selected 2 / 8 pairs, sig-degree of sel. pairs: 4
+symbolic pp took 0.001208535 seconds.
+Matrix 14 : 0.000331338 secs reduction / size = (103, 1041) / density = 0.2832414687147347
+2 zero reductions at sig-degree 4 / position 4
+Pair generation took 0.000119893 seconds.
+-----------
+STARTING WITH INDEX 5
+-----------
+selected 1 / 2 pairs, sig-degree of sel. pairs: 0
+symbolic pp took 4.4485e-5 seconds.
+Matrix 15 : 8.17e-6 secs reduction / size = (5, 84) / density = 0.9857142857142858
+Pair generation took 2.5576e-5 seconds.
+selected 3 / 6 pairs, sig-degree of sel. pairs: 1
+symbolic pp took 0.000144756 seconds.
+Matrix 16 : 6.466e-5 secs reduction / size = (30, 205) / density = 0.46682926829268295
+Pair generation took 7.7903e-5 seconds.
+selected 11 / 16 pairs, sig-degree of sel. pairs: 2
+symbolic pp took 0.000490179 seconds.
+Matrix 17 : 0.000527601 secs reduction / size = (96, 419) / density = 0.31222653142402546
+3 zero reductions at sig-degree 2 / position 5
+Pair generation took 0.000324407 seconds.
+selected 10 / 22 pairs, sig-degree of sel. pairs: 3
+symbolic pp took 0.000686575 seconds.
+Matrix 18 : 0.000735351 secs reduction / size = (85, 600) / density = 0.3747450980392157
+7 zero reductions at sig-degree 3 / position 5
+Pair generation took 0.000240413 seconds.
+selected 3 / 12 pairs, sig-degree of sel. pairs: 4
+symbolic pp took 0.000751506 seconds.
+Matrix 19 : 0.000285911 secs reduction / size = (61, 747) / density = 0.3911822151995962
+3 zero reductions at sig-degree 4 / position 5
+Pair generation took 6.1893e-5 seconds.
+-----------
+STARTING WITH INDEX 6
+-----------
+selected 1 / 1 pairs, sig-degree of sel. pairs: 0
+symbolic pp took 0.000192811 seconds.
+Matrix 20 : 3.8412e-5 secs reduction / size = (36, 210) / density = 0.5300264550264551
+Pair generation took 3.6577e-5 seconds.
+selected 5 / 8 pairs, sig-degree of sel. pairs: 1
+symbolic pp took 0.000478688 seconds.
+Matrix 21 : 0.000313054 secs reduction / size = (93, 408) / density = 0.3333333333333333
+Pair generation took 0.000297803 seconds.
+selected 16 / 34 pairs, sig-degree of sel. pairs: 2
+symbolic pp took 0.001060046 seconds.
+Matrix 22 : 0.019969987 secs reduction / size = (174, 639) / density = 0.25934020470203084
+6 zero reductions at sig-degree 2 / position 6
+Pair generation took 0.000764041 seconds.
+selected 13 / 31 pairs, sig-degree of sel. pairs: 3
+symbolic pp took 0.000677116 seconds.
+Matrix 23 : 0.001013883 secs reduction / size = (74, 590) / density = 0.45833715071003206
+9 zero reductions at sig-degree 3 / position 6
+Pair generation took 0.000408462 seconds.
+selected 4 / 14 pairs, sig-degree of sel. pairs: 4
+symbolic pp took 0.000616825 seconds.
+Matrix 24 : 0.000284117 secs reduction / size = (55, 566) / density = 0.5169932540957276
+4 zero reductions at sig-degree 4 / position 6
+Pair generation took 6.2309e-5 seconds.
+-----
+total number of arithmetic operations (groebner): 997677
+total number of arithmetic operations (module overhead): 0
+  0.143637 seconds (290.70 k allocations: 32.582 MiB, 12.18% gc time, 60.06% compilation time)
+-----------
+STARTING WITH INDEX 1
+-----------
+selected 1 / 6 pairs, sig-degree of sel. pairs: 0
+symbolic pp took 6.5492e-5 seconds.
+Matrix 1 : 5.11e-6 secs reduction / size = (1, 84) / density = 1.0
+Pair generation took 1.527e-5 seconds.
+-----------
+STARTING WITH INDEX 2
+-----------
+selected 1 / 5 pairs, sig-degree of sel. pairs: 0
+symbolic pp took 2.8111e-5 seconds.
+Matrix 2 : 9.976e-6 secs reduction / size = (2, 84) / density = 1.0
+Pair generation took 1.3305e-5 seconds.
+selected 1 / 5 pairs, sig-degree of sel. pairs: 1
+symbolic pp took 0.000118914 seconds.
+Matrix 3 : 2.3967e-5 secs reduction / size = (13, 209) / density = 0.3993375046006625
+Pair generation took 1.2712e-5 seconds.
+selected 1 / 5 pairs, sig-degree of sel. pairs: 2
+symbolic pp took 0.000482736 seconds.
+Matrix 4 : 5.6804e-5 secs reduction / size = (43, 449) / density = 0.22696431346143886
+Pair generation took 2.965e-5 seconds.
+-----------
+STARTING WITH INDEX 3
+-----------
+selected 1 / 4 pairs, sig-degree of sel. pairs: 0
+symbolic pp took 3.3824e-5 seconds.
+Matrix 5 : 9.715e-6 secs reduction / size = (3, 84) / density = 0.996031746031746
+Pair generation took 1.6723e-5 seconds.
+selected 2 / 6 pairs, sig-degree of sel. pairs: 1
+symbolic pp took 0.000130031 seconds.
+Matrix 6 : 4.4031e-5 secs reduction / size = (19, 208) / density = 0.4273785425101215
+Pair generation took 3.4224e-5 seconds.
+selected 3 / 7 pairs, sig-degree of sel. pairs: 2
+symbolic pp took 0.000397876 seconds.
+Matrix 7 : 0.00016517 secs reduction / size = (64, 442) / density = 0.26877121040723984
+Pair generation took 7.06e-5 seconds.
+selected 2 / 5 pairs, sig-degree of sel. pairs: 3
+symbolic pp took 0.001092084 seconds.
+Matrix 8 : 0.000261289 secs reduction / size = (112, 787) / density = 0.19282083862770014
+1 zero reductions at sig-degree 3 / position 3
+Pair generation took 2.6999e-5 seconds.
+selected 1 / 5 pairs, sig-degree of sel. pairs: 0
+symbolic pp took 2.8248e-5 seconds.
+Matrix 9 : 2.741e-6 secs reduction / size = (1, 82) / density = 1.0
+Pair generation took 1.4439e-5 seconds.
+selected 2 / 7 pairs, sig-degree of sel. pairs: 1
+symbolic pp took 0.00013154 seconds.
+Matrix 10 : 3.7298e-5 secs reduction / size = (19, 208) / density = 0.4273785425101215
+1 zero reductions at sig-degree 1 / position 3
+Pair generation took 1.5974e-5 seconds.
+selected 1 / 5 pairs, sig-degree of sel. pairs: 2
+symbolic pp took 0.000288813 seconds.
+Matrix 11 : 3.5248e-5 secs reduction / size = (37, 422) / density = 0.2579736134238504
+1 zero reductions at sig-degree 2 / position 3
+Pair generation took 1.8743e-5 seconds.
+-----------
+STARTING WITH INDEX 4
+-----------
+selected 1 / 4 pairs, sig-degree of sel. pairs: 0
+symbolic pp took 2.7216e-5 seconds.
+Matrix 12 : 9.007e-6 secs reduction / size = (2, 82) / density = 1.0
+Pair generation took 1.1907e-5 seconds.
+selected 2 / 7 pairs, sig-degree of sel. pairs: 1
+symbolic pp took 7.0981e-5 seconds.
+Matrix 13 : 2.6242e-5 secs reduction / size = (8, 191) / density = 0.6393979057591623
+Pair generation took 3.0334e-5 seconds.
+selected 4 / 7 pairs, sig-degree of sel. pairs: 2
+symbolic pp took 0.000186764 seconds.
+Matrix 14 : 0.000105704 secs reduction / size = (23, 381) / density = 0.4330708661417323
+Pair generation took 5.3277e-5 seconds.
+selected 1 / 4 pairs, sig-degree of sel. pairs: 3
+symbolic pp took 0.000891165 seconds.
+Matrix 15 : 0.000153772 secs reduction / size = (141, 767) / density = 0.1764357772291418
+Pair generation took 9.3461e-5 seconds.
+-----------
+STARTING WITH INDEX 5
+-----------
+selected 1 / 3 pairs, sig-degree of sel. pairs: 0
+symbolic pp took 3.8868e-5 seconds.
+Matrix 16 : 9.53e-6 secs reduction / size = (5, 84) / density = 0.9857142857142858
+Pair generation took 1.7005e-5 seconds.
+selected 3 / 5 pairs, sig-degree of sel. pairs: 1
+symbolic pp took 0.000155042 seconds.
+Matrix 17 : 6.3686e-5 secs reduction / size = (29, 205) / density = 0.4338099243061396
+Pair generation took 7.0003e-5 seconds.
+selected 8 / 10 pairs, sig-degree of sel. pairs: 2
+symbolic pp took 0.00047138 seconds.
+Matrix 18 : 0.00035211 secs reduction / size = (92, 422) / density = 0.2838450443024933
+1 zero reductions at sig-degree 2 / position 5
+Pair generation took 1.5599e-5 seconds.
+selected 1 / 4 pairs, sig-degree of sel. pairs: 0
+symbolic pp took 1.3165e-5 seconds.
+Matrix 19 : 3.51e-7 secs reduction / size = (1, 28) / density = 1.0
+Pair generation took 1.7222e-5 seconds.
+selected 2 / 6 pairs, sig-degree of sel. pairs: 1
+symbolic pp took 5.2658e-5 seconds.
+Matrix 20 : 2.0155e-5 secs reduction / size = (11, 84) / density = 0.5692640692640693
+Pair generation took 3.78e-5 seconds.
+selected 6 / 10 pairs, sig-degree of sel. pairs: 2
+symbolic pp took 0.000194439 seconds.
+Matrix 21 : 0.000148466 secs reduction / size = (44, 199) / density = 0.3316582914572864
+2 zero reductions at sig-degree 2 / position 5
+Pair generation took 7.2419e-5 seconds.
+selected 3 / 6 pairs, sig-degree of sel. pairs: 3
+symbolic pp took 0.00036125 seconds.
+Matrix 22 : 0.000195025 secs reduction / size = (73, 361) / density = 0.25044586954046977
+2 zero reductions at sig-degree 3 / position 5
+Pair generation took 8.3262e-5 seconds.
+selected 1 / 4 pairs, sig-degree of sel. pairs: 4
+symbolic pp took 0.000763038 seconds.
+Matrix 23 : 0.000124227 secs reduction / size = (145, 627) / density = 0.15565088269262498
+1 zero reductions at sig-degree 4 / position 5
+Pair generation took 9.6788e-5 seconds.
+-----------
+STARTING WITH INDEX 6
+-----------
+selected 1 / 3 pairs, sig-degree of sel. pairs: 0
+symbolic pp took 5.0077e-5 seconds.
+Matrix 24 : 9.0e-6 secs reduction / size = (8, 80) / density = 0.5765625
+Pair generation took 3.184e-5 seconds.
+selected 3 / 9 pairs, sig-degree of sel. pairs: 1
+symbolic pp took 0.000125831 seconds.
+Matrix 25 : 6.7738e-5 secs reduction / size = (29, 179) / density = 0.450587555384319
+Pair generation took 8.4091e-5 seconds.
+selected 7 / 13 pairs, sig-degree of sel. pairs: 2
+symbolic pp took 0.00048468 seconds.
+Matrix 26 : 0.000448368 secs reduction / size = (112, 375) / density = 0.2332142857142857
+Pair generation took 0.000351564 seconds.
+selected 3 / 5 pairs, sig-degree of sel. pairs: 3
+symbolic pp took 0.000840852 seconds.
+Matrix 27 : 0.000456013 secs reduction / size = (124, 534) / density = 0.3024193548387097
+1 zero reductions at sig-degree 3 / position 6
+Pair generation took 1.3107e-5 seconds.
+selected 1 / 4 pairs, sig-degree of sel. pairs: 0
+symbolic pp took 3.0231e-5 seconds.
+Matrix 28 : 6.28e-7 secs reduction / size = (1, 73) / density = 1.0
+Pair generation took 4.0366e-5 seconds.
+selected 3 / 10 pairs, sig-degree of sel. pairs: 1
+symbolic pp took 0.000224549 seconds.
+Matrix 29 : 7.3392e-5 secs reduction / size = (47, 197) / density = 0.37693055405551357
+3 zero reductions at sig-degree 1 / position 6
+Pair generation took 1.2396e-5 seconds.
+selected 1 / 4 pairs, sig-degree of sel. pairs: 2
+symbolic pp took 0.000152274 seconds.
+Matrix 30 : 1.3585e-5 secs reduction / size = (11, 291) / density = 0.3189628241174633
+1 zero reductions at sig-degree 2 / position 6
+Pair generation took 4.54e-6 seconds.
+-----------
+STARTING WITH INDEX 7
+-----------
+selected 1 / 3 pairs, sig-degree of sel. pairs: 0
+symbolic pp took 2.5985e-5 seconds.
+Matrix 31 : 5.712e-6 secs reduction / size = (2, 73) / density = 1.0
+Pair generation took 2.4988e-5 seconds.
+selected 3 / 9 pairs, sig-degree of sel. pairs: 1
+symbolic pp took 6.2709e-5 seconds.
+Matrix 32 : 2.7631e-5 secs reduction / size = (7, 153) / density = 0.6946778711484594
+Pair generation took 6.9061e-5 seconds.
+selected 5 / 9 pairs, sig-degree of sel. pairs: 2
+symbolic pp took 0.000132907 seconds.
+Matrix 33 : 2.972e-6 secs reduction / size = (14, 268) / density = 0.5871535181236673
+Pair generation took 7.774e-5 seconds.
+selected 2 / 4 pairs, sig-degree of sel. pairs: 3
+symbolic pp took 0.000823614 seconds.
+Matrix 34 : 0.000300525 secs reduction / size = (139, 534) / density = 0.25787459919704686
+Pair generation took 0.000158954 seconds.
+-----------
+STARTING WITH INDEX 8
+-----------
+selected 1 / 2 pairs, sig-degree of sel. pairs: 0
+symbolic pp took 6.998e-5 seconds.
+Matrix 35 : 1.6354e-5 secs reduction / size = (14, 84) / density = 0.7210884353741497
+Pair generation took 4.0731e-5 seconds.
+selected 4 / 11 pairs, sig-degree of sel. pairs: 1
+symbolic pp took 0.00023163 seconds.
+Matrix 36 : 0.000104627 secs reduction / size = (55, 194) / density = 0.37207122774133083
+Pair generation took 0.000136877 seconds.
+selected 11 / 13 pairs, sig-degree of sel. pairs: 2
+symbolic pp took 0.000540688 seconds.
+Matrix 37 : 0.000574233 secs reduction / size = (127, 354) / density = 0.2676942924507318
+2 zero reductions at sig-degree 2 / position 8
+Pair generation took 2.0775e-5 seconds.
+selected 1 / 4 pairs, sig-degree of sel. pairs: 0
+symbolic pp took 1.4973e-5 seconds.
+Matrix 38 : 1.04e-6 secs reduction / size = (1, 26) / density = 1.0
+Pair generation took 3.6073e-5 seconds.
+selected 3 / 10 pairs, sig-degree of sel. pairs: 1
+symbolic pp took 7.556e-5 seconds.
+Matrix 39 : 3.1766e-5 secs reduction / size = (18, 82) / density = 0.5277777777777778
+Pair generation took 9.4787e-5 seconds.
+selected 9 / 14 pairs, sig-degree of sel. pairs: 2
+symbolic pp took 0.000289547 seconds.
+Matrix 40 : 0.000227372 secs reduction / size = (69, 188) / density = 0.3240055504162812
+2 zero reductions at sig-degree 2 / position 8
+Pair generation took 0.000193126 seconds.
+selected 5 / 8 pairs, sig-degree of sel. pairs: 3
+symbolic pp took 0.000366201 seconds.
+Matrix 41 : 0.000368171 secs reduction / size = (76, 268) / density = 0.35874901806755694
+2 zero reductions at sig-degree 3 / position 8
+Pair generation took 0.00020155 seconds.
+selected 3 / 6 pairs, sig-degree of sel. pairs: 4
+symbolic pp took 0.000661661 seconds.
+Matrix 42 : 0.000278206 secs reduction / size = (117, 397) / density = 0.2631273009106762
+2 zero reductions at sig-degree 4 / position 8
+Pair generation took 0.000153396 seconds.
+selected 1 / 4 pairs, sig-degree of sel. pairs: 5
+symbolic pp took 0.000755372 seconds.
+Matrix 43 : 0.000109857 secs reduction / size = (94, 478) / density = 0.2630196741743078
+1 zero reductions at sig-degree 5 / position 8
+Pair generation took 8.8144e-5 seconds.
+-----------
+STARTING WITH INDEX 9
+-----------
+selected 1 / 3 pairs, sig-degree of sel. pairs: 0
+symbolic pp took 1.9015e-5 seconds.
+Matrix 44 : 7.3e-7 secs reduction / size = (2, 27) / density = 0.9814814814814815
+Pair generation took 4.7995e-5 seconds.
+selected 4 / 9 pairs, sig-degree of sel. pairs: 1
+symbolic pp took 9.4139e-5 seconds.
+Matrix 45 : 4.4268e-5 secs reduction / size = (26, 83) / density = 0.5426320667284523
+2 zero reductions at sig-degree 1 / position 9
+Pair generation took 0.000104033 seconds.
+selected 3 / 10 pairs, sig-degree of sel. pairs: 2
+symbolic pp took 0.000197523 seconds.
+Matrix 46 : 6.7129e-5 secs reduction / size = (49, 155) / density = 0.43291639236339696
+2 zero reductions at sig-degree 2 / position 9
+Pair generation took 5.067e-5 seconds.
+selected 4 / 7 pairs, sig-degree of sel. pairs: 3
+symbolic pp took 0.00026707 seconds.
+Matrix 47 : 9.3878e-5 secs reduction / size = (57, 225) / density = 0.32374269005847955
+3 zero reductions at sig-degree 3 / position 9
+Pair generation took 6.6194e-5 seconds.
+selected 2 / 5 pairs, sig-degree of sel. pairs: 4
+symbolic pp took 0.000265905 seconds.
+Matrix 48 : 4.0889e-5 secs reduction / size = (51, 289) / density = 0.17803107402130403
+2 zero reductions at sig-degree 4 / position 9
+Pair generation took 2.2881e-5 seconds.
+-----------
+STARTING WITH INDEX 10
+-----------
+selected 1 / 2 pairs, sig-degree of sel. pairs: 0
+symbolic pp took 5.8031e-5 seconds.
+Matrix 49 : 8.754e-6 secs reduction / size = (13, 71) / density = 0.6229685807150596
+Pair generation took 5.9624e-5 seconds.
+selected 5 / 12 pairs, sig-degree of sel. pairs: 1
+symbolic pp took 0.000163253 seconds.
+Matrix 50 : 0.000107739 secs reduction / size = (42, 143) / density = 0.47935397935397933
+Pair generation took 0.00029252 seconds.
+selected 9 / 14 pairs, sig-degree of sel. pairs: 2
+symbolic pp took 0.000463332 seconds.
+Matrix 51 : 0.000422879 secs reduction / size = (111, 257) / density = 0.2972972972972973
+Pair generation took 0.000488047 seconds.
+selected 8 / 10 pairs, sig-degree of sel. pairs: 3
+symbolic pp took 0.001024589 seconds.
+Matrix 52 : 0.000712818 secs reduction / size = (224, 414) / density = 0.2072226535541753
+1 zero reductions at sig-degree 3 / position 10
+Pair generation took 1.493e-5 seconds.
+selected 1 / 3 pairs, sig-degree of sel. pairs: 0
+symbolic pp took 3.4035e-5 seconds.
+Matrix 53 : 7.2e-7 secs reduction / size = (1, 59) / density = 1.0
+Pair generation took 7.7611e-5 seconds.
+selected 5 / 13 pairs, sig-degree of sel. pairs: 1
+symbolic pp took 0.00031383 seconds.
+Matrix 54 : 0.000129044 secs reduction / size = (72, 173) / density = 0.3444926140012845
+5 zero reductions at sig-degree 1 / position 10
+Pair generation took 1.4002e-5 seconds.
+selected 1 / 3 pairs, sig-degree of sel. pairs: 2
+symbolic pp took 7.0907e-5 seconds.
+Matrix 55 : 5.602e-6 secs reduction / size = (4, 127) / density = 0.5984251968503937
+1 zero reductions at sig-degree 2 / position 10
+Pair generation took 3.225e-6 seconds.
+-----------
+STARTING WITH INDEX 11
+-----------
+selected 1 / 2 pairs, sig-degree of sel. pairs: 0
+symbolic pp took 3.1147e-5 seconds.
+Matrix 56 : 4.723e-6 secs reduction / size = (2, 59) / density = 1.0
+Pair generation took 6.1789e-5 seconds.
+selected 4 / 10 pairs, sig-degree of sel. pairs: 1
+symbolic pp took 5.8651e-5 seconds.
+Matrix 57 : 4.52e-7 secs reduction / size = (6, 105) / density = 0.8412698412698413
+Pair generation took 0.000194982 seconds.
+selected 8 / 12 pairs, sig-degree of sel. pairs: 2
+symbolic pp took 8.9858e-5 seconds.
+Matrix 58 : 1.948e-6 secs reduction / size = (9, 153) / density = 0.8467683369644154
+Pair generation took 0.000235171 seconds.
+selected 3 / 4 pairs, sig-degree of sel. pairs: 3
+symbolic pp took 0.000653748 seconds.
+Matrix 59 : 0.000293582 secs reduction / size = (131, 320) / density = 0.29463263358778624
+Pair generation took 0.000274802 seconds.
+-----------
+STARTING WITH INDEX 12
+-----------
+selected 1 / 1 pairs, sig-degree of sel. pairs: 0
+symbolic pp took 0.000475005 seconds.
+Matrix 60 : 7.9969e-5 secs reduction / size = (112, 210) / density = 0.36602891156462586
+Pair generation took 0.000105788 seconds.
+selected 5 / 11 pairs, sig-degree of sel. pairs: 1
+symbolic pp took 0.000604985 seconds.
+Matrix 61 : 0.0003382 secs reduction / size = (151, 288) / density = 0.2513337012509198
+Pair generation took 0.000557683 seconds.
+selected 14 / 16 pairs, sig-degree of sel. pairs: 2
+symbolic pp took 0.000887843 seconds.
+Matrix 62 : 0.000985835 secs reduction / size = (188, 352) / density = 0.2603965183752418
+3 zero reductions at sig-degree 2 / position 12
+Pair generation took 2.5418e-5 seconds.
+selected 1 / 4 pairs, sig-degree of sel. pairs: 0
+symbolic pp took 1.8327e-5 seconds.
+Matrix 63 : 7.08e-7 secs reduction / size = (1, 23) / density = 1.0
+Pair generation took 0.000123385 seconds.
+selected 4 / 15 pairs, sig-degree of sel. pairs: 1
+symbolic pp took 0.000114197 seconds.
+Matrix 64 : 4.1651e-5 secs reduction / size = (27, 77) / density = 0.49975949975949974
+Pair generation took 0.000384785 seconds.
+selected 12 / 19 pairs, sig-degree of sel. pairs: 2
+symbolic pp took 0.000300271 seconds.
+Matrix 65 : 0.000286938 secs reduction / size = (73, 147) / density = 0.3755474792656789
+2 zero reductions at sig-degree 2 / position 12
+Pair generation took 0.000842222 seconds.
+selected 11 / 16 pairs, sig-degree of sel. pairs: 3
+symbolic pp took 0.000453544 seconds.
+Matrix 66 : 0.000432687 secs reduction / size = (99, 192) / density = 0.36205808080808083
+4 zero reductions at sig-degree 3 / position 12
+Pair generation took 0.00068113 seconds.
+selected 8 / 11 pairs, sig-degree of sel. pairs: 4
+symbolic pp took 0.000408975 seconds.
+Matrix 67 : 0.000348904 secs reduction / size = (82, 192) / density = 0.4009146341463415
+6 zero reductions at sig-degree 4 / position 12
+Pair generation took 0.000214883 seconds.
+-----------
+STARTING WITH INDEX 13
+-----------
+selected 1 / 3 pairs, sig-degree of sel. pairs: 0
+symbolic pp took 2.241e-5 seconds.
+Matrix 68 : 6.27e-7 secs reduction / size = (2, 24) / density = 0.9791666666666666
+Pair generation took 0.000137441 seconds.
+selected 5 / 13 pairs, sig-degree of sel. pairs: 1
+symbolic pp took 0.000135066 seconds.
+Matrix 69 : 5.4054e-5 secs reduction / size = (36, 79) / density = 0.5182841068917018
+2 zero reductions at sig-degree 1 / position 13
+Pair generation took 0.000378027 seconds.
+selected 5 / 14 pairs, sig-degree of sel. pairs: 2
+symbolic pp took 0.000260394 seconds.
+Matrix 70 : 0.000106482 secs reduction / size = (62, 124) / density = 0.4248178980228928
+2 zero reductions at sig-degree 2 / position 13
+Pair generation took 0.000279589 seconds.
+selected 8 / 12 pairs, sig-degree of sel. pairs: 3
+symbolic pp took 0.000220179 seconds.
+Matrix 71 : 0.000145554 secs reduction / size = (49, 124) / density = 0.48650427913100724
+5 zero reductions at sig-degree 3 / position 13
+Pair generation took 0.000317629 seconds.
+selected 5 / 11 pairs, sig-degree of sel. pairs: 4
+symbolic pp took 0.000148708 seconds.
+Matrix 72 : 4.7349e-5 secs reduction / size = (29, 115) / density = 0.39580209895052476
+4 zero reductions at sig-degree 4 / position 13
+Pair generation took 0.00010043 seconds.
+selected 1 / 6 pairs, sig-degree of sel. pairs: 5
+symbolic pp took 3.2483e-5 seconds.
+Matrix 73 : 4.173e-6 secs reduction / size = (3, 39) / density = 0.7264957264957265
+1 zero reductions at sig-degree 5 / position 13
+Pair generation took 5.127e-6 seconds.
+-----------
+STARTING WITH INDEX 14
+-----------
+selected 1 / 2 pairs, sig-degree of sel. pairs: 0
+symbolic pp took 2.3049e-5 seconds.
+Matrix 74 : 3.816e-6 secs reduction / size = (4, 25) / density = 0.95
+1 zero reductions at sig-degree 0 / position 14
+Pair generation took 1.364e-6 seconds.
+-----------
+STARTING WITH INDEX 15
+-----------
+selected 1 / 1 pairs, sig-degree of sel. pairs: 0
+symbolic pp took 0.00017206 seconds.
+Matrix 75 : 4.0562e-5 secs reduction / size = (40, 99) / density = 0.5265151515151515
+Pair generation took 0.000172714 seconds.
+selected 5 / 10 pairs, sig-degree of sel. pairs: 1
+symbolic pp took 0.000312607 seconds.
+Matrix 76 : 0.000189487 secs reduction / size = (70, 142) / density = 0.4699195171026157
+Pair generation took 0.000776156 seconds.
+selected 10 / 14 pairs, sig-degree of sel. pairs: 2
+symbolic pp took 0.000505646 seconds.
+Matrix 77 : 0.000420965 secs reduction / size = (106, 182) / density = 0.36336305204229735
+Pair generation took 0.001424513 seconds.
+selected 4 / 4 pairs, sig-degree of sel. pairs: 3
+symbolic pp took 0.000467332 seconds.
+Matrix 78 : 0.000230822 secs reduction / size = (87, 163) / density = 0.4458077709611452
+Pair generation took 0.000850923 seconds.
+-----
+total number of arithmetic operations (groebner): 1149199
+total number of arithmetic operations (module overhead): 62735
+  2.143553 seconds (16.09 M allocations: 1.280 GiB, 17.15% gc time)
