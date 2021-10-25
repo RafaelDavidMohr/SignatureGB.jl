@@ -5,10 +5,11 @@ minmonomialset(ctx::MonomialContext{M}) where M = SortedSet(M[], order(ctx))
 function find_reducer(ctx::SigPolynomialΓ{I, M},
                       G::Basis{I, M},
                       H::Syz{I, M},
-                      m::M,
+                      m::M;
                       use_max_sig = false,
                       max_sig_pos = zero(pos_type(ctx)),
-                      sig_degree = zero(exponenttype(ctx.po.mo))) where {I, M}
+                      sig_degree = zero(exponenttype(ctx.po.mo)),
+                      enable_rewrite = true) where {I, M}
 
     reducer = nothing
     mpairord = mpairordering(ctx)
@@ -20,9 +21,12 @@ function find_reducer(ctx::SigPolynomialΓ{I, M},
                 delta = div(ctx.po.mo, m, lm)
                 # @debug "possible reducer $(pretty_print(ctx, (delta, (i, g)))) for $(pretty_print(ctx.po.mo, m))"
                 use_max_sig && i == max_sig_pos && degree(ctx, (delta, g_sig)) > sig_degree && continue
-                rewriteable(ctx, delta, g_sig, j, G, H) && continue
-                if isnothing(reducer) || lt(mpairord, (delta, g_sig), reducer)
+                enable_rewrite && rewriteable(ctx, delta, g_sig, j, G, H) && continue
+                if enable_rewrite && (isnothing(reducer) || lt(mpairord, (delta, g_sig), reducer))
                     reducer = (delta, g_sig)
+                end
+                if !(enable_rewrite) && delta != Base.one(ctx.po.mo)
+                    return (delta, g_sig)
                 end
             end
         end
@@ -51,9 +55,9 @@ function symbolic_pp!(ctx::SΓ,
             m in done && continue
             push!(done, m)
             red = find_reducer(ctx, G, H, m,
-                               use_max_sig,
-                               max_sig_pos,
-                               sig_degree)
+                               use_max_sig = use_max_sig,
+                               max_sig_pos = max_sig_pos,
+                               sig_degree = sig_degree)
             isnothing(red) && continue
             push!(pairs, red)
             union!(todo, ctx(red[1], red[2])[:poly].mo)
