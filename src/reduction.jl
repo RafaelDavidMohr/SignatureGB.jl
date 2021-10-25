@@ -1,23 +1,30 @@
 using Combinatorics
 
 mutable struct F5matrix{I, M, T, J, Tbuf, NΓ <: NmodLikeΓ{T, Tbuf}}
-    sigs::MonSigSet{I, M}
+    sigs::Vector{MonSigPair{I, M}}
     rows::Vector{Polynomial{J, T}}
     tbl::EasyTable{M, J}
     ctx::NΓ
+    pivots::Vector{J}
 end
 
 function f5matrix(ctx::SigPolynomialΓ{I, M, T},
                   mons::Vector{M},
-                  row_sigs::MonSigSet{I, M}) where {I, M, T}
+                  row_sigs::Vector{MonSigPair{I, M}};
+                  interreduction_step = false) where {I, M, T}
 
     tbl = easytable(mons)
     rows = Array{Polynomial{ind_type(tbl), T}}(undef, length(row_sigs))
-    pols = [ctx(sig...)[:poly] for sig in row_sigs]
-    for (i, sig) in enumerate(row_sigs)
-        @inbounds rows[i] = indexpolynomial(tbl, ctx(sig...)[:poly])
+    if !(interreduction_step)
+        pols = [ctx(sig...)[:poly] for sig in row_sigs]
+    else
+        pols = [mul(ctx.po, ctx(sig[2])[:poly], sig[1]) for sig in row_sigs]
     end
-    F5matrix(row_sigs, rows, tbl, ctx.po.co)
+    for (i, sig) in enumerate(row_sigs)
+        @inbounds rows[i] = indexpolynomial(tbl, pols[i])
+    end
+    
+    F5matrix(row_sigs, rows, tbl, ctx.po.co, zeros(ind_type(tbl), length(tbl)))
 end
 
 function check_row_echelon(mat::F5matrix)
@@ -43,27 +50,27 @@ Base.show(io::IO, mat::F5matrix) = Base.show(io, mat_show(mat))
 
 function reduction!(mat::F5matrix{I, M, T, J, Tbuf}) where {I, M, T, J, Tbuf}
     n_cols = length(mat.tbl)
-    pivots = zeros(J, n_cols)
     buffer = zeros(Tbuf, n_cols)
     arit_operations = 0
 
     @inbounds begin
         for ((i, row), sig) in zip(enumerate(mat.rows), mat.sigs)
+            isempty(row) && continue
             l = leadingmonomial(row)
-            if iszero(pivots[l])
+            if iszero(mat.pivots[l])
                 monic!(mat.ctx, row)
-                pivots[l] = J(i)
+                mat.pivots[l] = J(i)
                 continue
             end
             buffer!(row, buffer)
             for (k, c) in enumerate(buffer)
-                (iszero(c) || iszero(pivots[k])) && continue
-                arit_operations += length(mat.rows[pivots[k]])
-                critical_loop!(buffer, mat.rows[pivots[k]], mat.ctx)
+                (iszero(c) || iszero(mat.pivots[k])) && continue
+                arit_operations += length(mat.rows[mat.pivots[k]])
+                critical_loop!(buffer, mat.rows[mat.pivots[k]], mat.ctx)
             end
             first_nz, new_row = unbuffer!(buffer, mat.ctx, J)
             if !(iszero(first_nz))
-                pivots[first_nz] = J(i)
+                mat.pivots[first_nz] = J(i)
             end
             mat.rows[i] = new_row
         end

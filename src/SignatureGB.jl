@@ -13,6 +13,7 @@ include("./kd_tree.jl")
 include("./pairs.jl")
 include("./symbolicpp.jl")
 include("./reduction.jl")
+include("./interreduction.jl")
 include("./gen_example_file.jl")
 
 function f5setup(I::Vector{P};
@@ -90,7 +91,7 @@ function f5core!(dat::F5Data{I, SΓ},
                                                  are_pairs = are_pairs)
         done = symbolic_pp_timed.value
         symbolic_pp_time = symbolic_pp_timed.time
-        mat = f5matrix(ctx, done, to_reduce)
+        mat = f5matrix(ctx, done, collect(to_reduce))
         mat_size = (length(mat.rows), length(mat.tbl))
         mat_dens = sum([length(rw) for rw in mat.rows]) / (mat_size[1] * mat_size[2])
 

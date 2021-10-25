@@ -9,7 +9,7 @@ function find_reducer(ctx::SigPolynomialΓ{I, M},
                       use_max_sig = false,
                       max_sig_pos = zero(pos_type(ctx)),
                       sig_degree = zero(exponenttype(ctx.po.mo)),
-                      enable_rewrite = true) where {I, M}
+                      interreduction_step = false) where {I, M}
 
     reducer = nothing
     mpairord = mpairordering(ctx)
@@ -21,11 +21,11 @@ function find_reducer(ctx::SigPolynomialΓ{I, M},
                 delta = div(ctx.po.mo, m, lm)
                 # @debug "possible reducer $(pretty_print(ctx, (delta, (i, g)))) for $(pretty_print(ctx.po.mo, m))"
                 use_max_sig && i == max_sig_pos && degree(ctx, (delta, g_sig)) > sig_degree && continue
-                enable_rewrite && rewriteable(ctx, delta, g_sig, j, G, H) && continue
-                if enable_rewrite && (isnothing(reducer) || lt(mpairord, (delta, g_sig), reducer))
+                !(interreduction_step) && rewriteable(ctx, delta, g_sig, j, G, H) && continue
+                if !(interreduction_step) && (isnothing(reducer) || lt(mpairord, (delta, g_sig), reducer))
                     reducer = (delta, g_sig)
                 end
-                if !(enable_rewrite) && delta != Base.one(ctx.po.mo)
+                if interreduction_step && delta != Base.one(ctx.po.mo)
                     return (delta, g_sig)
                 end
             end
@@ -35,15 +35,22 @@ function find_reducer(ctx::SigPolynomialΓ{I, M},
 end
 
 function symbolic_pp!(ctx::SΓ,
-                      pairs::MonSigSet{I, M, SΓ},
+                      pairs::MS,
                       G::Basis{I, M},
                       H::Syz{I, M};
                       use_max_sig = false,
                       sig_degree = zero(exponenttype(ctx.po.mo)),
                       max_sig_pos = zero(pos_type(ctx)),
-                      are_pairs= true) where {I, M <: Integer, SΓ <: SigPolynomialΓ{I, M}}
+                      are_pairs= true,
+                      interreduction_step = true) where {I, M <: Integer,
+                                                    MS <: Union{MonSigSet{I, M}, Set{MonSigPair{I, M}}},
+                                                    SΓ <: SigPolynomialΓ{I, M}}
 
-    todo = Set{M}(vcat([ctx(p[1], p[2])[:poly].mo for p in pairs]...))
+    if !(interreduction_step)
+        todo = Set{M}(vcat([ctx(p...)[:poly].mo for p in pairs]...))
+    else
+        todo = Set{M}(vcat([mul(ctx.po, ctx(p[2])[:poly], p[1]).mo for p in pairs]...))
+    end
     if are_pairs
         done = Set{M}([mul(ctx.po.mo, p[1], leadingmonomial(ctx, p[2])) for p in pairs])
     else
@@ -57,10 +64,15 @@ function symbolic_pp!(ctx::SΓ,
             red = find_reducer(ctx, G, H, m,
                                use_max_sig = use_max_sig,
                                max_sig_pos = max_sig_pos,
-                               sig_degree = sig_degree)
+                               sig_degree = sig_degree,
+                               interreduction_step = interreduction_step)
             isnothing(red) && continue
             push!(pairs, red)
-            union!(todo, ctx(red[1], red[2])[:poly].mo)
+            if !(interreduction_step)
+                union!(todo, ctx(red...)[:poly].mo)
+            else
+                union!(todo, mul(ctx.po, ctx(red[2])[:poly], red[1]).mo)
+            end
         end
     end
     check_sigs = [mul(ctx, p...) for p in pairs]
