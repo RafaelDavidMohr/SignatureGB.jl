@@ -76,7 +76,6 @@ function f5core!(dat::F5Data{I, SΓ},
             end
             if interreduction && indx > 2
                 G = interreduce(ctx, G, H)
-                @debug [(Int(i), pretty_print(ctx.po.mo, m)) for  i in keys(G) for (g, m) in G[i]]
             end
             if verbose
                 println("-----------")
@@ -91,6 +90,7 @@ function f5core!(dat::F5Data{I, SΓ},
         #- PAIR SELECTION -#
         total_num_pairs = length(pairs)
         to_reduce, are_pairs, nselected = select(ctx, pairs)
+        @debug "selected:" [pretty_print(ctx, p) for p in to_reduce]
         sig_degree = degree(ctx, last(to_reduce))
 
         #- SYMBOLIC PP -#
@@ -102,7 +102,7 @@ function f5core!(dat::F5Data{I, SΓ},
                                                  enable_lower_pos_rewrite = !(interreduction))
         done = symbolic_pp_timed.value
         symbolic_pp_time = symbolic_pp_timed.time
-        mat = f5matrix(ctx, done, collect(to_reduce))
+        mat = f5matrix(ctx, done, collect(to_reduce), enable_lower_pos_rewrite = !(interreduction))
         mat_size = (length(mat.rows), length(mat.tbl))
         mat_dens = sum([length(rw) for rw in mat.rows]) / (mat_size[1] * mat_size[2])
 
@@ -113,8 +113,6 @@ function f5core!(dat::F5Data{I, SΓ},
         #- PAIR GENERATION -#
         pair_gen_time = @elapsed new_elems_f5!(ctx, mat, pairs, G, H,
                                                enable_lower_pos_rewrite = !(interreduction))
-
-        @debug [(Int(i), pretty_print(ctx.po.mo, m)) for  i in keys(G) for (g, m) in G[i]]
 
         if verbose
             zero_red_count = 0

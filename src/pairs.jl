@@ -46,6 +46,9 @@ mpairordering(ctx::SΓ) where SΓ = MPairOrdering{SΓ}(ctx)
 function Base.Order.lt(porder::MPairOrdering{SΓ},
                        a::MonSigPair{I, M},
                        b::MonSigPair{I, M}) where {I, M, SΓ <: SigPolynomialΓ{I, M}}
+    if mul(porder.ctx, a...) == mul(porder.ctx, b...)
+        return true
+    end
     lt(porder.ctx, mul(porder.ctx, a...), mul(porder.ctx, b...))
 end
 

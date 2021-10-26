@@ -11,15 +11,15 @@ end
 function f5matrix(ctx::SigPolynomialΓ{I, M, T},
                   mons::Vector{M},
                   row_sigs::Vector{MonSigPair{I, M}};
+                  enable_lower_pos_rewrite = true,
                   interreduction_step = false) where {I, M, T}
 
+    max_sig_pos = maximum(p -> pos(p), row_sigs)
+    get_orig_elem = p -> interreduction_step || (!(enable_lower_pos_rewrite) && pos(p) < max_sig_pos)
     tbl = easytable(mons)
     rows = Array{Polynomial{ind_type(tbl), T}}(undef, length(row_sigs))
-    if !(interreduction_step)
-        pols = [ctx(sig...)[:poly] for sig in row_sigs]
-    else
-        pols = [mul(ctx.po, ctx(sig[2])[:poly], sig[1]) for sig in row_sigs]
-    end
+    pols = [ctx(p..., orig_elem = get_orig_elem(p))[:poly]
+            for p in row_sigs]
     for (i, sig) in enumerate(row_sigs)
         @inbounds rows[i] = indexpolynomial(tbl, pols[i])
     end
@@ -131,13 +131,14 @@ function new_elems_f5!(ctx::SΓ,
                        H::Syz{I, M};
                        enable_lower_pos_rewrite = true) where {I, M, T, SΓ <: SigPolynomialΓ{I, M, T}}
 
+    max_sig_pos = maximum(p -> pos(p), mat.sigs)
     for (i, sig) in enumerate(mat.sigs)
         m, (pos, t) = sig
+        !(enable_lower_pos_rewrite) && pos < max_sig_pos && continue
         new_sig = mul(ctx, sig...)
         @inbounds begin
             # @debug "considering $(pretty_print(ctx, sig))"
             if isempty(mat.rows[i])
-                @debug "syzygy $(pretty_print(ctx, sig))"
                 push!(H[pos], new_sig[2])
                 new_rewriter!(ctx, pairs, new_sig)
             else
@@ -155,7 +156,6 @@ function new_elems_f5!(ctx::SΓ,
                     new_rewriter!(ctx, pairs, new_sig)
                     pairs!(ctx, pairs, new_sig, lm, G, H, enable_lower_pos_rewrite = enable_lower_pos_rewrite)
                     push!(G[pos], (new_sig[2], lm))
-                    @debug G
                 end
             end
         end
