@@ -207,7 +207,7 @@ function select_all_pos_and_degree!(ctx::SΓ,
     selected = mpairset(ctx, [pair[1], pair[2]])
     nselected += 1
     while true
-        isempty(pairs) && return selected, true, nselected
+        isempty(pairs) && return selected, true, nselected, degree(ctx, pair[1])
         if first(pairs)[1][2][1] != indx || degree(ctx, first(pairs)[1]) != degree(ctx, pair[1])
             return selected, true, nselected, degree(ctx, pair[1])
         end
