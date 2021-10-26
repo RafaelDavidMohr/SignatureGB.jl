@@ -65,7 +65,7 @@ Base.getindex(ctx::SigPolynomialΓ{I, M}, sig::Tuple{I, M}) where {I, M} = getin
     # end
 end
 
-function (ctx::SigPolynomialΓ{I, M, T})(m::M, sig::Tuple{I, M}; orig_elem = true) where {I, M, T}
+function (ctx::SigPolynomialΓ{I, M, T})(m::M, sig::Tuple{I, M}; orig_elem = false) where {I, M, T}
     @assert sig in keys(ctx.tbl)
     key = (sig[1], mul(ctx.po.mo, m, sig[2]))
     if !(orig_elem)

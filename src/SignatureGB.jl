@@ -90,8 +90,7 @@ function f5core!(dat::F5Data{I, SΓ},
         #- PAIR SELECTION -#
         total_num_pairs = length(pairs)
         to_reduce, are_pairs, nselected = select(ctx, pairs)
-        @debug "selected:" [pretty_print(ctx, p) for p in to_reduce]
-        sig_degree = degree(ctx, last(to_reduce))
+        sig_degree = maximum(p -> degree(ctx, p), to_reduce)
 
         #- SYMBOLIC PP -#
         symbolic_pp_timed  = @timed symbolic_pp!(ctx, to_reduce, G, H,
@@ -102,7 +101,8 @@ function f5core!(dat::F5Data{I, SΓ},
                                                  enable_lower_pos_rewrite = !(interreduction))
         done = symbolic_pp_timed.value
         symbolic_pp_time = symbolic_pp_timed.time
-        mat = f5matrix(ctx, done, collect(to_reduce), enable_lower_pos_rewrite = !(interreduction))
+        to_reduce = sort(collect(to_reduce), lt = (a, b) -> Base.Order.lt(mpairordering(ctx), a, b))
+        mat = f5matrix(ctx, done, to_reduce, enable_lower_pos_rewrite = !(interreduction))
         mat_size = (length(mat.rows), length(mat.tbl))
         mat_dens = sum([length(rw) for rw in mat.rows]) / (mat_size[1] * mat_size[2])
 
@@ -160,7 +160,7 @@ function f5(I::Vector{P};
                                max_remasks = max_remasks, kwargs...)
     G = f5core!(dat, G, H, pairs, select = select, interreduction = interreduction, verbose = verbose)
     if interreduction
-        G = interreduce(dat.ctx, G, H)
+         G = interreduce(dat.ctx, G, H)
     end
     [R(dat.ctx, (i, g[1])) for i in keys(G) for g in G[i]]
 end

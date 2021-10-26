@@ -17,10 +17,8 @@ function find_reducer(ctx::SigPolynomialΓ{I, M},
     for (i, Gi) in G
         for (j, (g, lm)) in enumerate(Gi)
             g_sig = (i, g)
-            # probably need to check that lt(ctx(n, g)) == n*lt(ctx, g)
             if divides(ctx.po.mo, lm, m)
                 delta = div(ctx.po.mo, m, lm)
-                # @debug "possible reducer $(pretty_print(ctx, (delta, (i, g)))) for $(pretty_print(ctx.po.mo, m))"
                 use_max_sig && i == max_sig_pos && degree(ctx, (delta, g_sig)) > sig_degree && continue
                 if !(interreduction_step) && (enable_lower_pos_rewrite || i == max_sig_pos)
                     rewriteable(ctx, delta, g_sig, j, G, H) && continue
@@ -73,6 +71,5 @@ function symbolic_pp!(ctx::SΓ,
             union!(todo, ctx(red..., orig_elem = get_orig_elem(red))[:poly].mo)
         end
     end
-    @debug "mat sigs:" [pretty_print(ctx, p) for p in pairs]
     sort(collect(done), lt = (a, b) -> lt(ctx.po.mo, a, b), rev = true)
 end     

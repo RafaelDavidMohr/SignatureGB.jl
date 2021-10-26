@@ -46,9 +46,6 @@ mpairordering(ctx::SΓ) where SΓ = MPairOrdering{SΓ}(ctx)
 function Base.Order.lt(porder::MPairOrdering{SΓ},
                        a::MonSigPair{I, M},
                        b::MonSigPair{I, M}) where {I, M, SΓ <: SigPolynomialΓ{I, M}}
-    if mul(porder.ctx, a...) == mul(porder.ctx, b...)
-        return true
-    end
     lt(porder.ctx, mul(porder.ctx, a...), mul(porder.ctx, b...))
 end
 
@@ -69,11 +66,11 @@ function Base.Order.lt(porder::PairOrdering{SΓ},
 end
 
 const PairSet{I, M, SΓ} = SortedSet{Pair{I, M}, PairOrdering{SΓ}}
-const MonSigSet{I, M, SΓ} = SortedSet{MonSigPair{I, M}, MPairOrdering{SΓ}}
+const MonSigSet{I, M, SΓ} = Set{MonSigPair{I, M}}
 
 function mpairset(ctx::SigPolynomialΓ{I, M},
                   pairs::Vector{MonSigPair{I, M}}) where {I, M}
-    SortedSet(pairs, mpairordering(ctx))
+    Set(pairs)
 end
 
 function mpairset(ctx::SigPolynomialΓ{I, M}) where {I, M}
@@ -104,7 +101,6 @@ function pairs!(ctx::SΓ,
             g_sig == sig && continue
             m = lcm(ctx.po.mo, lm, lm_sig)
             a = div(ctx.po.mo, m, lm_sig)
-            # @debug "checking pair $(pretty_print(ctx, (a, sig)))"
             rewriteable_syz(ctx, a, sig, G, H) && continue
             b = div(ctx.po.mo, m, lm)
             (pos, ctx(sig)[:sigratio]) == (i, ctx(g_sig)[:sigratio]) && continue
@@ -112,11 +108,9 @@ function pairs!(ctx::SΓ,
                 rewriteable(ctx, b, g_sig, j, G, H) && continue
             end
             if lt(ctx, (pos, ctx(sig)[:sigratio]), (i, ctx(g_sig)[:sigratio]))
-                # @debug "new pair" pretty_print(ctx, (b, g)), pretty_print(ctx, (a, sig))
                 push!(pairset, ((b, g_sig), (a, sig)))
             else
                 push!(pairset, ((a, sig), (b, g_sig)))
-                # @debug "new pair" pretty_print(ctx, (a, sig)), pretty_print(ctx, (b, g))
             end
         end
     end
@@ -151,9 +145,6 @@ function rewriteable(ctx::SigPolynomialΓ{I, M},
 
     msig = mul(ctx.po.mo, m, sig[2])
     pos = sig[1]
-    # for (g, lm) in inclusive(G[pos], searchsortedafter(G[pos], sig[2]), lastindex(G[pos]))
-    #     divides(ctx.po.mo, g, msig) && return true
-    # end
     for (g, lm) in view(G[pos], indx + 1:length(G[pos]))
         divides(ctx.po.mo, g, msig) && return true
     end
@@ -200,7 +191,6 @@ function select_one!(ctx::SΓ,
     if iszero(pos(pair[2]))
         return mpairset(ctx, [pair[1]]), false, 1
     else
-        @debug "selected" pretty_print(ctx, pair[1]), pretty_print(ctx, pair[2])
         return mpairset(ctx, [pair[1], pair[2]]), true, 1
     end
 end
@@ -209,20 +199,22 @@ function select_all_pos_and_degree!(ctx::SΓ,
                                     pairs::PairSet{I, M, SΓ}) where {I, M, SΓ <: SigPolynomialΓ{I, M}}
 
     nselected = 0
-    pair = first(pairs)
+    pair = pop!(pairs)
     indx = pos(pair[1])
     if iszero(pos(pair[2]))
         return mpairset(ctx, [pair[1]]), false, 1
     end
-    selected = mpairset(ctx)
-    for p in pairs
-        if p[1][2][1] == indx && degree(ctx, p[1]) == degree(ctx, pair[1])
-            push!(selected, first(p))
-            push!(selected, p[2])
-            nselected += 1
-        else
-            break
+    selected = mpairset(ctx, [pair[1], pair[2]])
+    nselected += 1
+    while true
+        isempty(pairs) && return selected, true, nselected
+        if first(pairs)[1][2][1] != indx || degree(ctx, first(pairs)[1]) != degree(ctx, pair[1])
+            return selected, true, nselected
         end
+        p = pop!(pairs)
+        push!(selected, first(p))
+        push!(selected, p[2])
+        nselected += 1
     end
     selected, true, nselected
 end 

@@ -21,7 +21,7 @@ function f5matrix(ctx::SigPolynomialΓ{I, M, T},
     pols = [ctx(p..., orig_elem = get_orig_elem(p))[:poly]
             for p in row_sigs]
     for (i, sig) in enumerate(row_sigs)
-        @inbounds rows[i] = indexpolynomial(tbl, pols[i])
+        rows[i] = indexpolynomial(tbl, pols[i])
     end
     
     F5matrix(row_sigs, rows, tbl, ctx.po.co, zeros(ind_type(tbl), length(tbl)))
@@ -53,27 +53,25 @@ function reduction!(mat::F5matrix{I, M, T, J, Tbuf}) where {I, M, T, J, Tbuf}
     buffer = zeros(Tbuf, n_cols)
     arit_operations = 0
 
-    @inbounds begin
-        for ((i, row), sig) in zip(enumerate(mat.rows), mat.sigs)
-            isempty(row) && continue
-            l = leadingmonomial(row)
-            if iszero(mat.pivots[l])
-                monic!(mat.ctx, row)
-                mat.pivots[l] = J(i)
-                continue
-            end
-            buffer!(row, buffer)
-            for (k, c) in enumerate(buffer)
-                (iszero(c) || iszero(mat.pivots[k])) && continue
-                arit_operations += length(mat.rows[mat.pivots[k]])
-                critical_loop!(buffer, mat.rows[mat.pivots[k]], mat.ctx)
-            end
-            first_nz, new_row = unbuffer!(buffer, mat.ctx, J)
-            if !(iszero(first_nz))
-                mat.pivots[first_nz] = J(i)
-            end
-            mat.rows[i] = new_row
+    for ((i, row), sig) in zip(enumerate(mat.rows), mat.sigs)
+        isempty(row) && continue
+        l = leadingmonomial(row)
+        if iszero(mat.pivots[l])
+            monic!(mat.ctx, row)
+            mat.pivots[l] = J(i)
+            continue
         end
+        buffer!(row, buffer)
+        for (k, c) in enumerate(buffer)
+            (iszero(c) || iszero(mat.pivots[k])) && continue
+            arit_operations += length(mat.rows[mat.pivots[k]])
+            critical_loop!(buffer, mat.rows[mat.pivots[k]], mat.ctx)
+        end
+        first_nz, new_row = unbuffer!(buffer, mat.ctx, J)
+        if !(iszero(first_nz))
+            mat.pivots[first_nz] = J(i)
+        end
+        mat.rows[i] = new_row
     end
     arit_operations
 end
@@ -130,33 +128,28 @@ function new_elems_f5!(ctx::SΓ,
                        G::Basis{I, M},
                        H::Syz{I, M};
                        enable_lower_pos_rewrite = true) where {I, M, T, SΓ <: SigPolynomialΓ{I, M, T}}
-
+    
     max_sig_pos = maximum(p -> pos(p), mat.sigs)
     for (i, sig) in enumerate(mat.sigs)
         m, (pos, t) = sig
         !(enable_lower_pos_rewrite) && pos < max_sig_pos && continue
-        new_sig = mul(ctx, sig...)
-        @inbounds begin
-            # @debug "considering $(pretty_print(ctx, sig))"
-            if isempty(mat.rows[i])
-                push!(H[pos], new_sig[2])
+        new_sig = mul(ctx, sig...)         
+        if isempty(mat.rows[i])
+            push!(H[pos], new_sig[2])
+            new_rewriter!(ctx, pairs, new_sig)
+        else
+            p = unindexpolynomial(mat.tbl, mat.rows[i])
+            # add element to basis if any of the following two conditions hold:
+            # reductions of initial generators are added
+            add_cond_1 = isone(ctx.po.mo[m]) && isone(ctx.po.mo[t]) && isempty(G[pos])
+            # leading term dropped during reduction
+            add_cond_2 = lt(ctx.po.mo, leadingmonomial(p), mul(ctx.po.mo, m, leadingmonomial(ctx((pos, t))[:poly])))
+            if add_cond_1 || add_cond_2                    
+                ctx(new_sig, p)
+                lm = leadingmonomial(p)
                 new_rewriter!(ctx, pairs, new_sig)
-            else
-                p = unindexpolynomial(mat.tbl, mat.rows[i])
-                # add element to basis if any of the following two conditions hold:
-                # reductions of initial generators are added
-                add_cond_1 = isone(ctx.po.mo[m]) && isone(ctx.po.mo[t]) && !(new_sig[2] in keys(G[pos]))
-                # leading term dropped during reduction
-                add_cond_2 = lt(ctx.po.mo, leadingmonomial(p), leadingmonomial(ctx(sig...)[:poly]))
-                if add_cond_1 || add_cond_2
-                    
-                    @debug "adding $(pretty_print(ctx, sig)) with lm $(pretty_print(ctx.po.mo, leadingmonomial(p)))"
-                    ctx(new_sig, p)
-                    lm = leadingmonomial(p)
-                    new_rewriter!(ctx, pairs, new_sig)
-                    pairs!(ctx, pairs, new_sig, lm, G, H, enable_lower_pos_rewrite = enable_lower_pos_rewrite)
-                    push!(G[pos], (new_sig[2], lm))
-                end
+                pairs!(ctx, pairs, new_sig, lm, G, H, enable_lower_pos_rewrite = enable_lower_pos_rewrite)
+                push!(G[pos], (new_sig[2], lm))
             end
         end
     end
