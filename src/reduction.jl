@@ -128,7 +128,8 @@ function new_elems_f5!(ctx::SΓ,
                        mat::F5matrix{I, M, T},
                        pairs::PairSet{I, M, SΓ},
                        G::Basis{I, M},
-                       H::Syz{I, M}) where {I, M, T, SΓ <: SigPolynomialΓ{I, M, T}}
+                       H::Syz{I, M};
+                       enable_lower_pos_rewrite = true) where {I, M, T, SΓ <: SigPolynomialΓ{I, M, T}}
 
     for (i, sig) in enumerate(mat.sigs)
         m, (pos, t) = sig
@@ -152,8 +153,9 @@ function new_elems_f5!(ctx::SΓ,
                     ctx(new_sig, p)
                     lm = leadingmonomial(p)
                     new_rewriter!(ctx, pairs, new_sig)
-                    pairs!(ctx, pairs, new_sig, lm, G, H)
+                    pairs!(ctx, pairs, new_sig, lm, G, H, enable_lower_pos_rewrite = enable_lower_pos_rewrite)
                     push!(G[pos], (new_sig[2], lm))
+                    @debug G
                 end
             end
         end

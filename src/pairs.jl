@@ -91,7 +91,8 @@ function pairs!(ctx::SΓ,
                 sig::Tuple{I, M},
                 lm_sig::M,
                 G::Basis{I, M},
-                H::Syz{I, M}) where {I, M, SΓ <: SigPolynomialΓ{I, M}}
+                H::Syz{I, M};
+                enable_lower_pos_rewrite = true) where {I, M, SΓ <: SigPolynomialΓ{I, M}}
 
     pos = sig[1]
     for (i, Gi) in G
@@ -104,7 +105,9 @@ function pairs!(ctx::SΓ,
             rewriteable_syz(ctx, a, sig, G, H) && continue
             b = div(ctx.po.mo, m, lm)
             (pos, ctx(sig)[:sigratio]) == (i, ctx(g_sig)[:sigratio]) && continue
-            rewriteable(ctx, b, g_sig, j, G, H) && continue
+            if enable_lower_pos_rewrite || i == pos
+                rewriteable(ctx, b, g_sig, j, G, H) && continue
+            end
             if lt(ctx, (pos, ctx(sig)[:sigratio]), (i, ctx(g_sig)[:sigratio]))
                 # @debug "new pair" pretty_print(ctx, (b, g)), pretty_print(ctx, (a, sig))
                 push!(pairset, ((b, g_sig), (a, sig)))
@@ -191,12 +194,11 @@ function select_one!(ctx::SΓ,
                      pairs::PairSet{I, M, SΓ}) where {I, M, SΓ <: SigPolynomialΓ{I, M}}
     
     pair = pop!(pairs)
-    indx = pos(pair[1])
     if iszero(pos(pair[2]))
-        return mpairset(ctx, [pair[1]]), false, 1, indx
+        return mpairset(ctx, [pair[1]]), false, 1
     else
         @debug "selected" pretty_print(ctx, pair[1]), pretty_print(ctx, pair[2])
-        return mpairset(ctx, [pair[1], pair[2]]), true, 1, indx
+        return mpairset(ctx, [pair[1], pair[2]]), true, 1
     end
 end
 
@@ -207,7 +209,7 @@ function select_all_pos_and_degree!(ctx::SΓ,
     pair = first(pairs)
     indx = pos(pair[1])
     if iszero(pos(pair[2]))
-        return mpairset(ctx, [pair[1]]), false, 1, indx
+        return mpairset(ctx, [pair[1]]), false, 1
     end
     selected = mpairset(ctx)
     for p in pairs
@@ -219,7 +221,7 @@ function select_all_pos_and_degree!(ctx::SΓ,
             break
         end
     end
-    selected, true, nselected, indx
+    selected, true, nselected
 end 
 
 function select_all_pos!(ctx::SΓ,
@@ -228,7 +230,7 @@ function select_all_pos!(ctx::SΓ,
     pair = first(pairs)
     indx = pos(pair[1])
     if iszero(pos(pair[2]))
-        return mpairset(ctx, [pair[1]]), false, indx
+        return mpairset(ctx, [pair[1]]), false
     end
     selected = mpairset(ctx)
     for p in pairs
@@ -239,5 +241,5 @@ function select_all_pos!(ctx::SΓ,
             break
         end
     end
-    selected, true, indx
+    selected, true
 end
