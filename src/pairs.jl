@@ -24,8 +24,9 @@ end
 
 function new_basis_elem!(ctx::SigPolynomialΓ{I, M},
                          G::Basis{I, M},
-                         g::Tuple{I, M}) where {I, M}
-    insert!(G[g[1]], g[2], leadingmonomial(ctx, g))
+                         g::Tuple{I, M};
+                         lm = leadingmonomial(ctx, g)) where {I, M}
+    push!(G[g[1]], (g[2], lm))
 end
 
 pos(p::MonSigPair{I, M}) where {I, M} = p[2][1]
@@ -36,6 +37,10 @@ end
 
 function nullmonsigpair(ctx::SigPolynomialΓ)
     (zero(mon_type(ctx)), (zero(pos_type(ctx)), zero(mon_type(ctx))))
+end
+
+function isnull(ctx::SigPolynomialΓ{I, M}, p::MonSigPair{I, M}) where {I, M}
+    p == nullmonsigpair(ctx)
 end
 
 struct MPairOrdering{SΓ <: SigPolynomialΓ}<:Base.Order.Ordering
@@ -98,12 +103,11 @@ function pairs!(ctx::SΓ,
     for (i, Gi) in G
         for (j, (g, lm)) in enumerate(Gi)
             g_sig = (i, g)
-            g_sig == sig && continue
+            (pos, ctx(sig)[:sigratio]) == (i, ctx(g_sig)[:sigratio]) && continue
             m = lcm(ctx.po.mo, lm, lm_sig)
             a = div(ctx.po.mo, m, lm_sig)
             rewriteable_syz(ctx, a, sig, G, H) && continue
             b = div(ctx.po.mo, m, lm)
-            (pos, ctx(sig)[:sigratio]) == (i, ctx(g_sig)[:sigratio]) && continue
             if enable_lower_pos_rewrite || i == pos
                 rewriteable(ctx, b, g_sig, j, G, H) && continue
             end
@@ -120,7 +124,7 @@ function pair!(ctx::SΓ,
                pairset::PairSet{I, M, SΓ},
                sig::Tuple{I, M}) where {I, M, SΓ <: SigPolynomialΓ{I, M}}
 
-    push!(pairset, ((ctx.po.mo(one(valtype(ctx.po.mo))), sig), nullmonsigpair(ctx)))
+    push!(pairset, ((one(ctx.po.mo), sig), nullmonsigpair(ctx)))
 end
 
 #.. Rewrite functions for add rewrite order
@@ -129,7 +133,7 @@ function new_rewriter!(ctx::SΓ,
                        pairset::PairSet{I, M, SΓ},
                        sig::Tuple{I, M}) where {I, M, SΓ <: SigPolynomialΓ{I, M}}
     pos, m = sig
-    crit = p -> (divides(ctx, sig, mul(ctx, p[1]...)) || (!(iszero(p[2][2][1])) && divides(ctx, sig, mul(ctx, p[2]...))))
+    crit = p -> (divides(ctx, sig, mul(ctx, p[1]...)) || (!(isnull(ctx, p[2])) && divides(ctx, sig, mul(ctx, p[2]...))))
     for p in pairset
         if crit(p)
             delete!(pairset, p)
@@ -184,57 +188,40 @@ end
 
 # selection
 
-function select_one!(ctx::SΓ,
-                     pairs::PairSet{I, M, SΓ}) where {I, M, SΓ <: SigPolynomialΓ{I, M}}
+function select!(ctx::SΓ,
+                 pairs::PairSet{I, M, SΓ},
+                 cond::Val{S}) where {I, M, SΓ <: SigPolynomialΓ{I, M}, S}
+
+    nselected = 1
+    pair = pop!(pairs)
+    sig_degree = degree(ctx, pair[1])
+    are_pairs = false
+    selected = mpairset(ctx, [pair[1]])
+    if !(isnull(ctx, pair[2]))
+        push!(selected, pair[2])
+        are_pairs = true
+    end
     
-    pair = pop!(pairs)
-    if iszero(pos(pair[2]))
-        return mpairset(ctx, [pair[1]]), false, 1
+    if S == :one
+        cond = p -> false
+    elseif S == :deg_and_pos
+        indx = pos(pair[1])
+        cond = p -> pos(p[1]) == indx && degree(ctx, p[1]) == sig_degree
+    elseif S == :pos
+        indx = pos(pair[1])
+        cond = p -> pos(p[1]) == indx
     else
-        return mpairset(ctx, [pair[1], pair[2]]), true, 1
+        error("Select method must be one of :one, :deg_and_pos or :pos")
     end
-end
-
-function select_all_pos_and_degree!(ctx::SΓ,
-                                    pairs::PairSet{I, M, SΓ}) where {I, M, SΓ <: SigPolynomialΓ{I, M}}
-
-    nselected = 0
-    pair = pop!(pairs)
-    indx = pos(pair[1])
-    if iszero(pos(pair[2]))
-        return mpairset(ctx, [pair[1]]), false, 1, degree(ctx, pair[1])
-    end
-    selected = mpairset(ctx, [pair[1], pair[2]])
-    nselected += 1
-    while true
-        isempty(pairs) && return selected, true, nselected, degree(ctx, pair[1])
-        if first(pairs)[1][2][1] != indx || degree(ctx, first(pairs)[1]) != degree(ctx, pair[1])
-            return selected, true, nselected, degree(ctx, pair[1])
+    
+    while !(isempty(pairs))
+        if !(cond(first(pairs)))
+            break
         end
         p = pop!(pairs)
         push!(selected, first(p))
         push!(selected, p[2])
         nselected += 1
     end
-    selected, true, nselected, degree(ctx, pair[1])
-end
-
-function select_all_pos!(ctx::SΓ,
-                         pairs::PairSet{I, M, SΓ}) where {I, M, SΓ <: SigPolynomialΓ{I, M}}
-
-    pair = first(pairs)
-    indx = pos(pair[1])
-    if iszero(pos(pair[2]))
-        return mpairset(ctx, [pair[1]]), false
-    end
-    selected = mpairset(ctx)
-    for p in pairs
-        if p[1][2][1] == indx
-            push!(selected, first(p))
-            push!(selected, p[2])
-        else
-            break
-        end
-    end
-    selected, true
+    selected, are_pairs, nselected, sig_degree
 end

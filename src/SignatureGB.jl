@@ -53,12 +53,12 @@ function f5core!(dat::F5Data{I, SΓ},
                  G::Basis{I, M},
                  H::Syz{I, M},
                  pairs::PairSet{I, M, SΓ};
-                 select = select_all_pos_and_degree!,
+                 select = :deg_and_pos,
                  interreduction = true,
                  verbose = false) where {I, M, SΓ <: SigPolynomialΓ{I, M}}
     
     ctx = dat.ctx
-    use_max_sig = (select == select_all_pos_and_degree! || select == select_one!)
+    use_max_sig = (select == :deg_and_pos || select == :pos)
     
     cnt = 1
     num_arit_operations = 0
@@ -87,7 +87,7 @@ function f5core!(dat::F5Data{I, SΓ},
         
         #- PAIR SELECTION -#
         total_num_pairs = length(pairs)
-        to_reduce, are_pairs, nselected, sig_degree = select(ctx, pairs)
+        to_reduce, are_pairs, nselected, sig_degree = select!(ctx, pairs, Val(select))
 
         #- SYMBOLIC PP -#
         symbolic_pp_timed  = @timed symbolic_pp!(ctx, to_reduce, G, H,
@@ -144,7 +144,7 @@ function f5(I::Vector{P};
             index_type=UInt32,
             mask_type=UInt32,
             pos_type=UInt32,
-            select = select_all_pos_and_degree!,
+            select = :deg_and_pos,
             verbose = false,
             interreduction = true,
             max_remasks = 3,
