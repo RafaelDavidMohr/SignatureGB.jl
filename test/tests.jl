@@ -2,13 +2,6 @@ using StaticArrays
 using AbstractTrees
 using DataStructures
 
-function is_gb(pols::Vector{MP}) where {MP <: Singular.MPolyElem}
-    id = Singular.Ideal(parent(first(pols)), pols)
-    id.isGB = true
-    gb_id = std(id)
-    all(p -> iszero(Singular.reduce(p, id)), Singular.gens(gb_id))
-end
-
 function small_example()
     R, (x, y) = Singular.PolynomialRing(Singular.Fp(101), ["x", "y"])
     I = [x^2, x*y + y^2]
@@ -21,13 +14,6 @@ function small_example()
         SG.new_basis_elem!(ctx, basis, (SG.pos_type(ctx)(i), ctx.po.mo(R(1))))
     end
     R, (x, y), ctx, basis, syz
-end
-
-function cyclic(vars)
-    n = length(vars)
-    pols = [sum(prod(vars[j%n+1] for j in k:k+i) for k in 1:n) for i in 0:n-2]
-    push!(pols, prod(vars[i] for i in 1:n)-1)
-    return pols
 end
 
 @testset "termorder" begin
@@ -114,7 +100,8 @@ end
     pairset = SG.mpairset(ctx)
     push!(pairset, pair_sig)
     mons = SG.symbolic_pp!(ctx, pairset, basis, syz, are_pairs = false)
-    mat = SG.f5matrix(ctx, mons, pairset)
+    rows = sort(collect(pairset), lt = (a, b) -> Base.Order.lt(SG.mpairordering(ctx), a, b))
+    mat = SG.f5matrix(ctx, mons, rows)
     @test SG.mat_show(mat) == [1 0 0; 0 1 1; 1 1 0]
     SG.reduction!(mat)
     @test SG.mat_show(mat) == [1 0 0; 0 1 1; 0 0 1]
@@ -139,36 +126,40 @@ end
 @testset "small groebner" begin
     R, (x, y) = Singular.PolynomialRing(Singular.Fp(101), ["x", "y"])
     I = [x^2, x*y + y^2]
-    dat, G, H, pairs = SG.f5setup(I)
-    SG.f5core!(dat, G, H, pairs)
+    gb_2 = SG.f5(I, interreduction = false)
     gb = vcat(I, [y^3])
-    gb_2 = [R(dat.ctx, (i, g[1])) for i in keys(G) for g in G[i]]
     @test all(p -> p in gb, gb_2)
 end
 
 @testset "small groebner 2" begin
     R, (x, y, z, t) = Singular.PolynomialRing(Singular.Fp(7), ["x", "y", "z", "t"])
     I = [y*z - 2*t^2, x*y + t^2, x^2*z + 3*x*t^2 - 2*y*t^2]
-    dat, G, H, pairs = SG.f5setup(I)
-    SG.f5core!(dat, G, H, pairs)
-    gb = [R(dat.ctx, (i, g[1])) for i in keys(G) for g in G[i]]
+    gb = SG.f5(I, interreduction = false)
     @test length(gb) == 7
 end
 
 @testset "cyclic 4" begin
     R, (x, y, z, w) = Singular.PolynomialRing(Singular.Fp(101), ["x", "y", "z", "w"])
-    I = cyclic([x,y,z,w])
-    dat, G, H, pairs = SG.f5setup(I)
-    SG.f5core!(dat, G, H, pairs, verbose = true)
-    gb = [R(dat.ctx, (i, g[1])) for i in keys(G) for g in G[i]]
-    @test is_gb(gb)
+    I = SG.cyclic([x,y,z,w])
+    gb = SG.f5(I, interreduction = false)
+    @test SG.is_gb(gb)
 end
 
 @testset "cyclic 6" begin
     R, (x1, x2, x3, x4, x5, x6) = Singular.PolynomialRing(Singular.Fp(101), ["x$(i)" for i in 1:6])
-    I = cyclic([x1,x2,x3,x4,x5,x6])
-    dat, G, H, pairs = SG.f5setup(I)
-    times = SG.f5core!(dat, G, H, pairs)
-    gb = [R(dat.ctx, (i, g[1])) for i in keys(G) for g in G[i]]
-    @test is_gb(gb)
+    I = SG.cyclic([x1,x2,x3,x4,x5,x6])
+    gb = SG.f5(I, interreduction = false)
+    @test SG.is_gb(gb)
+end
+
+@testset "katsura 6 interreduction" begin
+    R, (x1, x2, x3, x4, x5, x6) = Singular.PolynomialRing(Singular.Fp(65521), ["x$(i)" for i in 1:6])
+    I = [x1+2*x2+2*x3+2*x4+2*x5+2*x6-1,
+         x1^2+2*x2^2+2*x3^2+2*x4^2+2*x5^2+2*x6^2-x1,
+         2*x1*x2+2*x2*x3+2*x3*x4+2*x4*x5+2*x5*x6-x2,
+         x2^2+2*x1*x3+2*x2*x4+2*x3*x5+2*x4*x6-x3,
+         2*x2*x3+2*x1*x4+2*x2*x5+2*x3*x6-x4,
+         x3^2+2*x2*x4+2*x1*x5+2*x2*x6-x5]
+    gb = SG.f5(I)
+    @test length(gb) == 22
 end
