@@ -1,11 +1,12 @@
 using Combinatorics
 
-mutable struct F5matrix{I, M, T, J, Tbuf, NΓ <: NmodLikeΓ{T, Tbuf}}
-    sigs::Vector{MonSigPair{I, M}}
-    rows::Vector{Polynomial{J, T}}
+mutable struct F5matrix{I, M, T, J,
+                        SΓ <: SigPolynomialΓ{I, M, T},
+                        O <: Base.Order.Ordering}
+    sigs_rows::SortedDict{MonSigPair{I, M}, Polynomial{J, T}, O}
     tbl::EasyTable{M, J}
-    ctx::NΓ
-    pivots::Vector{J}
+    ctx::SΓ
+    max_pos::I
 end
 
 function f5matrix(ctx::SigPolynomialΓ{I, M, T},
@@ -14,21 +15,34 @@ function f5matrix(ctx::SigPolynomialΓ{I, M, T},
                   enable_lower_pos_rewrite = true,
                   interreduction_step = false) where {I, M, T}
 
-    max_sig_pos = maximum(p -> pos(p), row_sigs)
-    get_orig_elem = p -> interreduction_step || (!(enable_lower_pos_rewrite) && pos(p) < max_sig_pos)
+    max_pos = maximum(p -> pos(p), row_sigs)
+    get_orig_elem = p -> interreduction_step || (!(enable_lower_pos_rewrite) && pos(p) < max_pos)
     tbl = easytable(mons)
     rows = Array{Polynomial{ind_type(tbl), T}}(undef, length(row_sigs))
     pols = [ctx(p..., orig_elem = get_orig_elem(p))[:poly]
             for p in row_sigs]
-    for (i, sig) in enumerate(row_sigs)
-        @inbounds rows[i] = indexpolynomial(tbl, pols[i])
+    @inbounds begin
+        for (i, sig) in enumerate(row_sigs)
+            rows[i] = indexpolynomial(tbl, pols[i])
+        end
+    end
+
+    if interreduction_step
+        sigs_lms = Dict(zip(row_sigs, [leadingmonomial(row) for row in rows]))
+        row_order = interredorder(ctx, sigs_lms)
+    else
+        row_order = mpairordering(ctx)
     end
     
-    F5matrix(row_sigs, rows, tbl, ctx.po.co, zeros(ind_type(tbl), length(tbl)))
+    sigs_rows = SortedDict(zip(row_sigs, rows), row_order)
+    F5matrix(sigs_rows, tbl, ctx, max_pos)
 end
 
+rows(mat::F5matrix) = values(mat.sigs_rows)
+sigs(mat::F5matrix) = keys(mat.sigs_rows)
+
 function check_row_echelon(mat::F5matrix)
-    for (p1, p2) in combinations(mat.rows, 2)
+    for (p1, p2) in combinations(rows(mat), 2)
         (isempty(p1) || isempty(p2)) && continue
         leadingmonomial(p1) == leadingmonomial(p2) && return false
     end
@@ -37,8 +51,8 @@ end
 
 # for printing matrices
 function mat_show(mat::F5matrix)
-    mat_vis = zeros(Int, length(mat.rows), length(mat.tbl.val))
-    for (i, row) in enumerate(mat.rows)
+    mat_vis = zeros(Int, length(rows(mat)), length(mat.tbl.val))
+    for (i, row) in enumerate(rows(mat))
         for (j, c) in row
             mat_vis[i, j] = Int(c)
         end
@@ -48,30 +62,32 @@ end
 
 Base.show(io::IO, mat::F5matrix) = Base.show(io, mat_show(mat))
 
-function reduction!(mat::F5matrix{I, M, T, J, Tbuf}) where {I, M, T, J, Tbuf}
+function reduction!(mat::F5matrix{I, M, T, J}) where {I, M, T, J}
     n_cols = length(mat.tbl)
+    pivots = repeat([nullmonsigpair(mat.ctx)], n_cols)
+    Tbuf = buf_type(mat.ctx.po.co)
     buffer = zeros(Tbuf, n_cols)
     arit_operations = 0
 
     @inbounds begin
-        for ((i, row), sig) in zip(enumerate(mat.rows), mat.sigs)
+        for (i, (sig, row)) in enumerate(mat.sigs_rows)
             l = leadingmonomial(row)
-            if iszero(mat.pivots[l])
-                monic!(mat.ctx, row)
-                mat.pivots[l] = J(i)
+            if isnull(mat.ctx, pivots[l])
+                monic!(mat.ctx.po.co, row)
+                pivots[l] = sig
                 continue
             end
             buffer!(row, buffer)
             for (k, c) in enumerate(buffer)
-                (iszero(c) || iszero(mat.pivots[k])) && continue
-                arit_operations += length(mat.rows[mat.pivots[k]])
-                critical_loop!(buffer, mat.rows[mat.pivots[k]], mat.ctx)
+                (iszero(c) || isnull(mat.ctx, pivots[k])) && continue
+                arit_operations += length(mat.sigs_rows[pivots[k]])
+                critical_loop!(buffer, mat.sigs_rows[pivots[k]], mat.ctx.po.co)
             end
-            first_nz, new_row = unbuffer!(buffer, mat.ctx, J)
+            first_nz, new_row = unbuffer!(buffer, mat.ctx.po.co, J)
             if !(iszero(first_nz))
-                mat.pivots[first_nz] = J(i)
+                pivots[first_nz] = sig
             end
-            mat.rows[i] = new_row
+            mat.sigs_rows[sig] = new_row
         end
     end
     arit_operations
@@ -118,7 +134,7 @@ function critical_loop!(buffer::Vector{Tbuf},
         end
     catch BoundsError
         return
-p    end
+    end
 end
 
 # rows that need to be added
@@ -130,17 +146,16 @@ function new_elems_f5!(ctx::SΓ,
                        H::Syz{I, M};
                        enable_lower_pos_rewrite = true) where {I, M, T, SΓ <: SigPolynomialΓ{I, M, T}}
     
-    max_sig_pos = maximum(p -> pos(p), mat.sigs)
     @inbounds begin
-        for (i, sig) in enumerate(mat.sigs)
+        for (sig, row) in mat.sigs_rows
             m, (pos, t) = sig
-            !(enable_lower_pos_rewrite) && pos < max_sig_pos && continue
+            !(enable_lower_pos_rewrite) && pos < mat.max_pos && continue
             new_sig = mul(ctx, sig...)         
-            if isempty(mat.rows[i])
+            if isempty(row)
                 push!(H[pos], new_sig[2])
                 new_rewriter!(ctx, pairs, new_sig)
             else
-                p = unindexpolynomial(mat.tbl, mat.rows[i])
+                p = unindexpolynomial(mat.tbl, row)
                 # add element to basis if any of the following two conditions hold:
                 # reductions of initial generators are added
                 add_cond_1 = isone(ctx.po.mo[m]) && isone(ctx.po.mo[t]) && isempty(G[pos])

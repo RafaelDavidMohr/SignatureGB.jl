@@ -141,7 +141,7 @@ end
 @testset "cyclic 4" begin
     R, (x, y, z, w) = Singular.PolynomialRing(Singular.Fp(101), ["x", "y", "z", "w"])
     I = SG.cyclic([x,y,z,w])
-    gb = SG.f5(I, interreduction = false)
+    gb = SG.f5(I, interreduction = false, verbose = true)
     @test SG.is_gb(gb)
 end
 

@@ -51,7 +51,11 @@ mpairordering(ctx::SΓ) where SΓ = MPairOrdering{SΓ}(ctx)
 function Base.Order.lt(porder::MPairOrdering{SΓ},
                        a::MonSigPair{I, M},
                        b::MonSigPair{I, M}) where {I, M, SΓ <: SigPolynomialΓ{I, M}}
-    lt(porder.ctx, mul(porder.ctx, a...), mul(porder.ctx, b...))
+    amul, bmul = mul(porder.ctx, a...), mul(porder.ctx, b...)
+    if amul == bmul
+        return a[2][2] < b[2][2]
+    end
+    lt(porder.ctx, amul, bmul)
 end
 
 struct PairOrdering{SΓ <: SigPolynomialΓ}<:Base.Order.Ordering

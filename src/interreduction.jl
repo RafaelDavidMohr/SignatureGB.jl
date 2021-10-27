@@ -7,10 +7,10 @@ function interreduce(ctx::SigPolynomialΓ{I, M},
 
     mons = symbolic_pp!(ctx, to_reduce, G, H, are_pairs = false, interreduction_step = true)
     interred_mat = f5matrix(ctx, mons, collect(to_reduce), interreduction_step = true)
-    full_reduction!(ctx, interred_mat)
+    reduction!(interred_mat)
     
     G_new = new_basis(ctx, length(G))
-    for (sig, row) in zip(interred_mat.sigs, interred_mat.rows)
+    for (sig, row) in interred_mat.sigs_rows
         (m, (pos_key, t)) = sig
         m != unit && continue
         isempty(row) && continue
@@ -21,23 +21,22 @@ function interreduce(ctx::SigPolynomialΓ{I, M},
     G_new
 end
 
-function full_reduction!(ctx, mat::F5matrix)
-
-    sigs_and_rows = sort(collect(zip(mat.sigs, mat.rows)),
-                         lt = (a, b) -> lt_full_red(ctx, a, b))
-    mat.sigs = map(x -> x[1], sigs_and_rows)
-    mat.rows = map(x -> x[2], sigs_and_rows)
-    reduction!(mat)
+struct InterredOrder{I, M, J, T, SΓ <: SigPolynomialΓ}<:Base.Order.Ordering
+    ctx::SΓ
+    sigs_lms::Dict{MonSigPair{I, M}, J}
+end
+function interredorder(ctx::SigPolynomialΓ{I, M, T},
+                       sigs_lms::Dict{MonSigPair{I, M}, J}) where {I, M, J, T}
+    InterredOrder{I, M, J, T, typeof(ctx)}(ctx, sigs_lms)
 end
 
-function lt_full_red(ctx::SigPolynomialΓ{I, M},
-                     sig_and_rw_1::Tuple{MonSigPair{I, M}, Polynomial{J, T}},
-                     sig_and_rw_2::Tuple{MonSigPair{I, M}, Polynomial{J, T}}) where {I, M, J, T}
+function Base.Order.lt(ord::InterredOrder{I, M},
+                       sig1::MonSigPair{I, M},
+                       sig2::MonSigPair{I, M}) where {I, M}
 
+    ctx = ord.ctx
     unit = Base.one(ctx.po.mo)
-    g1, g2 = sig_and_rw_1[1], sig_and_rw_2[1]
-    g1[1] == unit && g2[1] != unit && return false
-    g1[1] != unit && g2[1] == unit && return true
-    p1, p2 = sig_and_rw_1[2], sig_and_rw_2[2]
-    leadingmonomial(p1) > leadingmonomial(p2)
+    sig1[1] == unit && sig2[1] != unit && return false
+    sig1[1] != unit && sig2[1] == unit && return true
+    ord.sigs_lms[sig1] > ord.sigs_lms[sig2]
 end

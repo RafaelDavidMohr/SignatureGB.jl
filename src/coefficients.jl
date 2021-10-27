@@ -16,6 +16,8 @@ Expect:
 """
 abstract type NmodLikeΓ{T, Tbuf}<:Context{T} end
 
+buf_type(::NmodLikeΓ{T, Tbuf}) where {T, Tbuf} = Tbuf
+
 inflate(::NmodLikeΓ{T, Tbuf}, x :: T) where {T, Tbuf} = Tbuf(x)
 deflate(::NmodLikeΓ{T, Tbuf}, x :: Tbuf) where {T, Tbuf} = x%T
 

@@ -100,8 +100,8 @@ function f5core!(dat::F5Data{I, SΓ},
         symbolic_pp_time = symbolic_pp_timed.time
         to_reduce = sort(collect(to_reduce), lt = (a, b) -> Base.Order.lt(mpairordering(ctx), a, b))
         mat = f5matrix(ctx, done, to_reduce, enable_lower_pos_rewrite = !(interreduction))
-        mat_size = (length(mat.rows), length(mat.tbl))
-        mat_dens = sum([length(rw) for rw in mat.rows]) / (mat_size[1] * mat_size[2])
+        mat_size = (length(rows(mat)), length(mat.tbl))
+        mat_dens = sum([length(rw) for rw in rows(mat)]) / (mat_size[1] * mat_size[2])
 
         #- REDUCTION -#
         reduction_dat = @timed reduction!(mat)
@@ -116,13 +116,13 @@ function f5core!(dat::F5Data{I, SΓ},
             println("selected $(nselected) / $(total_num_pairs) pairs, sig-degree of sel. pairs: $(sig_degree)")
             println("symbolic pp took $(symbolic_pp_time) seconds.")
             println("Matrix $(cnt) : $(reduction_dat.time) secs reduction / size = $(mat_size) / density = $(mat_dens)")
-            for (sig, rw) in zip(mat.sigs, mat.rows)
+            for (sig, rw) in mat.sigs_rows
                 if isempty(rw)
                     zero_red_count += 1
                 end
             end
             if !(iszero(zero_red_count))
-                println("$(zero_red_count) zero reductions at sig-degree $(degree(ctx, last(mat.sigs))) / position $(pos(last(mat.sigs)))")
+                println("$(zero_red_count) zero reductions at sig-degree $(sig_degree) / position $(curr_pos)")
             end
             println("Pair generation took $(pair_gen_time) seconds.")
         end
