@@ -150,8 +150,8 @@ function new_elems_f5!(ctx::SΓ,
                     ctx(new_sig, p)
                     lm = leadingmonomial(p)
                     new_rewriter!(ctx, pairs, new_sig)
-                    pairs!(ctx, pairs, new_sig, lm, G, H, enable_lower_pos_rewrite = enable_lower_pos_rewrite)
                     push!(G[pos], (new_sig[2], lm))
+                    pairs!(ctx, pairs, new_sig, lm, G, H, enable_lower_pos_rewrite = enable_lower_pos_rewrite)
                 end
             end
         end
