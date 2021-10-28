@@ -48,7 +48,7 @@ function symbolic_pp!(ctx::SΓ,
                                                               MS <: Union{MonSigSet{I, M}, Set{MonSigPair{I, M}}},
                                                               SΓ <: SigPolynomialΓ{I, M}}
 
-    get_orig_elem = p -> interreduction_step || (!(enable_lower_pos_rewrite) && pos(p) < max_sig_pos)
+    get_orig_elem = p -> interreduction_step || (!(enable_lower_pos_rewrite) && pos(ctx, p) < max_sig_pos)
     todo = Set{M}(vcat([ctx(p..., orig_elem = get_orig_elem(p))[:poly].mo for p in pairs]...))
     if are_pairs
         done = Set{M}([mul(ctx.po.mo, p[1], leadingmonomial(ctx, p[2])) for p in pairs])

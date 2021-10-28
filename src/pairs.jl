@@ -220,10 +220,13 @@ function select!(ctx::SΓ,
 
     nselected = 1
     pair = pop!(pairs)
+    indx = pos(ctx, pair[1])
+    max_key = pair[1][2][1]
     sig_degree = degree(ctx, pair[1])
+    tagg = gettag(ctx, pair[1])
     are_pairs = false
     selected = mpairset(ctx, [pair[1]])
-    if select_both && !(isnull(ctx, pair[2]))
+    if select_both && !(isnull(pair[2]))
         push!(selected, pair[2])
         are_pairs = true
     end
@@ -231,11 +234,9 @@ function select!(ctx::SΓ,
     if S == :one
         cond = p -> false
     elseif S == :deg_and_pos
-        indx = pos(pair[1])
-        cond = p -> pos(p[1]) == indx && degree(ctx, p[1]) == sig_degree
+        cond = p -> pos(ctx, p[1]) == indx && degree(ctx, p[1]) == sig_degree
     elseif S == :pos
-        indx = pos(pair[1])
-        cond = p -> pos(p[1]) == indx
+        cond = p -> pos(ctx, p[1]) == indx
     else
         error("Select method must be one of :one, :deg_and_pos or :pos")
     end
@@ -249,5 +250,5 @@ function select!(ctx::SΓ,
         select_both && push!(selected, p[2])
         nselected += 1
     end
-    selected, are_pairs, nselected, sig_degree
+    selected, are_pairs, nselected, indx, max_key, tagg, sig_degree
 end

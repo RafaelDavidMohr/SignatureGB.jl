@@ -70,7 +70,7 @@ function f5core!(dat::F5Data{I, SΓ},
 
     while !(isempty(pairs))
         #- INTERREDUCTION -#
-        indx = pos(first(pairs)[1])
+        indx = pos(ctx, first(pairs)[1])
         if indx != curr_pos && mod_order(dat.ctx) == :POT
             if dat.remasks_left > 0
                 remask!(dat.ctx.po.mo.table)
@@ -91,7 +91,7 @@ function f5core!(dat::F5Data{I, SΓ},
         
         #- PAIR SELECTION -#
         total_num_pairs = length(pairs)
-        to_reduce, are_pairs, nselected, sig_degree = select!(ctx, pairs, Val(select))
+        to_reduce, are_pairs, nselected, indx, max_key, tagg, sig_degree = select!(ctx, pairs, Val(select))
 
         #- SYMBOLIC PP -#
         symbolic_pp_timed  = @timed symbolic_pp!(ctx, to_reduce, G, H,
@@ -103,7 +103,8 @@ function f5core!(dat::F5Data{I, SΓ},
         done = symbolic_pp_timed.value
         symbolic_pp_time = symbolic_pp_timed.time
         to_reduce = sort(collect(to_reduce), lt = (a, b) -> Base.Order.lt(mpairordering(ctx), a, b))
-        mat = f5matrix(ctx, done, to_reduce, enable_lower_pos_rewrite = !(interreduction))
+        mat = f5matrix(ctx, done, to_reduce, indx, max_key, tagg,
+                       enable_lower_pos_rewrite = !(interreduction))
         mat_size = (length(rows(mat)), length(mat.tbl))
         mat_dens = sum([length(rw) for rw in rows(mat)]) / (mat_size[1] * mat_size[2])
 
@@ -195,6 +196,9 @@ function naive_decomp(I::Vector{P};
     f5core!(dat, G, H, pairs, select = select, verbose = verbose,
             new_elems = new_elems_decomp!, select_both = false,
             interreduction = interreduction)
+    if interreduction
+        G = interreduce(dat.ctx, G, H)
+    end
     [R(dat.ctx, (i, g[1])) for i in keys(G) for g in G[i]]
 end   
 end
