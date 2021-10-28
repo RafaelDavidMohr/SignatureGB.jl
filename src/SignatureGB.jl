@@ -1,7 +1,6 @@
 module SignatureGB
 
 include("./useful.jl")
-include("./sliceddict.jl")
 include("./context.jl")
 include("./termorder.jl")
 include("./polynomials.jl")
@@ -9,10 +8,10 @@ include("./coefficients.jl")
 include("./monomialtable.jl")
 include("./sigtable.jl")
 include("./f5data.jl")
-include("./kd_tree.jl")
 include("./pairs.jl")
 include("./symbolicpp.jl")
 include("./reduction.jl")
+include("./interreduction.jl")
 include("./gen_example_file.jl")
 
 function f5setup(I::Vector{P};
@@ -55,13 +54,14 @@ function f5core!(dat::F5Data{I, SΓ},
                  G::Basis{I, M},
                  H::Syz{I, M},
                  pairs::PairSet{I, M, SΓ};
-                 select = select_all_pos_and_degree!,
+                 select = :deg_and_pos,
                  new_elems = new_elems_f5!,
+                 interreduction = true,
                  select_both = true,
                  verbose = false) where {I, M, SΓ <: SigPolynomialΓ{I, M}}
     
     ctx = dat.ctx
-    use_max_sig = (select == select_all_pos_and_degree! || select == select_one!)
+    use_max_sig = (select == :deg_and_pos || select == :pos)
     
     cnt = 1
     num_arit_operations_groebner = 0
@@ -69,35 +69,43 @@ function f5core!(dat::F5Data{I, SΓ},
     curr_pos = zero(pos_type(ctx))
 
     while !(isempty(pairs))
-        #- PAIR SELECTION -#
-        total_num_pairs = length(pairs)
-        to_reduce, are_pairs, nselected, indx = select(ctx, pairs,
-                                                       select_both = select_both)
-        sig_degree = degree(ctx, last(to_reduce))
+        #- INTERREDUCTION -#
+        indx = pos(first(pairs)[1])
         if indx != curr_pos && mod_order(dat.ctx) == :POT
             if dat.remasks_left > 0
                 remask!(dat.ctx.po.mo.table)
                 dat.remasks_left -= 1
             end
+            if interreduction && indx > 2
+                G = interreduce(ctx, G, H)
+            end
             if verbose
                 println("-----------")
-                println("STARTING WITH INDEX $(pos(ctx, first(to_reduce)))")
+                interreduction && indx > 2 && println("INTERREDUCING")
+                println("STARTING WITH INDEX $(indx)")
                 println("-----------")
             end
             curr_pos = indx
         end
+        
+        
+        #- PAIR SELECTION -#
+        total_num_pairs = length(pairs)
+        to_reduce, are_pairs, nselected, sig_degree = select!(ctx, pairs, Val(select))
 
         #- SYMBOLIC PP -#
         symbolic_pp_timed  = @timed symbolic_pp!(ctx, to_reduce, G, H,
                                                  use_max_sig = use_max_sig,
                                                  sig_degree = sig_degree,
                                                  max_sig_pos = curr_pos,
-                                                 are_pairs = are_pairs)
+                                                 are_pairs = are_pairs,
+                                                 enable_lower_pos_rewrite = !(interreduction))
         done = symbolic_pp_timed.value
         symbolic_pp_time = symbolic_pp_timed.time
-        mat = f5matrix(ctx, done, to_reduce)
-        mat_size = (length(mat.sigs_rows), length(mat.tbl))
-        mat_dens = sum([length(rw) for (sig, rw) in mat.sigs_rows]) / (mat_size[1] * mat_size[2])
+        to_reduce = sort(collect(to_reduce), lt = (a, b) -> Base.Order.lt(mpairordering(ctx), a, b))
+        mat = f5matrix(ctx, done, to_reduce, enable_lower_pos_rewrite = !(interreduction))
+        mat_size = (length(rows(mat)), length(mat.tbl))
+        mat_dens = sum([length(rw) for rw in rows(mat)]) / (mat_size[1] * mat_size[2])
 
         #- REDUCTION -#
         reduction_dat = @timed reduction!(mat, ctx, trace_sig_tails = dat.trace_sig_tails)
@@ -105,7 +113,8 @@ function f5core!(dat::F5Data{I, SΓ},
         num_arit_operations_module_overhead += reduction_dat.value[2]
 
         #- PAIR GENERATION -#
-        pair_gen_dat = @timed new_elems(ctx, mat, pairs, G, H)
+        pair_gen_dat = @timed new_elems(ctx, mat, pairs, G, H,
+                                        enable_lower_pos_rewrite = !(interreduction))
         pairs = pair_gen_dat.value
         pair_gen_time = pair_gen_dat.time
 
@@ -134,6 +143,7 @@ function f5core!(dat::F5Data{I, SΓ},
         println("total number of arithmetic operations (groebner): $(num_arit_operations_groebner)")
         println("total number of arithmetic operations (module overhead): $(num_arit_operations_module_overhead)")
     end
+    G
 end
 
 function f5(I::Vector{P};
@@ -144,8 +154,9 @@ function f5(I::Vector{P};
             index_type=UInt32,
             mask_type=UInt32,
             pos_type=UInt32,
-            select = select_all_pos_and_degree!,
+            select = :deg_and_pos,
             verbose = false,
+            interreduction = true,
             max_remasks = 3,
             kwargs...) where {P <: AA.MPolyElem}
 
@@ -155,7 +166,10 @@ function f5(I::Vector{P};
                                mask_type = mask_type, pos_type = pos_type,
                                trace_sig_tails = trace_sig_tails,
                                max_remasks = max_remasks, kwargs...)
-    f5core!(dat, G, H, pairs, select = select, verbose = verbose)
+    G = f5core!(dat, G, H, pairs, select = select, interreduction = interreduction, verbose = verbose)
+    if interreduction
+         G = interreduce(dat.ctx, G, H)
+    end
     [R(dat.ctx, (i, g[1])) for i in keys(G) for g in G[i]]
 end
 
@@ -166,8 +180,9 @@ function naive_decomp(I::Vector{P};
                       index_type=UInt32,
                       mask_type=UInt32,
                       pos_type=UInt32,
-                      select = select_all_pos_and_degree!,
+                      select = :deg_and_pos,
                       verbose = false,
+                      interreduction = true,
                       max_remasks = 3,
                       kwargs...) where {P <: AA.MPolyElem}
     
@@ -178,7 +193,8 @@ function naive_decomp(I::Vector{P};
                                trace_sig_tails = true,
                                max_remasks = max_remasks, kwargs...)
     f5core!(dat, G, H, pairs, select = select, verbose = verbose,
-            new_elems = new_elems_decomp!, select_both = false)
+            new_elems = new_elems_decomp!, select_both = false,
+            interreduction = interreduction)
     [R(dat.ctx, (i, g[1])) for i in keys(G) for g in G[i]]
 end   
 end

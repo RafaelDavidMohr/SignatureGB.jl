@@ -5,10 +5,13 @@ mutable struct SimpleMatrix{I, M, T, J}
     tbl::EasyTable{M, J}
 end
 
-mutable struct F5matrix{I, M, T, J}
+mutable struct F5matrix{I, M, T, J,
+                        SΓ <: SigPolynomialΓ{I, M, T},
+                        O <: Base.Order.Ordering}
     sigtail_mat::SimpleMatrix{I, M, T, J}
-    sigs_rows::OrderedDict{MonSigPair{I, M}, Polynomial{J, T}}
+    sigs_rows::SortedDict{MonSigPair{I, M}, Polynomial{J, T}, O}
     tbl::EasyTable{M, J}
+    ctx::SΓ
     max_pos::I
     max_posit_key::I
     tag::Symbol
@@ -16,20 +19,23 @@ end
 
 function f5matrix(ctx::SigPolynomialΓ{I, M, T},
                   mons::Vector{M},
-                  row_sigs::MonSigSet{I, M}) where {I, M, T}
+                  row_sigs::Vector{MonSigPair{I, M}},
+                  max_pos::I,
+                  max_posit_key::I,
+                  tag::Symbol;
+                  enable_lower_pos_rewrite = true,
+                  interreduction_step = false) where {I, M, T}
 
-    max_pos = pos(ctx, last(row_sigs))
-    max_posit_key = last(row_sigs)[2][1]
-    tag = gettag(ctx, last(row_sigs))
+    get_orig_elem = p -> interreduction_step || (!(enable_lower_pos_rewrite) && pos(ctx, p) < max_pos)
     tbl = easytable(mons)
     sigtail_mons = M[]
 
     sigs_rows = Array{Tuple{MonSigPair{I, M}, Polynomial{ind_type(tbl), T}}}(undef, length(row_sigs))
     sigtail_sigs_rows_unind = Tuple{MonSigPair{I, M}, Polynomial{M, T}}[]
     for (i, sig) in enumerate(row_sigs)
-        sig_dat = ctx(sig...)
+        sig_dat = ctx(sig..., orig_elem = get_orig_elem(sig))
         sigs_rows[i] = (sig, indexpolynomial(tbl, sig_dat[:poly]))
-        if pos(ctx, sig) == max_pos
+        if !(interreduction_step) && pos(ctx, sig) == max_pos
             sig_tail = project(mul(ctx, sig...), sig_dat[:sigtail])
             append!(sigtail_mons, sig_tail.mo)
             push!(sigtail_sigs_rows_unind, (sig, sig_tail))
@@ -42,16 +48,27 @@ function f5matrix(ctx::SigPolynomialΓ{I, M, T},
     sigtail_sigs_rows = Dict([(sig, indexpolynomial(sigtail_tbl, p))
                               for (sig, p) in sigtail_sigs_rows_unind])
 
+    if interreduction_step
+        sigs_lms = Dict(zip(row_sigs, [leadingmonomial(row) for row in rows]))
+        row_order = interredorder(ctx, sigs_lms)
+    else
+        row_order = mpairordering(ctx)
+    end
+
     F5matrix(SimpleMatrix(sigtail_sigs_rows, sigtail_tbl),
-             OrderedDict(sigs_rows),
+             SortedDict(sigs_rows, row_order),
              tbl,
+             ctx,
              max_pos,
              max_posit_key,
              tag)
 end
 
+rows(mat::F5matrix) = values(mat.sigs_rows)
+sigs(mat::F5matrix) = keys(mat.sigs_rows)
+
 function check_row_echelon(mat::F5matrix)
-    for ((s, p1), (t, p2)) in combinations(mat.sigs_rows, 2)
+    for (p1, p2) in combinations(rows(mat), 2)
         (isempty(p1) || isempty(p2)) && continue
         leadingmonomial(p1) == leadingmonomial(p2) && return false
     end
@@ -77,10 +94,10 @@ end
 
 Base.show(io::IO, mat::F5matrix) = Base.show(io, mat_show(mat))
 
-function reduction!(mat::F5matrix{I, M, T, J},
-                    ctx::SigPolynomialΓ{I, M};
+function reduction!(mat::F5matrix{I, M, T, J};
                     trace_sig_tails = false) where {I, M, T, J, Tbuf}
-    
+
+    ctx = mat.ctx
     n_cols = length(mat.tbl)
     pivots = collect(Base.Iterators.repeated(nullmonsigpair(ctx), n_cols))
     buffer = zeros(buftype(ctx.po.co), n_cols)
@@ -209,13 +226,13 @@ function new_basis!(ctx::SΓ,
     # reductions of initial generators are added
     add_cond_1 = isone(ctx.po.mo[m]) && isone(ctx.po.mo[t]) && !(t in keys(G[pos_key]))
     # leading term dropped during reduction
-    add_cond_2 = lt(ctx.po.mo, leadingmonomial(poly), mul(ctx.po.mo, m, leadingmonomial(ctx, (pos_key, t))))
+    add_cond_2 = lt(ctx.po.mo, leadingmonomial(poly), leadingmonomial(ctx(sig..., orig_elem = true)))
     if add_cond_1 || add_cond_2
         ctx(new_sig, poly, sig_tail)
         lm = leadingmonomial(poly)
         new_rewriter!(ctx, pairs, new_sig)
-        pairs!(ctx, pairs, new_sig, lm, G, H)
         push!(G[pos_key], (new_sig[2], lm))
+        pairs!(ctx, pairs, new_sig, lm, G, H)
     end
 end
                     

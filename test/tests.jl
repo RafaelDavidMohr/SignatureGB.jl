@@ -2,27 +2,6 @@ using StaticArrays
 using AbstractTrees
 using DataStructures
 
-function is_gb(pols::Vector{MP}) where {MP <: Singular.MPolyElem}
-    id = Singular.Ideal(parent(first(pols)), pols)
-    id.isGB = true
-    gb_id = std(id)
-    all(p -> iszero(Singular.reduce(p, id)), Singular.gens(gb_id))
-end
-
-function contained_in(I1::sideal{MP},
-                      I2::sideal{MP}) where {MP <: Singular.MPolyElem}
-
-    gb = std(I2)
-    all(p -> iszero(Singular.reduce(p, gb)), Singular.gens(I1))
-end
-
-function is_eq(I1::sideal{MP},
-               I2::sideal{MP}) where {MP <: Singular.MPolyElem}
-
-    contained_in(I1, I2) && contained_in(I2, I1)
-end
-    
-
 function small_example()
     R, (x, y) = Singular.PolynomialRing(Singular.Fp(101), ["x", "y"])
     I = [x^2, x*y + y^2]
@@ -37,6 +16,12 @@ function small_example()
     R, (x, y), ctx, basis, syz
 end
 
+function is_eq(I1::sideal{MP},
+               I2::sideal{MP}) where {MP <: Singular.MPolyElem}
+
+    contained_in(I1, I2) && contained_in(I2, I1)
+end
+
 function simple_loop(I::Vector{MP}) where {MP <: Singular.MPolyElem}
     R = parent(first(I))
     I_prime = Ideal(R, first(I))
@@ -45,36 +30,6 @@ function simple_loop(I::Vector{MP}) where {MP <: Singular.MPolyElem}
         I_prime = saturation(I_prime, f_id)[1] + f_id
     end
     return I_prime
-end
-
-function cyclic(vars)
-    n = length(vars)
-    pols = [sum(prod(vars[j%n+1] for j in k:k+i) for k in 1:n) for i in 0:n-2]
-    push!(pols, prod(vars[i] for i in 1:n)-1)
-    return pols
-end
-
-@testset "sliceddict" begin
-    ind = [(1, "a"), (2, "b")]
-    vs = [1.0, 2.0]
-    S = SG.SlicedDict(ind, vs)
-
-    @test S[(1, "a")] == 1.0
-    S[(2, "b")] = 3.0
-    @test S[(2, "b")] == 3.0
-    T = copy(S)
-    Base.insert!(S, (3, "c"), 4.0)
-    @test S[(3, "c")] == 4.0
-    Base.delete!(S, (3, "c"))
-    @test T == S
-
-    ind = SG.SlicedInd(ind)
-    view(ind, SG.SlicedInd([(2, "b")]))
-    @test length(ind) == 2
-    T = copy(ind)
-    insert!(ind, (3, "c"))
-    delete!(ind, (3, "c"))
-    @test T == ind
 end
 
 @testset "termorder" begin
@@ -125,24 +80,6 @@ end
     @test R(ctx.po, ctx(m1, sig1)[:poly]) == x*f
 end
 
-@testset "kd tree" begin
-    R, (x, y) = Singular.PolynomialRing(Singular.Fp(101), ["x", "y"])
-    f, g = x + y, y^3 + x*y + y^2
-    
-    order = SG.Grevlex(2)
-    char = 101
-    ctx = SG.idxsigpolynomialctx(SG.Nmod32Γ(char), 2, order=order)
-    
-    sig1, sig2 = ctx(1, R(1)), ctx(2, R(1))
-    ctx(sig1, f), ctx(sig2, g)
-    mo1, mo2 = ctx.po.mo(x), ctx.po.mo(y^3)
-    kd_tree = SG.Kd_node([mo1, mo2], SG.pos_type(ctx))
-    SG.insert_new_basis_element!(ctx, kd_tree, sig1)
-    SG.insert_new_basis_element!(ctx, kd_tree, sig2)
-    @test SG.div_query(ctx, kd_tree, mo1) == SG.SlicedInd([sig1])
-    @test SG.div_query(ctx, kd_tree, mo2) == SG.SlicedInd([sig2])
-end
-
 @testset "f5 data" begin
     R, (x, y) = Singular.PolynomialRing(Singular.Fp(101), ["x", "y"])
     I = [x^2, y^2 + x*y]
@@ -179,7 +116,8 @@ end
     pairset = SG.mpairset(ctx)
     push!(pairset, pair_sig)
     mons = SG.symbolic_pp!(ctx, pairset, basis, syz, are_pairs = false)
-    mat = SG.f5matrix(ctx, mons, pairset)
+    rows = sort(collect(pairset), lt = (a, b) -> Base.Order.lt(SG.mpairordering(ctx), a, b))
+    mat = SG.f5matrix(ctx, mons, rows)
     @test SG.mat_show(mat) == [1 0 0; 0 1 1; 1 1 0]
     SG.reduction!(mat, ctx, trace_sig_tails = true)
     @test SG.mat_show(mat) == [1 0 0; 0 1 1; 0 0 100]
@@ -207,36 +145,30 @@ end
 @testset "small groebner" begin
     R, (x, y) = Singular.PolynomialRing(Singular.Fp(101), ["x", "y"])
     I = [x^2, x*y + y^2]
-    dat, G, H, pairs = SG.f5setup(I)
-    SG.f5core!(dat, G, H, pairs)
-    gb = vcat(I, [-y^3])
-    gb_2 = [R(dat.ctx, (i, g[1])) for i in keys(G) for g in G[i]]
+    gb_2 = SG.f5(I, interreduction = false)
+    gb = vcat(I, [y^3])
     @test all(p -> p in gb, gb_2)
 end
 
 @testset "small groebner 2" begin
     R, (x, y, z, t) = Singular.PolynomialRing(Singular.Fp(7), ["x", "y", "z", "t"])
     I = [y*z - 2*t^2, x*y + t^2, x^2*z + 3*x*t^2 - 2*y*t^2]
-    dat, G, H, pairs = SG.f5setup(I)
-    SG.f5core!(dat, G, H, pairs)
-    gb = [R(dat.ctx, (i, g[1])) for i in keys(G) for g in G[i]]
+    gb = SG.f5(I, interreduction = false)
     @test length(gb) == 7
 end
 
 @testset "cyclic 4" begin
     R, (x, y, z, w) = Singular.PolynomialRing(Singular.Fp(101), ["x", "y", "z", "w"])
-    I = cyclic([x,y,z,w])
-    dat, G, H, pairs = SG.f5setup(I)
-    SG.f5core!(dat, G, H, pairs, verbose = true)
-    gb = [R(dat.ctx, (i, g[1])) for i in keys(G) for g in G[i]]
-    @test is_gb(gb)
+    I = SG.SG.cyclic([x,y,z,w])
+    gb = SG.f5(I, interreduction = false, verbose = true)
+    @test SG.is_gb(gb)
 end
 
 @testset "cyclic 4 sigtails" begin
     R, (x, y, z, w) = Singular.PolynomialRing(Singular.Fp(101), ["x", "y", "z", "w"])
-    I = cyclic([x,y,z,w])
+    I = SG.cyclic([x,y,z,w])
     dat, G, H, pairs = SG.f5setup(I, trace_sig_tails = true)
-    SG.f5core!(dat, G, H, pairs)
+    SG.f5core!(dat, G, H, pairs, interreduction = false)
     basis_sigs = [(i, g[1]) for i in keys(G) for g in G[i]]
     gb = [R(dat.ctx, s) for s in basis_sigs]
     projs = [R(dat.ctx.po, SG.project(dat.ctx, s)) for s in basis_sigs]
@@ -250,9 +182,9 @@ end
 
 @testset "cyclic 6 sigtails" begin
     R, (x1, x2, x3, x4, x5, x6) = Singular.PolynomialRing(Singular.Fp(101), ["x$(i)" for i in 1:6])
-    I = cyclic([x1,x2,x3,x4,x5,x6])
+    I = SG.cyclic([x1,x2,x3,x4,x5,x6])
     dat, G, H, pairs = SG.f5setup(I, trace_sig_tails = true)
-    SG.f5core!(dat, G, H, pairs)
+    SG.f5core!(dat, G, H, pairs, interreduction = false)
     basis_sigs = [(i, g[1]) for i in keys(G) for g in G[i]]
     gb = [R(dat.ctx, s) for s in basis_sigs]
     projs = [R(dat.ctx.po, SG.project(dat.ctx, s)) for s in basis_sigs]
@@ -266,41 +198,51 @@ end
 
 @testset "cyclic 6" begin
     R, (x1, x2, x3, x4, x5, x6) = Singular.PolynomialRing(Singular.Fp(101), ["x$(i)" for i in 1:6])
-    I = cyclic([x1,x2,x3,x4,x5,x6])
-    dat, G, H, pairs = SG.f5setup(I)
-    times = SG.f5core!(dat, G, H, pairs)
-    gb = [R(dat.ctx, (i, g[1])) for i in keys(G) for g in G[i]]
-    @test is_gb(gb)
+    I = SG.SG.cyclic([x1,x2,x3,x4,x5,x6])
+    gb = SG.f5(I, interreduction = false)
+    @test SG.is_gb(gb)
+end
+
+@testset "katsura 6 interreduction" begin
+    R, (x1, x2, x3, x4, x5, x6) = Singular.PolynomialRing(Singular.Fp(65521), ["x$(i)" for i in 1:6])
+    I = [x1+2*x2+2*x3+2*x4+2*x5+2*x6-1,
+         x1^2+2*x2^2+2*x3^2+2*x4^2+2*x5^2+2*x6^2-x1,
+         2*x1*x2+2*x2*x3+2*x3*x4+2*x4*x5+2*x5*x6-x2,
+         x2^2+2*x1*x3+2*x2*x4+2*x3*x5+2*x4*x6-x3,
+         2*x2*x3+2*x1*x4+2*x2*x5+2*x3*x6-x4,
+         x3^2+2*x2*x4+2*x1*x5+2*x2*x6-x5]
+    gb = SG.f5(I)
+    @test length(gb) == 22
 end
 
 @testset "small-decomp" begin
     R, (x, y, z) = Singular.PolynomialRing(Singular.Fp(101), ["x", "y", "z"])
     I = [x*y, x*z]
-    gb = SG.naive_decomp(I)
-    @test is_gb(gb)
+    gb = SG.naive_decomp(I, interreduction = false)
+    @test SG.is_gb(gb)
     @test is_eq(Ideal(R, gb), simple_loop(I))
 end
 
 @testset "cyclic 4 decomp" begin
     R, (x, y, z, w) = Singular.PolynomialRing(Singular.Fp(101), ["x", "y", "z", "w"])
-    I = cyclic([x,y,z,w])
-    gb = SG.naive_decomp(I)
-    @test is_gb(gb)
+    I = SG.cyclic([x,y,z,w])
+    gb = SG.naive_decomp(I, interreduction = false)
+    @test SG.is_gb(gb)
     @test is_eq(Ideal(R, gb), simple_loop(I))
 end
 
 @testset "cyclic 6 decomp" begin
     R, (x1, x2, x3, x4, x5, x6) = Singular.PolynomialRing(Singular.Fp(101), ["x$(i)" for i in 1:6])
-    I = cyclic([x1,x2,x3,x4,x5,x6])
-    gb = SG.naive_decomp(I)
-    @test is_gb(gb)
+    I = SG.cyclic([x1,x2,x3,x4,x5,x6])
+    gb = SG.naive_decomp(I, interreduction = false)
+    @test SG.is_gb(gb)
     @test is_eq(Ideal(R, gb), simple_loop(I))
 end
 
 @testset "singhypcritpoints decomp" begin
     R, (x1, x2, x3, x4)  = Singular.PolynomialRing(Singular.Fp(65521), ["x1", "x2", "x3", "x4"])
     I = [2297232*x1^4+10816588*x1^3*x2-19696652*x1^3*x3+12014836*x1^3*x4+19038581*x1^2*x2^2+25140479*x1^2*x2*x3-124056256*x1^2*x2*x4-19352961*x1^2*x3^2+30086207*x1^2*x3*x4-15861565*x1^2*x4^2-64545276*x1*x2^3-3395230*x1*x2^2*x3+125153935*x1*x2^2*x4-10319588*x1*x2*x3^2+5839912*x1*x2*x3*x4+112915639*x1*x2*x4^2+12114032*x1*x3^3+32314614*x1*x3^2*x4-5646418*x1*x3*x4^2-3823868*x1*x4^3+40572828*x2^4-42051502*x2^3*x3-17361686*x2^3*x4+66618627*x2^2*x3^2-61020343*x2^2*x3*x4-66491064*x2^2*x4^2+16298428*x2*x3^3+46623254*x2*x3^2*x4-26720875*x2*x3*x4^2-16047619*x2*x4^3+15073900*x3^4+9644976*x3^3*x4-9790086*x3^2*x4^2-9372130*x3*x4^3+4661500*x4^4-39813328*x1^3-9400295*x1^2*x2-1289811*x1^2*x3+64756487*x1^2*x4-41226416*x1*x2^2+22255617*x1*x2*x3+115474646*x1*x2*x4+54583668*x1*x3^2+150465505*x1*x3*x4-19224417*x1*x4^2+52554279*x2^3-1318549*x2^2*x3-91874169*x2^2*x4+119183502*x2*x3^2-131012023*x2*x3*x4-88321124*x2*x4^2+41605616*x3^3+58052114*x3^2*x4-70772721*x3*x4^2+3123219*x4^3+99968607*x1^2-17533608*x1*x2+133696391*x1*x3-71771275*x1*x4+20484256*x2^2+10206682*x2*x3-58141098*x2*x4+72704712*x3^2-111938286*x3*x4-5946966*x4^2-46338000*x1+12230767*x2-23665371*x3+7665457*x4+9313394, 10816588*x1^3+38077162*x1^2*x2+25140479*x1^2*x3-124056256*x1^2*x4-193635828*x1*x2^2-6790460*x1*x2*x3+250307870*x1*x2*x4-10319588*x1*x3^2+5839912*x1*x3*x4+112915639*x1*x4^2+162291312*x2^3-126154506*x2^2*x3-52085058*x2^2*x4+133237254*x2*x3^2-122040686*x2*x3*x4-132982128*x2*x4^2+16298428*x3^3+46623254*x3^2*x4-26720875*x3*x4^2-16047619*x4^3-9400295*x1^2-82452832*x1*x2+22255617*x1*x3+115474646*x1*x4+157662837*x2^2-2637098*x2*x3-183748338*x2*x4+119183502*x3^2-131012023*x3*x4-88321124*x4^2-17533608*x1+40968512*x2+10206682*x3-58141098*x4+12230767, -19696652*x1^3+25140479*x1^2*x2-38705922*x1^2*x3+30086207*x1^2*x4-3395230*x1*x2^2-20639176*x1*x2*x3+5839912*x1*x2*x4+36342096*x1*x3^2+64629228*x1*x3*x4-5646418*x1*x4^2-42051502*x2^3+133237254*x2^2*x3-61020343*x2^2*x4+48895284*x2*x3^2+93246508*x2*x3*x4-26720875*x2*x4^2+60295600*x3^3+28934928*x3^2*x4-19580172*x3*x4^2-9372130*x4^3-1289811*x1^2+22255617*x1*x2+109167336*x1*x3+150465505*x1*x4-1318549*x2^2+238367004*x2*x3-131012023*x2*x4+124816848*x3^2+116104228*x3*x4-70772721*x4^2+133696391*x1+10206682*x2+145409424*x3-111938286*x4-23665371, 12014836*x1^3-124056256*x1^2*x2+30086207*x1^2*x3-31723130*x1^2*x4+125153935*x1*x2^2+5839912*x1*x2*x3+225831278*x1*x2*x4+32314614*x1*x3^2-11292836*x1*x3*x4-11471604*x1*x4^2-17361686*x2^3-61020343*x2^2*x3-132982128*x2^2*x4+46623254*x2*x3^2-53441750*x2*x3*x4-48142857*x2*x4^2+9644976*x3^3-19580172*x3^2*x4-28116390*x3*x4^2+18646000*x4^3+64756487*x1^2+115474646*x1*x2+150465505*x1*x3-38448834*x1*x4-91874169*x2^2-131012023*x2*x3-176642248*x2*x4+58052114*x3^2-141545442*x3*x4+9369657*x4^2-71771275*x1-58141098*x2-111938286*x3-11893932*x4+7665457]
-    gb = SG.naive_decomp(I)
-    @test is_gb(gb)
+    gb = SG.naive_decomp(I, interreduction = false)
+    @test SG.is_gb(gb)
     @test is_eq(Ideal(R, gb), simple_loop(I))
 end
