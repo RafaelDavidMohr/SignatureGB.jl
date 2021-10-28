@@ -122,19 +122,19 @@ function pairs!(ctx::SΓ,
                 H::Syz{I, M};
                 enable_lower_pos_rewrite = true) where {I, M, SΓ <: SigPolynomialΓ{I, M}}
 
-    pos = sig[1]
+    posit_key = sig[1]
     for (i, Gi) in G
         for (j, (g, lm)) in enumerate(Gi)
             g_sig = (i, g)
-            (pos, ctx(sig)[:sigratio]) == (i, ctx(g_sig)[:sigratio]) && continue
+            (posit_key, ctx(sig)[:sigratio]) == (i, ctx(g_sig)[:sigratio]) && continue
             m = lcm(ctx.po.mo, lm, lm_sig)
             a = div(ctx.po.mo, m, lm_sig)
             rewriteable_syz(ctx, a, sig, G, H) && continue
             b = div(ctx.po.mo, m, lm)
-            if enable_lower_pos_rewrite || i == pos
+            if enable_lower_pos_rewrite || i == posit_key
                 rewriteable(ctx, b, g_sig, j, G, H) && continue
             end
-            if lt(ctx, (pos, ctx(sig)[:sigratio]), (i, ctx(g_sig)[:sigratio]))
+            if lt(ctx, (posit_key, ctx(sig)[:sigratio]), (i, ctx(g_sig)[:sigratio]))
                 push!(pairset, ((b, g_sig), (a, sig)))
             else
                 push!(pairset, ((a, sig), (b, g_sig)))
@@ -147,7 +147,7 @@ function pair!(ctx::SΓ,
                pairset::PairSet{I, M, SΓ},
                sig::Tuple{I, M}) where {I, M, SΓ <: SigPolynomialΓ{I, M}}
 
-    push!(pairset, ((one(ctx.po.mo), sig), nullmonsigpair(ctx)))
+    !(iszero(ctx(sig)[:poly])) && push!(pairset, ((one(ctx.po.mo), sig), nullmonsigpair(ctx)))
 end
 
 #.. Rewrite functions for add rewrite order

@@ -16,20 +16,28 @@ function small_example()
     R, (x, y), ctx, basis, syz
 end
 
+function contained_in(I1::sideal{MP},
+                      I2::sideal{MP}) where {MP <: Singular.MPolyElem}
+
+    gb = std(I2)
+    all(p -> iszero(reduce(p, gb)), gens(I1))
+end
+
 function is_eq(I1::sideal{MP},
                I2::sideal{MP}) where {MP <: Singular.MPolyElem}
 
     contained_in(I1, I2) && contained_in(I2, I1)
 end
 
-function simple_loop(I::Vector{MP}) where {MP <: Singular.MPolyElem}
+function simple_loop(I::Vector{MP};
+                     interreduce = false) where {MP <: Singular.MPolyElem}
     R = parent(first(I))
     I_prime = Ideal(R, first(I))
     for f in I[2:end]
         f_id = Ideal(R, f)
         I_prime = saturation(I_prime, f_id)[1] + f_id
     end
-    return I_prime
+    interreduce ? std(I_prime, complete_reduction = true) : I_prime
 end
 
 @testset "termorder" begin
@@ -115,11 +123,12 @@ end
     pair_sig = (ctx.po.mo(x), ctx(2, R(1)))
     pairset = SG.mpairset(ctx)
     push!(pairset, pair_sig)
+    two = SG.pos_type(ctx)(2)
     mons = SG.symbolic_pp!(ctx, pairset, basis, syz, are_pairs = false)
     rows = sort(collect(pairset), lt = (a, b) -> Base.Order.lt(SG.mpairordering(ctx), a, b))
-    mat = SG.f5matrix(ctx, mons, rows)
+    mat = SG.f5matrix(ctx, mons, rows, two, two, :f)
     @test SG.mat_show(mat) == [1 0 0; 0 1 1; 1 1 0]
-    SG.reduction!(mat, ctx, trace_sig_tails = true)
+    SG.reduction!(mat, trace_sig_tails = true)
     @test SG.mat_show(mat) == [1 0 0; 0 1 1; 0 0 100]
     p = SG.unindexpolynomial(mat.sigtail_mat.tbl,
                              mat.sigtail_mat.rows[pair_sig])
@@ -146,7 +155,7 @@ end
     R, (x, y) = Singular.PolynomialRing(Singular.Fp(101), ["x", "y"])
     I = [x^2, x*y + y^2]
     gb_2 = SG.f5(I, interreduction = false)
-    gb = vcat(I, [y^3])
+    gb = vcat(I, [-y^3])
     @test all(p -> p in gb, gb_2)
 end
 
@@ -159,7 +168,7 @@ end
 
 @testset "cyclic 4" begin
     R, (x, y, z, w) = Singular.PolynomialRing(Singular.Fp(101), ["x", "y", "z", "w"])
-    I = SG.SG.cyclic([x,y,z,w])
+    I = SG.cyclic([x,y,z,w])
     gb = SG.f5(I, interreduction = false, verbose = true)
     @test SG.is_gb(gb)
 end
@@ -198,7 +207,7 @@ end
 
 @testset "cyclic 6" begin
     R, (x1, x2, x3, x4, x5, x6) = Singular.PolynomialRing(Singular.Fp(101), ["x$(i)" for i in 1:6])
-    I = SG.SG.cyclic([x1,x2,x3,x4,x5,x6])
+    I = SG.cyclic([x1,x2,x3,x4,x5,x6])
     gb = SG.f5(I, interreduction = false)
     @test SG.is_gb(gb)
 end
@@ -245,4 +254,7 @@ end
     gb = SG.naive_decomp(I, interreduction = false)
     @test SG.is_gb(gb)
     @test is_eq(Ideal(R, gb), simple_loop(I))
+    gb = SG.naive_decomp(I)
+    @test SG.is_gb(gb)
+    @test length(gb) == length(gens(simple_loop(I, interreduce = true)))
 end

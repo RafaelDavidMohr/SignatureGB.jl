@@ -20,12 +20,12 @@ end
 function f5matrix(ctx::SigPolynomialΓ{I, M, T},
                   mons::Vector{M},
                   row_sigs::Vector{MonSigPair{I, M}},
-                  max_pos::I,
-                  max_posit_key::I,
-                  tag::Symbol;
+                  max_pos = zero(I),
+                  max_posit_key = zero(I),
+                  tag = :f;
                   enable_lower_pos_rewrite = true,
                   interreduction_step = false) where {I, M, T}
-
+    
     get_orig_elem = p -> interreduction_step || (!(enable_lower_pos_rewrite) && pos(ctx, p) < max_pos)
     tbl = easytable(mons)
     sigtail_mons = M[]
@@ -49,7 +49,7 @@ function f5matrix(ctx::SigPolynomialΓ{I, M, T},
                               for (sig, p) in sigtail_sigs_rows_unind])
 
     if interreduction_step
-        sigs_lms = Dict(zip(row_sigs, [leadingmonomial(row) for row in rows]))
+        sigs_lms = Dict(zip(row_sigs, [leadingmonomial(sig_row[2]) for sig_row in sigs_rows]))
         row_order = interredorder(ctx, sigs_lms)
     else
         row_order = mpairordering(ctx)
@@ -218,7 +218,8 @@ function new_basis!(ctx::SΓ,
                     sig_tail::Polynomial{M, T},
                     pairs::PairSet{I, M, SΓ},
                     G::Basis{I, M},
-                    H::Syz{I, M}) where {I, M, T, SΓ <: SigPolynomialΓ{I, M, T}}
+                    H::Syz{I, M};
+                    enable_lower_pos_rewrite = true) where {I, M, T, SΓ <: SigPolynomialΓ{I, M, T}}
 
     m, (pos_key, t) = sig
     new_sig = mul(ctx, sig...)
@@ -226,13 +227,13 @@ function new_basis!(ctx::SΓ,
     # reductions of initial generators are added
     add_cond_1 = isone(ctx.po.mo[m]) && isone(ctx.po.mo[t]) && !(t in keys(G[pos_key]))
     # leading term dropped during reduction
-    add_cond_2 = lt(ctx.po.mo, leadingmonomial(poly), leadingmonomial(ctx(sig..., orig_elem = true)))
+    add_cond_2 = lt(ctx.po.mo, leadingmonomial(poly), leadingmonomial(ctx(sig..., orig_elem = true)[:poly]))
     if add_cond_1 || add_cond_2
         ctx(new_sig, poly, sig_tail)
         lm = leadingmonomial(poly)
         new_rewriter!(ctx, pairs, new_sig)
         push!(G[pos_key], (new_sig[2], lm))
-        pairs!(ctx, pairs, new_sig, lm, G, H)
+        pairs!(ctx, pairs, new_sig, lm, G, H, enable_lower_pos_rewrite = enable_lower_pos_rewrite)
     end
 end
                     
@@ -241,7 +242,8 @@ function new_elems_f5!(ctx::SΓ,
                        mat::F5matrix{I, M, T},
                        pairs::PairSet{I, M, SΓ},
                        G::Basis{I, M},
-                       H::Syz{I, M}) where {I, M, T, SΓ <: SigPolynomialΓ{I, M, T}}
+                       H::Syz{I, M};
+                       enable_lower_pos_rewrite = true) where {I, M, T, SΓ <: SigPolynomialΓ{I, M, T}}
 
     for (sig, row) in mat.sigs_rows
         @inbounds begin
@@ -251,7 +253,7 @@ function new_elems_f5!(ctx::SΓ,
                     new_syz!(ctx, sig, sig_tail, pairs, H)
                 else
                     p = unindexpolynomial(mat.tbl, row)
-                    new_basis!(ctx, sig, p, sig_tail, pairs, G, H)
+                    new_basis!(ctx, sig, p, sig_tail, pairs, G, H, enable_lower_pos_rewrite = enable_lower_pos_rewrite)
                 end
             end
         end
@@ -263,13 +265,14 @@ function new_elems_decomp!(ctx::SΓ,
                            mat::F5matrix{I, M, T},
                            pairs::PairSet{I, M, SΓ},
                            G::Basis{I, M},
-                           H::Syz{I, M}) where {I, M, T, SΓ <: SigPolynomialΓ{I, M, T}}
+                           H::Syz{I, M};
+                           enable_lower_pos_rewrite = true) where {I, M, T, SΓ <: SigPolynomialΓ{I, M, T}}
 
     mat.tag != :f && return new_elems_f5!(ctx, mat, pairs, G, H)
     
     zero_red = filter(sig_row -> isempty(sig_row[2]) && gettag(ctx, sig_row[1]) == :f,
                       mat.sigs_rows)
-    isempty(zero_red) && return new_elems_f5!(ctx, mat, pairs, G, H)
+    isempty(zero_red) && return new_elems_f5!(ctx, mat, pairs, G, H, enable_lower_pos_rewrite = enable_lower_pos_rewrite)
 
     # insert g's s.t. g*f in I
     for (j, (sig, _)) in enumerate(zero_red)

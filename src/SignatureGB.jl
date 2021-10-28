@@ -102,14 +102,13 @@ function f5core!(dat::F5Data{I, SΓ},
                                                  enable_lower_pos_rewrite = !(interreduction))
         done = symbolic_pp_timed.value
         symbolic_pp_time = symbolic_pp_timed.time
-        to_reduce = sort(collect(to_reduce), lt = (a, b) -> Base.Order.lt(mpairordering(ctx), a, b))
-        mat = f5matrix(ctx, done, to_reduce, indx, max_key, tagg,
+        mat = f5matrix(ctx, done, collect(to_reduce), indx, max_key, tagg,
                        enable_lower_pos_rewrite = !(interreduction))
         mat_size = (length(rows(mat)), length(mat.tbl))
         mat_dens = sum([length(rw) for rw in rows(mat)]) / (mat_size[1] * mat_size[2])
 
         #- REDUCTION -#
-        reduction_dat = @timed reduction!(mat, ctx, trace_sig_tails = dat.trace_sig_tails)
+        reduction_dat = @timed reduction!(mat, trace_sig_tails = dat.trace_sig_tails)
         num_arit_operations_groebner += reduction_dat.value[1]
         num_arit_operations_module_overhead += reduction_dat.value[2]
 
@@ -193,9 +192,9 @@ function naive_decomp(I::Vector{P};
                                mask_type = mask_type, pos_type = pos_type,
                                trace_sig_tails = true,
                                max_remasks = max_remasks, kwargs...)
-    f5core!(dat, G, H, pairs, select = select, verbose = verbose,
-            new_elems = new_elems_decomp!, select_both = false,
-            interreduction = interreduction)
+    G = f5core!(dat, G, H, pairs, select = select, verbose = verbose,
+                new_elems = new_elems_decomp!, select_both = false,
+                interreduction = interreduction)
     if interreduction
         G = interreduce(dat.ctx, G, H)
     end
