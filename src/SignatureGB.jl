@@ -94,7 +94,7 @@ function f5core!(dat::F5Data{I, SΓ},
                 end
             end
             if verbose
-                if ctx.ord_indices[first(pairs)[1][2][1]][:position] <= orig_length
+                if first(pairs)[1][2][1] <= orig_length
                     println("STARTING WITH INDEX $(indx) (ORIGINAL ELEMENT)")
                 else
                     println("STARTING WITH INDEX $(indx)")

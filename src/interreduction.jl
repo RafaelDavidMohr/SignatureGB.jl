@@ -25,7 +25,7 @@ function interreduce(ctx::SigPolynomialΓ{I, M},
     if verbose
         println("symbolic pp for interreduction matrix took $(symbolic_pp_timed.time) seconds.")
         println("size of interreduction matrix: $(mat_size)")
-        println("reduction of interreduction matrix to $(red_time) seconds.")
+        println("reduction of interreduction matrix took $(red_time) seconds.")
     end
 
     G_new
