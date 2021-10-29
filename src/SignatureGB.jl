@@ -53,7 +53,8 @@ end
 function f5core!(dat::F5Data{I, SΓ},
                  G::Basis{I, M},
                  H::Syz{I, M},
-                 pairs::PairSet{I, M, SΓ};
+                 pairs::PairSet{I, M, SΓ},
+                 R;
                  select = :deg_and_pos,
                  new_elems = new_elems_f5!,
                  interreduction = true,
@@ -78,6 +79,8 @@ function f5core!(dat::F5Data{I, SΓ},
             end
             if interreduction && indx > 2
                 G = interreduce(ctx, G, H)
+                gb = [R(dat.ctx, (i, g[1])) for i in keys(G) for g in G[i]]
+                @assert is_gb(gb)
             end
             if verbose
                 println("-----------")
@@ -193,7 +196,7 @@ function naive_decomp(I::Vector{P};
                                mask_type = mask_type, pos_type = pos_type,
                                trace_sig_tails = true,
                                max_remasks = max_remasks, kwargs...)
-    G = f5core!(dat, G, H, pairs, select = select, verbose = verbose,
+    G = f5core!(dat, G, H, pairs, R, select = select, verbose = verbose,
                 new_elems = new_elems_decomp!, select_both = false,
                 interreduction = interreduction)
     if interreduction
