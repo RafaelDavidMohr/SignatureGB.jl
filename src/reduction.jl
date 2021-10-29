@@ -268,7 +268,7 @@ function new_elems_decomp!(ctx::SΓ,
                            H::Syz{I, M};
                            enable_lower_pos_rewrite = true) where {I, M, T, SΓ <: SigPolynomialΓ{I, M, T}}
 
-    mat.tag != :f && return new_elems_f5!(ctx, mat, pairs, G, H)
+    mat.tag != :f && return new_elems_f5!(ctx, mat, pairs, G, H, enable_lower_pos_rewrite = enable_lower_pos_rewrite)
     
     zero_red = filter(sig_row -> isempty(sig_row[2]) && pos(ctx, sig_row[1]) == mat.max_pos && gettag(ctx, sig_row[1]) == :f,
                       mat.sigs_rows)

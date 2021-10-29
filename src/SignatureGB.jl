@@ -63,6 +63,7 @@ function f5core!(dat::F5Data{I, SΓ},
     
     ctx = dat.ctx
     use_max_sig = (select == :deg_and_pos || select == :pos)
+    orig_length = length(ctx.ord_indices)
     
     cnt = 1
     num_arit_operations_groebner = 0
@@ -73,19 +74,31 @@ function f5core!(dat::F5Data{I, SΓ},
         #- INTERREDUCTION -#
         indx = pos(ctx, first(pairs)[1])
         if indx != curr_pos && mod_order(dat.ctx) == :POT
+            verbose && println("-----------")
             if dat.remasks_left > 0
                 remask!(dat.ctx.po.mo.table)
                 dat.remasks_left -= 1
             end
-            if interreduction && indx > 2
-                G = interreduce(ctx, G, H)
+            @debug begin
+                println("before interreduction")
                 gb = [R(dat.ctx, (i, g[1])) for i in keys(G) for g in G[i]]
-                @assert is_gb(gb)
+                !(is_gb(gb)) && error("not a groebner basis")
+            end
+            if interreduction && indx > 2
+                verbose && println("INTERREDUCING")
+                G = interreduce(ctx, G, H, verbose = verbose)
+                @debug begin
+                    println("before interreduction")
+                    gb = [R(dat.ctx, (i, g[1])) for i in keys(G) for g in G[i]]
+                    !(is_gb(gb)) && error("not a groebner basis")
+                end
             end
             if verbose
-                println("-----------")
-                interreduction && indx > 2 && println("INTERREDUCING")
-                println("STARTING WITH INDEX $(indx)")
+                if ctx.ord_indices[first(pairs)[1][2][1]][:position] <= orig_length
+                    println("STARTING WITH INDEX $(indx) (ORIGINAL ELEMENT)")
+                else
+                    println("STARTING WITH INDEX $(indx)")
+                end
                 println("-----------")
             end
             curr_pos = indx
@@ -95,7 +108,6 @@ function f5core!(dat::F5Data{I, SΓ},
         #- PAIR SELECTION -#
         total_num_pairs = length(pairs)
         to_reduce, are_pairs, nselected, indx, max_key, tagg, sig_degree = select!(ctx, pairs, Val(select), select_both = select_both)
-        @debug "selected" [pretty_print(ctx, p) for p in to_reduce]
 
         #- SYMBOLIC PP -#
         symbolic_pp_timed  = @timed symbolic_pp!(ctx, to_reduce, G, H,
@@ -170,7 +182,7 @@ function f5(I::Vector{P};
                                mask_type = mask_type, pos_type = pos_type,
                                trace_sig_tails = trace_sig_tails,
                                max_remasks = max_remasks, kwargs...)
-    G = f5core!(dat, G, H, pairs, select = select, interreduction = interreduction, verbose = verbose)
+    G = f5core!(dat, G, H, pairs, R, select = select, interreduction = interreduction, verbose = verbose)
     if interreduction
          G = interreduce(dat.ctx, G, H)
     end

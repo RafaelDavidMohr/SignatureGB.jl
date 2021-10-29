@@ -1,13 +1,16 @@
 function interreduce(ctx::SigPolynomialΓ{I, M},
                      G::Basis{I, M},
-                     H::Syz{I, M}) where {I, M}
+                     H::Syz{I, M};
+                     verbose = false) where {I, M}
 
     unit = Base.one(ctx.po.mo)
     to_reduce = Set([(unit, (i, g)) for (i, Gi) in G for (g, lm) in Gi])
 
-    mons = symbolic_pp!(ctx, to_reduce, G, H, are_pairs = false, interreduction_step = true)
+    symbolic_pp_timed = @timed symbolic_pp!(ctx, to_reduce, G, H, are_pairs = false, interreduction_step = true)
+    mons = symbolic_pp_timed.value
     interred_mat = f5matrix(ctx, mons, collect(to_reduce), interreduction_step = true)
-    reduction!(interred_mat)
+    mat_size = (length(rows(interred_mat)), length(interred_mat.tbl))
+    red_time = @elapsed reduction!(interred_mat)
     
     G_new = new_basis(ctx, length(G))
     for (sig, row) in interred_mat.sigs_rows
@@ -18,6 +21,13 @@ function interreduce(ctx::SigPolynomialΓ{I, M},
         ctx(sig[2], p)
         push!(G_new[pos_key], (t, leadingmonomial(p)))
     end
+
+    if verbose
+        println("symbolic pp for interreduction matrix took $(symbolic_pp_timed.time) seconds.")
+        println("size of interreduction matrix: $(mat_size)")
+        println("reduction of interreduction matrix to $(red_time) seconds.")
+    end
+
     G_new
 end
 
