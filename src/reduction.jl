@@ -270,7 +270,7 @@ function new_elems_decomp!(ctx::SΓ,
 
     mat.tag != :f && return new_elems_f5!(ctx, mat, pairs, G, H)
     
-    zero_red = filter(sig_row -> isempty(sig_row[2]) && gettag(ctx, sig_row[1]) == :f,
+    zero_red = filter(sig_row -> isempty(sig_row[2]) && pos(ctx, sig_row[1]) == mat.max_pos && gettag(ctx, sig_row[1]) == :f,
                       mat.sigs_rows)
     isempty(zero_red) && return new_elems_f5!(ctx, mat, pairs, G, H, enable_lower_pos_rewrite = enable_lower_pos_rewrite)
 

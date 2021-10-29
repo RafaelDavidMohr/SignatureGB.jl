@@ -91,7 +91,8 @@ function f5core!(dat::F5Data{I, SΓ},
         
         #- PAIR SELECTION -#
         total_num_pairs = length(pairs)
-        to_reduce, are_pairs, nselected, indx, max_key, tagg, sig_degree = select!(ctx, pairs, Val(select))
+        to_reduce, are_pairs, nselected, indx, max_key, tagg, sig_degree = select!(ctx, pairs, Val(select), select_both = select_both)
+        @debug "selected" [pretty_print(ctx, p) for p in to_reduce]
 
         #- SYMBOLIC PP -#
         symbolic_pp_timed  = @timed symbolic_pp!(ctx, to_reduce, G, H,
