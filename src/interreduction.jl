@@ -10,7 +10,9 @@ function interreduce(ctx::SigPolynomialΓ{I, M},
     mons = symbolic_pp_timed.value
     interred_mat = f5matrix(ctx, mons, collect(to_reduce), interreduction_step = true)
     mat_size = (length(rows(interred_mat)), length(interred_mat.tbl))
-    red_time = @elapsed reduction!(interred_mat, interreduction_step = true)
+    red = @timed reduction!(interred_mat, interreduction_step = true)
+    red_time = red.time
+    arit_operations_interreduction, _ = red.value
     
     G_new = new_basis(ctx, length(G))
     for (sig, row) in interred_mat.sigs_rows
@@ -28,7 +30,7 @@ function interreduce(ctx::SigPolynomialΓ{I, M},
         println("reduction of interreduction matrix took $(red_time) seconds.")
     end
 
-    G_new
+    G_new, arit_operations_interreduction
 end
 
 struct InterredOrder{I, M, J, T, SΓ <: SigPolynomialΓ}<:Base.Order.Ordering

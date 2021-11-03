@@ -68,6 +68,7 @@ function f5core!(dat::F5Data{I, SΓ},
     cnt = 1
     num_arit_operations_groebner = 0
     num_arit_operations_module_overhead = 0
+    num_arit_operations_interreduction = 0
     curr_pos = zero(pos_type(ctx))
 
     while !(isempty(pairs))
@@ -86,7 +87,8 @@ function f5core!(dat::F5Data{I, SΓ},
             end
             if interreduction && indx > 2
                 verbose && println("INTERREDUCING")
-                G = interreduce(ctx, G, H, verbose = verbose)
+                G, arit_ops = interreduce(ctx, G, H, verbose = verbose)
+                num_arit_operations_interreduction += arit_ops
                 @debug begin
                     println("before interreduction")
                     gb = [R(dat.ctx, (i, g[1])) for i in keys(G) for g in G[i]]
@@ -154,10 +156,19 @@ function f5core!(dat::F5Data{I, SΓ},
         cnt += 1
     end
 
+    verbose && println("-----")
+    
+    if interreduction
+        verbose && println("FINAL INTERREDUCTION STEP")
+        G, arit_ops = interreduce(ctx, G, H, verbose = verbose)
+        num_arit_operations_interreduction += arit_ops
+        verbose && println("-----")
+    end
+
     if verbose
-        println("-----")
         println("total number of arithmetic operations (groebner): $(num_arit_operations_groebner)")
         println("total number of arithmetic operations (module overhead): $(num_arit_operations_module_overhead)")
+        println("total number of arithmetic operations (interreduction): $(num_arit_operations_interreduction)")
     end
     G
 end
@@ -183,9 +194,6 @@ function f5(I::Vector{P};
                                trace_sig_tails = trace_sig_tails,
                                max_remasks = max_remasks, kwargs...)
     G = f5core!(dat, G, H, pairs, R, select = select, interreduction = interreduction, verbose = verbose)
-    if interreduction
-         G = interreduce(dat.ctx, G, H)
-    end
     [R(dat.ctx, (i, g[1])) for i in keys(G) for g in G[i]]
 end
 
