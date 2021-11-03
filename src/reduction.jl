@@ -110,7 +110,8 @@ function reduction!(mat::F5matrix{I, M, T, J};
     for (sig, row) in mat.sigs_rows
         should_add_sig_tails = trace_sig_tails && pos(ctx, sig) == mat.max_pos
         l = leadingmonomial(row)
-        if !(interreduction_step) && isnull(pivots[l])
+        dont_red_cond = interreduction_step ? sig[1] != one(ctx.po.mo) : isnull(pivots[l])
+        if dont_red_cond
             pivots[l] = sig
             continue
         end
