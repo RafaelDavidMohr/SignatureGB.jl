@@ -219,9 +219,6 @@ function naive_decomp(I::Vector{P};
     G = f5core!(dat, G, H, pairs, R, select = select, verbose = verbose,
                 new_elems = new_elems_decomp!, select_both = false,
                 interreduction = interreduction)
-    if interreduction
-        G = interreduce(dat.ctx, G, H)
-    end
     [R(dat.ctx, (i, g[1])) for i in keys(G) for g in G[i]]
 end   
 end
