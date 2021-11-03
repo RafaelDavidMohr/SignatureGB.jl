@@ -177,7 +177,7 @@ end
     R, (x, y, z, w) = Singular.PolynomialRing(Singular.Fp(101), ["x", "y", "z", "w"])
     I = SG.cyclic([x,y,z,w])
     dat, G, H, pairs = SG.f5setup(I, trace_sig_tails = true)
-    SG.f5core!(dat, G, H, pairs, interreduction = false)
+    SG.f5core!(dat, G, H, pairs, R, interreduction = false)
     basis_sigs = [(i, g[1]) for i in keys(G) for g in G[i]]
     gb = [R(dat.ctx, s) for s in basis_sigs]
     projs = [R(dat.ctx.po, SG.project(dat.ctx, s)) for s in basis_sigs]
@@ -193,7 +193,7 @@ end
     R, (x1, x2, x3, x4, x5, x6) = Singular.PolynomialRing(Singular.Fp(101), ["x$(i)" for i in 1:6])
     I = SG.cyclic([x1,x2,x3,x4,x5,x6])
     dat, G, H, pairs = SG.f5setup(I, trace_sig_tails = true)
-    SG.f5core!(dat, G, H, pairs, interreduction = false)
+    SG.f5core!(dat, G, H, pairs, R, interreduction = false)
     basis_sigs = [(i, g[1]) for i in keys(G) for g in G[i]]
     gb = [R(dat.ctx, s) for s in basis_sigs]
     projs = [R(dat.ctx.po, SG.project(dat.ctx, s)) for s in basis_sigs]
