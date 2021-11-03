@@ -95,7 +95,8 @@ end
 Base.show(io::IO, mat::F5matrix) = Base.show(io, mat_show(mat))
 
 function reduction!(mat::F5matrix{I, M, T, J};
-                    trace_sig_tails = false) where {I, M, T, J, Tbuf}
+                    trace_sig_tails = false,
+                    interreduction_step = false) where {I, M, T, J, Tbuf}
 
     ctx = mat.ctx
     n_cols = length(mat.tbl)
@@ -109,7 +110,7 @@ function reduction!(mat::F5matrix{I, M, T, J};
     for (sig, row) in mat.sigs_rows
         should_add_sig_tails = trace_sig_tails && pos(ctx, sig) == mat.max_pos
         l = leadingmonomial(row)
-        if isnull(pivots[l])
+        if !(interreduction_step) && isnull(pivots[l])
             pivots[l] = sig
             continue
         end

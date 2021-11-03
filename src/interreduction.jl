@@ -10,7 +10,7 @@ function interreduce(ctx::SigPolynomialΓ{I, M},
     mons = symbolic_pp_timed.value
     interred_mat = f5matrix(ctx, mons, collect(to_reduce), interreduction_step = true)
     mat_size = (length(rows(interred_mat)), length(interred_mat.tbl))
-    red_time = @elapsed reduction!(interred_mat)
+    red_time = @elapsed reduction!(interred_mat, interreduction_step = true)
     
     G_new = new_basis(ctx, length(G))
     for (sig, row) in interred_mat.sigs_rows
