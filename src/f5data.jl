@@ -29,7 +29,7 @@ function f5data(I::Vector{P};
 
     for (i, f) in enumerate(I)
         sig = ctx(i, R(1))
-        ctx(sig, f)
+        ctx(sig, f)p
     end
     F5Data{pos_type, typeof(ctx)}(ctx, R, trace_sig_tails, max_remasks)
 end

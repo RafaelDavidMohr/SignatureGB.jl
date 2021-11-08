@@ -260,3 +260,15 @@ end
     @test SG.is_gb(gb)
     @test length(gb) == length(gens(simple_loop(I, interreduce = true)))
 end
+
+@testset "small-saturation" begin
+    R, (x, y, z) = PolynomialRing(Fp(5), ["x", "y", "z"])
+    I = [x*y, x*z]
+    dat = SG.f5setup(I)
+    ctx = dat.ctx
+    G, H, _ = SG.pairs_and_basis(dat, 2, start_gen = 3)
+    pol = ctx.po(x)
+    G, H = SG.saturate(dat, G, H, pol)
+    gb = [R(dat.ctx, (i, g[1])) for i in keys(G) for g in G[i]]
+    @test Ideal(R, gb) == Ideal(R, [y, z])
+end     

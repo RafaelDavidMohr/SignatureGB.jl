@@ -48,9 +48,10 @@ function pairs_and_basis(dat::F5Data,
     R = dat.R
     ctx = dat.ctx
     G = new_basis(ctx, basis_length)
+    pos_t = pos_type(ctx)
     for i in 1:(start_gen - 1)
-        lm = leadingmonomial(ctx, (pos_type(i), ctx.po.mo(R(1))))
-        push!(G[pos_type(i)], (ctx.po.mo(R(1)), lm))
+        lm = leadingmonomial(ctx, (pos_t(i), ctx.po.mo(R(1))))
+        push!(G[pos_t(i)], (ctx.po.mo(R(1)), lm))
     end
     H = new_syz(ctx, basis_length)
     pairs = pairset(ctx)
@@ -98,7 +99,7 @@ function f5core!(dat::F5Data{I, SΓ},
                 G, arit_ops = interreduce(ctx, G, H, verbose = verbose)
                 num_arit_operations_interreduction += arit_ops
                 @debug begin
-                    println("before interreduction")
+                    println("after interreduction")
                     gb = [R(dat.ctx, (i, g[1])) for i in keys(G) for g in G[i]]
                     !(is_gb(gb)) && error("not a groebner basis")
                 end
@@ -230,5 +231,29 @@ function naive_decomp(I::Vector{P};
                 new_elems = new_elems_decomp!, select_both = false,
                 interreduction = interreduction)
     [R(dat.ctx, (i, g[1])) for i in keys(G) for g in G[i]]
-end   
+end
+
+function saturate(dat::F5Data{I, SΓ},
+                  G::Basis{I, M},
+                  H::Syz{I, M},
+                  pol::Polynomial{M, T};
+                  verbose = false) where {I, M, T, SΓ <: SigPolynomialΓ{I, M, T}}
+
+    ctx = dat.ctx
+    max_pos = maximum(i -> ctx.ord_indices[i][:position], keys(G))
+    new_pos_key = maximum(keys(ctx.ord_indices)) + one(I)
+    new_gen!(ctx, max_pos + one(I), :f, pol)
+    
+    pairs = pairset(ctx)
+    new_sig = (new_pos_key, one(ctx.po.mo))
+    G[new_pos_key] = Tuple{M, M}[]
+    H[new_pos_key] = M[]
+    pair!(ctx, pairs, new_sig)
+
+    G = f5core!(dat, G, H, pairs, verbose = verbose,
+                new_elems = new_elems_decomp!, select_both = false)
+    filter!(kv -> kv[1] != new_pos_key, G)
+    filter!(kv -> kv[1] != new_pos_key, H)
+    G, H
+end
 end
