@@ -15,6 +15,7 @@ mutable struct F5matrix{I, M, T, J,
     max_pos::I
     max_posit_key::I
     tag::Symbol
+    trace_sig_tail_tags::Vector{Symbol}
 end
 
 function f5matrix(ctx::SigPolynomialΓ{I, M, T},
@@ -23,6 +24,7 @@ function f5matrix(ctx::SigPolynomialΓ{I, M, T},
                   max_pos = zero(I),
                   max_posit_key = zero(I),
                   tag = :f;
+                  trace_sig_tail_tags = Symbol[],
                   enable_lower_pos_rewrite = true,
                   interreduction_step = false) where {I, M, T}
     
@@ -35,7 +37,7 @@ function f5matrix(ctx::SigPolynomialΓ{I, M, T},
     for (i, sig) in enumerate(row_sigs)
         sig_dat = ctx(sig..., orig_elem = get_orig_elem(sig))
         sigs_rows[i] = (sig, indexpolynomial(tbl, sig_dat[:poly]))
-        if !(interreduction_step) && pos(ctx, sig) == max_pos
+        if !(interreduction_step) && pos(ctx, sig) == max_pos && gettag(ctx, sig) in trace_sig_tail_tags
             sig_tail = project(mul(ctx, sig...), sig_dat[:sigtail])
             append!(sigtail_mons, sig_tail.mo)
             push!(sigtail_sigs_rows_unind, (sig, sig_tail))
@@ -61,7 +63,8 @@ function f5matrix(ctx::SigPolynomialΓ{I, M, T},
              ctx,
              max_pos,
              max_posit_key,
-             tag)
+             tag,
+             trace_sig_tail_tags)
 end
 
 rows(mat::F5matrix) = values(mat.sigs_rows)
@@ -95,7 +98,6 @@ end
 Base.show(io::IO, mat::F5matrix) = Base.show(io, mat_show(mat))
 
 function reduction!(mat::F5matrix{I, M, T, J};
-                    trace_sig_tails = false,
                     interreduction_step = false) where {I, M, T, J, Tbuf}
 
     ctx = mat.ctx
@@ -108,7 +110,7 @@ function reduction!(mat::F5matrix{I, M, T, J};
 
 
     for (sig, row) in mat.sigs_rows
-        should_add_sig_tails = trace_sig_tails && pos(ctx, sig) == mat.max_pos
+        should_add_sig_tails = pos(ctx, sig) == mat.max_pos && gettag(ctx, sig) in mat.trace_sig_tail_tags
         l = leadingmonomial(row)
         dont_red_cond = interreduction_step ? sig[1] != one(ctx.po.mo) : isnull(pivots[l])
         if dont_red_cond
@@ -251,7 +253,7 @@ function new_elems_f5!(ctx::SΓ,
     for (sig, row) in mat.sigs_rows
         @inbounds begin
             if pos(ctx, sig) == mat.max_pos
-                sig_tail = tail(unindexpolynomial(mat.sigtail_mat.tbl, mat.sigtail_mat.rows[sig]))
+                gettag(ctx, sig) in mat.trace_sig_tail_tags ? sig_tail = tail(unindexpolynomial(mat.sigtail_mat.tbl, mat.sigtail_mat.rows[sig])) : sig_tail = zero(Polynomial{M, T})
                 if isempty(row)
                     new_syz!(ctx, sig, sig_tail, pairs, H)
                 else

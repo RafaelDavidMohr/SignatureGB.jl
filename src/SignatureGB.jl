@@ -21,7 +21,7 @@ function f5setup(I::Vector{P};
                  index_type=UInt32,
                  mask_type=UInt32,
                  pos_type=UInt32,
-                 trace_sig_tails = false,
+                 trace_sig_tail_tags = Symbol[],
                  max_remasks=3,
                  kwargs...) where {P <: AA.MPolyElem}
 
@@ -34,7 +34,7 @@ function f5setup(I::Vector{P};
     if mod_order != :POT
         error("only position over term order currently supported")
     end
-    dat = f5data(I, mod_order = mod_order, trace_sig_tails = trace_sig_tails,
+    dat = f5data(I, mod_order = mod_order, trace_sig_tail_tags = trace_sig_tail_tags,
                  index_type = index_type, mask_type = mask_type,
                  pos_type = pos_type, order = order,
                  max_remasks = max_remasks)
@@ -130,12 +130,13 @@ function f5core!(dat::F5Data{I, SΓ},
         done = symbolic_pp_timed.value
         symbolic_pp_time = symbolic_pp_timed.time
         mat = f5matrix(ctx, done, collect(to_reduce), indx, max_key, tagg,
+                       trace_sig_tail_tags = dat.trace_sig_tail_tags,
                        enable_lower_pos_rewrite = !(interreduction))
         mat_size = (length(rows(mat)), length(mat.tbl))
         mat_dens = sum([length(rw) for rw in rows(mat)]) / (mat_size[1] * mat_size[2])
 
         #- REDUCTION -#
-        reduction_dat = @timed reduction!(mat, trace_sig_tails = dat.trace_sig_tails)
+        reduction_dat = @timed reduction!(mat)
         num_arit_operations_groebner += reduction_dat.value[1]
         num_arit_operations_module_overhead += reduction_dat.value[2]
 
@@ -184,7 +185,7 @@ end
 
 function f5(I::Vector{P};
             start_gen = 1,
-            trace_sig_tails = false,
+            trace_sig_tail_tags = Symbol[],
             mod_order=:POT,
             mon_order=:GREVLEX,
             index_type=UInt32,
@@ -200,7 +201,7 @@ function f5(I::Vector{P};
     dat = f5setup(I, mod_order = mod_order,
                   mon_order = mon_order, index_type = index_type,
                   mask_type = mask_type, pos_type = pos_type,
-                  trace_sig_tails = trace_sig_tails,
+                  trace_sig_tail_tags = trace_sig_tail_tags,
                   max_remasks = max_remasks, kwargs...)
     G, H, pairs = pairs_and_basis(dat, length(I), start_gen = start_gen)
     G = f5core!(dat, G, H, pairs, select = select, interreduction = interreduction, verbose = verbose)
@@ -224,7 +225,7 @@ function naive_decomp(I::Vector{P};
     dat = f5setup(I, mod_order = mod_order,
                   mon_order = mon_order, index_type = index_type,
                   mask_type = mask_type, pos_type = pos_type,
-                  trace_sig_tails = true,
+                  trace_sig_tail_tags = [:f, :g],
                   max_remasks = max_remasks, kwargs...)
     G, H, pairs = pairs_and_basis(dat, length(I), start_gen = start_gen)
     G = f5core!(dat, G, H, pairs, select = select, verbose = verbose,
@@ -240,6 +241,7 @@ function saturate(dat::F5Data{I, SΓ},
                   verbose = false) where {I, M, T, SΓ <: SigPolynomialΓ{I, M, T}}
 
     ctx = dat.ctx
+    dat.trace_sig_tail_tags = [:f]
     max_pos = maximum(i -> ctx.ord_indices[i][:position], keys(G))
     new_pos_key = maximum(keys(ctx.ord_indices)) + one(I)
     new_gen!(ctx, max_pos + one(I), :f, pol)

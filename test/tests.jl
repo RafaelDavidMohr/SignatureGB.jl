@@ -126,9 +126,9 @@ end
     two = SG.pos_type(ctx)(2)
     mons = SG.symbolic_pp!(ctx, pairset, basis, syz, are_pairs = false)
     rows = sort(collect(pairset), lt = (a, b) -> Base.Order.lt(SG.mpairordering(ctx), a, b))
-    mat = SG.f5matrix(ctx, mons, rows, two, two, :f)
+    mat = SG.f5matrix(ctx, mons, rows, two, two, :f, trace_sig_tail_tags = [:f, :g])
     @test SG.mat_show(mat) == [1 0 0; 0 1 1; 1 1 0]
-    SG.reduction!(mat, trace_sig_tails = true)
+    SG.reduction!(mat)
     @test SG.mat_show(mat) == [1 0 0; 0 1 1; 0 0 100]
     p = SG.unindexpolynomial(mat.sigtail_mat.tbl,
                              mat.sigtail_mat.rows[pair_sig])
@@ -176,7 +176,7 @@ end
 @testset "cyclic 4 sigtails" begin
     R, (x, y, z, w) = Singular.PolynomialRing(Singular.Fp(101), ["x", "y", "z", "w"])
     I = SG.cyclic([x,y,z,w])
-    dat = SG.f5setup(I, trace_sig_tails = true)
+    dat = SG.f5setup(I, trace_sig_tail_tags = [:f, :g])
     G, H, pairs = SG.pairs_and_basis(dat, length(I))
     SG.f5core!(dat, G, H, pairs, interreduction = false)
     basis_sigs = [(i, g[1]) for i in keys(G) for g in G[i]]
@@ -193,7 +193,7 @@ end
 @testset "cyclic 6 sigtails" begin
     R, (x1, x2, x3, x4, x5, x6) = Singular.PolynomialRing(Singular.Fp(101), ["x$(i)" for i in 1:6])
     I = SG.cyclic([x1,x2,x3,x4,x5,x6])
-    dat = SG.f5setup(I, trace_sig_tails = true)
+    dat = SG.f5setup(I, trace_sig_tail_tags = [:f, :g])
     G, H, pairs = SG.pairs_and_basis(dat, length(I))
     SG.f5core!(dat, G, H, pairs, interreduction = false)
     basis_sigs = [(i, g[1]) for i in keys(G) for g in G[i]]
@@ -270,5 +270,5 @@ end
     pol = ctx.po(x)
     G, H = SG.saturate(dat, G, H, pol)
     gb = [R(dat.ctx, (i, g[1])) for i in keys(G) for g in G[i]]
-    @test Ideal(R, gb) == Ideal(R, [y, z])
+    @test all(p -> p in [y, z], gb)
 end     
