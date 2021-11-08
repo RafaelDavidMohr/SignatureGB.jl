@@ -1,5 +1,6 @@
 mutable struct F5Data{I, SΓ<:SigPolynomialΓ{I}}
     ctx::SΓ
+    R # singular ring
     trace_sig_tails::Bool
     remasks_left::Int
 end
@@ -30,7 +31,7 @@ function f5data(I::Vector{P};
         sig = ctx(i, R(1))
         ctx(sig, f)
     end
-    F5Data{pos_type, typeof(ctx)}(ctx, trace_sig_tails, max_remasks)
+    F5Data{pos_type, typeof(ctx)}(ctx, R, trace_sig_tails, max_remasks)
 end
 
 # method forwarding

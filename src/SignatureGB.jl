@@ -14,8 +14,8 @@ include("./reduction.jl")
 include("./interreduction.jl")
 include("./gen_example_file.jl")
 
+# converting a vector of singular polynomials into our own data structures
 function f5setup(I::Vector{P};
-                 start_gen = 1,
                  mod_order=:POT,
                  mon_order=:GREVLEX,
                  index_type=UInt32,
@@ -38,23 +38,30 @@ function f5setup(I::Vector{P};
                  index_type = index_type, mask_type = mask_type,
                  pos_type = pos_type, order = order,
                  max_remasks = max_remasks)
+end
+
+# build initial pairset, basis and syzygies
+function pairs_and_basis(dat::F5Data,
+                         basis_length;
+                         start_gen = 1)
+
+    R = dat.R
     ctx = dat.ctx
-    G = new_basis(ctx, length(I))
+    G = new_basis(ctx, basis_length)
     for i in 1:(start_gen - 1)
         lm = leadingmonomial(ctx, (pos_type(i), ctx.po.mo(R(1))))
         push!(G[pos_type(i)], (ctx.po.mo(R(1)), lm))
     end
-    H = new_syz(ctx, length(I))
+    H = new_syz(ctx, basis_length)
     pairs = pairset(ctx)
-    [pair!(ctx, pairs, ctx(i, R(1))) for i in start_gen:length(I)]
-    dat, G, H, pairs
+    [pair!(ctx, pairs, ctx(i, R(1))) for i in start_gen:basis_length]
+    G, H, pairs
 end
 
 function f5core!(dat::F5Data{I, SΓ},
                  G::Basis{I, M},
                  H::Syz{I, M},
-                 pairs::PairSet{I, M, SΓ},
-                 R;
+                 pairs::PairSet{I, M, SΓ};
                  select = :deg_and_pos,
                  new_elems = new_elems_f5!,
                  interreduction = true,
@@ -62,6 +69,7 @@ function f5core!(dat::F5Data{I, SΓ},
                  verbose = false) where {I, M, SΓ <: SigPolynomialΓ{I, M}}
     
     ctx = dat.ctx
+    R = dat.R
     use_max_sig = (select == :deg_and_pos || select == :pos)
     orig_length = length(ctx.ord_indices)
     
@@ -188,12 +196,13 @@ function f5(I::Vector{P};
             kwargs...) where {P <: AA.MPolyElem}
 
     R = parent(first(I))
-    dat, G, H, pairs = f5setup(I, start_gen = start_gen, mod_order = mod_order,
-                               mon_order = mon_order, index_type = index_type,
-                               mask_type = mask_type, pos_type = pos_type,
-                               trace_sig_tails = trace_sig_tails,
-                               max_remasks = max_remasks, kwargs...)
-    G = f5core!(dat, G, H, pairs, R, select = select, interreduction = interreduction, verbose = verbose)
+    dat = f5setup(I, mod_order = mod_order,
+                  mon_order = mon_order, index_type = index_type,
+                  mask_type = mask_type, pos_type = pos_type,
+                  trace_sig_tails = trace_sig_tails,
+                  max_remasks = max_remasks, kwargs...)
+    G, H, pairs = pairs_and_basis(dat, length(I), start_gen = start_gen)
+    G = f5core!(dat, G, H, pairs, select = select, interreduction = interreduction, verbose = verbose)
     [R(dat.ctx, (i, g[1])) for i in keys(G) for g in G[i]]
 end
 
@@ -211,12 +220,13 @@ function naive_decomp(I::Vector{P};
                       kwargs...) where {P <: AA.MPolyElem}
     
     R = parent(first(I))
-    dat, G, H, pairs = f5setup(I, start_gen = start_gen, mod_order = mod_order,
-                               mon_order = mon_order, index_type = index_type,
-                               mask_type = mask_type, pos_type = pos_type,
-                               trace_sig_tails = true,
-                               max_remasks = max_remasks, kwargs...)
-    G = f5core!(dat, G, H, pairs, R, select = select, verbose = verbose,
+    dat = f5setup(I, mod_order = mod_order,
+                  mon_order = mon_order, index_type = index_type,
+                  mask_type = mask_type, pos_type = pos_type,
+                  trace_sig_tails = true,
+                  max_remasks = max_remasks, kwargs...)
+    G, H, pairs = pairs_and_basis(dat, length(I), start_gen = start_gen)
+    G = f5core!(dat, G, H, pairs, select = select, verbose = verbose,
                 new_elems = new_elems_decomp!, select_both = false,
                 interreduction = interreduction)
     [R(dat.ctx, (i, g[1])) for i in keys(G) for g in G[i]]
