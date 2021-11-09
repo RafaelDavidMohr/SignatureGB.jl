@@ -28,6 +28,7 @@ deflate(::NmodLikeΓ{T, Tbuf}, x :: Tbuf) where {T, Tbuf} = x%T
 abstract type NmodΓ{T<:Unsigned, Tbuf<:Unsigned}<:NmodLikeΓ{T,Tbuf} end
 
 (ctx::NmodΓ)(a::AA.ResElem) = ctx(a.data)
+rand_elem(ctx::NmodΓ{T}) where T = rand(one(T):ctx.char - one(T))
 abstractalgebra(ctx :: NmodΓ) = Nemo.NmodRing(UInt64(ctx.char))
 
 #.. 32-bit modulus and 64-bit buffer

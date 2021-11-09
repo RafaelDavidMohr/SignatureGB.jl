@@ -67,7 +67,8 @@ function f5core!(dat::F5Data{I, SΓ},
                  new_elems = new_elems_f5!,
                  interreduction = true,
                  select_both = true,
-                 verbose = false) where {I, M, SΓ <: SigPolynomialΓ{I, M}}
+                 verbose = false,
+                 saturate = false) where {I, M, SΓ <: SigPolynomialΓ{I, M}}
     
     ctx = dat.ctx
     R = dat.R
@@ -75,28 +76,61 @@ function f5core!(dat::F5Data{I, SΓ},
     orig_length = length(ctx.ord_indices)
     
     cnt = 1
+    global_zero_red_count = 0
     num_arit_operations_groebner = 0
     num_arit_operations_module_overhead = 0
     num_arit_operations_interreduction = 0
     curr_pos = zero(pos_type(ctx))
+    curr_pos_key = zero(pos_type(ctx))
+    curr_tag = :f
 
+    decomp_core_step = new_elems == new_elems_decomp! && !(saturate)
+    non_zero_cond = eltype(ctx.po)[]
+
+    verbose_groebner = !(saturate) && verbose
+    verbose_saturate = saturate && verbose
+
+    verbose_saturate && println("STARTING SATURATION")
     while !(isempty(pairs))
         #- INTERREDUCTION -#
         indx = pos(ctx, first(pairs)[1])
         if indx != curr_pos && mod_order(dat.ctx) == :POT
-            verbose && println("-----------")
+            verbose_groebner && println("-----------")
+
+            # here we do several steps when the index jumps:
+            # possibly remasking
             if dat.remasks_left > 0
                 remask!(dat.ctx.po.mo.table)
                 dat.remasks_left -= 1
             end
-            @debug begin
-                println("before interreduction")
-                gb = [R(dat.ctx, (i, g[1])) for i in keys(G) for g in G[i]]
+
+            # if we are in a decomposition computation we add non-zero conditions
+            if curr_tag == :g && !(saturate)
+                non_zero_cond_local_sigs = [(curr_pos_key, m) for m in H[curr_pos_key]]
+                non_zero_cond_local = eltype(ctx.po)[]
+                for sig in non_zero_cond_local_sigs
+                    try
+                        push!(non_zero_cond_local, project(ctx, sig))
+                    catch
+                        continue
+                    end
+                end
+                if !(isempty(non_zero_cond_local))
+                    push!(non_zero_cond, random_lin_comb(ctx.po, non_zero_cond_local))
+                end
+            end
+
+            # interreducing
+            if indx > 2
+                @debug begin
+                    println("before interreduction")
+                    gb = [R(dat.ctx, (i, g[1])) for i in keys(G) for g in G[i]]
                 !(is_gb(gb)) && error("not a groebner basis")
+                end
             end
             if interreduction && indx > 2
-                verbose && println("INTERREDUCING")
-                G, arit_ops = interreduce(ctx, G, H, verbose = verbose)
+                verbose_groebner && println("INTERREDUCING")
+                G, arit_ops = interreduce(ctx, G, H, verbose = verbose_groebner)
                 num_arit_operations_interreduction += arit_ops
                 @debug begin
                     println("after interreduction")
@@ -104,7 +138,9 @@ function f5core!(dat::F5Data{I, SΓ},
                     !(is_gb(gb)) && error("not a groebner basis")
                 end
             end
-            if verbose
+
+            # some printing
+            if verbose_groebner
                 if first(pairs)[1][2][1] <= orig_length
                     println("STARTING WITH INDEX $(indx) (ORIGINAL ELEMENT)")
                 else
@@ -112,10 +148,12 @@ function f5core!(dat::F5Data{I, SΓ},
                 end
                 println("-----------")
             end
-            curr_pos = indx
         end
-        
-        
+        # update current index, current tag and current index key
+        curr_pos = indx
+        curr_tag = gettag(ctx, first(pairs)[1])
+        curr_pos_key = first(pairs)[1][2][1]
+
         #- PAIR SELECTION -#
         total_num_pairs = length(pairs)
         to_reduce, are_pairs, nselected, indx, max_key, tagg, sig_degree = select!(ctx, pairs, Val(select), select_both = select_both)
@@ -149,38 +187,44 @@ function f5core!(dat::F5Data{I, SΓ},
         #- PRINTING INFORMATION -#
         if verbose
             zero_red_count = 0
-            println("selected $(nselected) / $(total_num_pairs) pairs, sig-degree of sel. pairs: $(sig_degree)")
-            println("symbolic pp took $(symbolic_pp_time) seconds.")
-            println("Matrix $(cnt) : $(reduction_dat.time) secs reduction / size = $(mat_size) / density = $(mat_dens)")
+            if verbose_groebner
+                println("selected $(nselected) / $(total_num_pairs) pairs, sig-degree of sel. pairs: $(sig_degree)")
+                println("symbolic pp took $(symbolic_pp_time) seconds.")
+                println("Matrix $(cnt) : $(reduction_dat.time) secs reduction / size = $(mat_size) / density = $(mat_dens)")
+            end
             for (sig, rw) in mat.sigs_rows
                 if isempty(rw)
                     zero_red_count += 1
+                    if gettag(ctx, sig) == :f
+                        global_zero_red_count +=1
+                    end
                 end
             end
             if !(iszero(zero_red_count))
                 println("$(zero_red_count) zero reductions at sig-degree $(sig_degree) / position $(curr_pos)")
             end
-            println("Pair generation took $(pair_gen_time) seconds.")
+            verbose_groebner && println("Pair generation took $(pair_gen_time) seconds.")
         end
         
         cnt += 1
     end
 
-    verbose && println("-----")
+    verbose_groebner && println("-----")
     
     if interreduction
-        verbose && println("FINAL INTERREDUCTION STEP")
-        G, arit_ops = interreduce(ctx, G, H, verbose = verbose)
+        verbose_groebner && println("FINAL INTERREDUCTION STEP")
+        G, arit_ops = interreduce(ctx, G, H, verbose = verbose_groebner)
         num_arit_operations_interreduction += arit_ops
-        verbose && println("-----")
+        verbose_groebner && println("-----")
     end
 
     if verbose
         println("total number of arithmetic operations (groebner): $(num_arit_operations_groebner)")
         println("total number of arithmetic operations (module overhead): $(num_arit_operations_module_overhead)")
         println("total number of arithmetic operations (interreduction): $(num_arit_operations_interreduction)")
+        verbose_saturate && println("saturation added $(global_zero_red_count) elements not in the original ideal.")
     end
-    G
+    G, non_zero_cond
 end
 
 function f5(I::Vector{P};
@@ -204,10 +248,13 @@ function f5(I::Vector{P};
                   trace_sig_tail_tags = trace_sig_tail_tags,
                   max_remasks = max_remasks, kwargs...)
     G, H, pairs = pairs_and_basis(dat, length(I), start_gen = start_gen)
-    G = f5core!(dat, G, H, pairs, select = select, interreduction = interreduction, verbose = verbose)
+    G, _ = f5core!(dat, G, H, pairs, select = select, interreduction = interreduction, verbose = verbose)
     [R(dat.ctx, (i, g[1])) for i in keys(G) for g in G[i]]
 end
 
+
+# we have two decomposition functions for testing purposes, the ''simple''
+# and the ''fancy'' loop
 function naive_decomp(I::Vector{P};
                       start_gen = 1,
                       mod_order=:POT,
@@ -228,11 +275,43 @@ function naive_decomp(I::Vector{P};
                   trace_sig_tail_tags = [:f, :g],
                   max_remasks = max_remasks, kwargs...)
     G, H, pairs = pairs_and_basis(dat, length(I), start_gen = start_gen)
-    G = f5core!(dat, G, H, pairs, select = select, verbose = verbose,
-                new_elems = new_elems_decomp!, select_both = false,
-                interreduction = interreduction)
+    G, _ = f5core!(dat, G, H, pairs, select = select, verbose = verbose,
+                   new_elems = new_elems_decomp!, select_both = false,
+                   interreduction = interreduction)
     [R(dat.ctx, (i, g[1])) for i in keys(G) for g in G[i]]
 end
+
+function decompose(I::Vector{P};
+                   start_gen = 1,
+                   mod_order=:POT,
+                   mon_order=:GREVLEX,
+                   index_type=UInt32,
+                   mask_type=UInt32,
+                   pos_type=UInt32,
+                   select = :deg_and_pos,
+                   verbose = false,
+                   interreduction = true,
+                   max_remasks = 3,
+                   kwargs...) where {P <: AA.MPolyElem}
+    
+    R = parent(first(I))
+    dat = f5setup(I, mod_order = mod_order,
+                  mon_order = mon_order, index_type = index_type,
+                  mask_type = mask_type, pos_type = pos_type,
+                  trace_sig_tail_tags = [:f, :g],
+                  max_remasks = max_remasks, kwargs...)
+    G, H, pairs = pairs_and_basis(dat, length(I), start_gen = start_gen)
+    G, non_zero_cond = f5core!(dat, G, H, pairs, select = select, verbose = verbose,
+                               new_elems = new_elems_decomp!, select_both = false,
+                               interreduction = interreduction)
+
+    @debug [R(dat.ctx, h) for h in non_zero_cond]
+    for h in non_zero_cond
+        G, H = saturate(dat, G, H, h, verbose = verbose)
+    end
+    [R(dat.ctx, (i, g[1])) for i in keys(G) for g in G[i]]
+end
+
 
 function saturate(dat::F5Data{I, SΓ},
                   G::Basis{I, M},
@@ -252,8 +331,9 @@ function saturate(dat::F5Data{I, SΓ},
     H[new_pos_key] = M[]
     pair!(ctx, pairs, new_sig)
 
-    G = f5core!(dat, G, H, pairs, verbose = verbose,
-                new_elems = new_elems_decomp!, select_both = false)
+    G, _ = f5core!(dat, G, H, pairs, verbose = verbose,
+                   new_elems = new_elems_decomp!, select_both = false,
+                   saturate = true)
     filter!(kv -> kv[1] != new_pos_key, G)
     filter!(kv -> kv[1] != new_pos_key, H)
     G, H

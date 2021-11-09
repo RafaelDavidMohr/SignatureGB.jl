@@ -40,6 +40,25 @@ function simple_loop(I::Vector{MP};
     interreduce ? std(I_prime, complete_reduction = true) : I_prime
 end
 
+function fancy_loop(I::Vector{MP};
+                    interreduce = false) where {MP <: Singular.MPolyElem}
+
+    R = parent(first(I))
+    I_prime = Ideal(R, first(I))
+    Js = typeof(I_prime)[]
+    for f in I[2:end]
+        f_id = Ideal(R, f)
+        I_sat = saturation(I_prime, f_id)[1]
+        push!(Js, saturation(I_prime, I_sat)[1])
+        I_prime = I_sat + f_id
+    end
+
+    for J in Js
+        I_prime = saturation(I_prime, J)[1]
+    end
+    interreduce ? std(I_prime, complete_reduction = true) : I_prime
+end
+
 @testset "termorder" begin
     order = SG.Grevlex(5)
     v = @SVector [2,2,3,4,5]
@@ -67,9 +86,6 @@ end
 
     # LCM
     @test SG.lcm(ctx.mo, ctx.mo([1,0,0,2,0]), ctx.mo([0,1,0,0,0])) == ctx.mo([1,1,0,2,0])
-
-    # Shift
-    @test R(ctx, SG.shift(ctx, p0, ctx.mo(x[1]^12*x[2]^6*x[3]))) == p1*x[1]^2*x[2]^6*x[3]
 end
 
 @testset "sig polynomials" begin
@@ -268,7 +284,14 @@ end
     ctx = dat.ctx
     G, H, _ = SG.pairs_and_basis(dat, 2, start_gen = 3)
     pol = ctx.po(x)
-    G, H = SG.saturate(dat, G, H, pol)
+    G, H = SG.saturate(dat, G, H, pol, verbose = true)
     gb = [R(dat.ctx, (i, g[1])) for i in keys(G) for g in G[i]]
     @test all(p -> p in [y, z], gb)
 end     
+
+@testset "small-decomposition" begin
+    R, (x, y, z) = PolynomialRing(Fp(5), ["x", "y", "z"])
+    I = [x*y, x*z]
+    gb = SG.decompose(I)
+    @test is_eq(Ideal(R, gb), fancy_loop(I))
+end

@@ -234,7 +234,7 @@ function normalize!(ctx::Γ, p::T; onlysort::Bool=false) where {T<:Polynomial, �
             if r > lenp || monomial(p, r) != m
                 break
             end
-            c = add(ctx.co, acc, coefficient(p, r))
+            c = add(ctx.co, c, coefficient(p, r))
         end
 
         if !iszero(c)
@@ -297,6 +297,13 @@ function add(ctx::Γ, p::P, q::P) where {P<:Polynomial, Γ<:Context{P}}
     return cp
 end
 
+function random_lin_comb(ctx::PolynomialΓ{M, T},
+                         ps::Vector{Polynomial{M, T}}) where {M, T}
+
+    reduce((p1, p2) -> add(ctx, mul_scalar(ctx, p1, rand_elem(ctx.co)),
+                           mul_scalar(ctx, p2, rand_elem(ctx.co))), ps)
+end
+
 # Share the coefficient array
 function mul(ctx::PolynomialΓ{M, T}, p::Polynomial{M, T}, m::M) where {M, T}
     newmo = [mul(ctx.mo, m, mp) for mp in p.mo]
@@ -307,18 +314,6 @@ function mul_scalar(ctx::PolynomialΓ{M, T}, p::Polynomial{M, T}, c::T) where {M
     newco = [mul(ctx.co, c, coeff) for coeff in p.co]
     eltype(ctx)(p.mo, newco)
 end
-
-# The basic operation in symbolic preprocessing
-function shift(ctx::PolynomialΓ{M, T}, p :: Polynomial{M, T}, m :: M ;
-               targetmonomialctx = ctx.mo) where {M, T}
-    delta = div(ctx.mo, m, leadingmonomial(p))
-    newmo = Vector{eltype(targetmonomialctx)}(undef, length(p))
-    @inbounds for (i, q) in enumerate(p.mo)
-        newmo[i] = targetmonomialctx(mul(ctx.mo, q, delta))
-    end
-    return Polynomial{eltype(targetmonomialctx), T}(newmo, p.co)
-end
-
 
 #.. AA/Singular interoperability
 

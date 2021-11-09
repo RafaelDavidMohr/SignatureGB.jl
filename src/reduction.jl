@@ -211,7 +211,6 @@ function new_syz!(ctx::SΓ,
                   H::Syz{I, M}) where {I, M, T, SΓ <: SigPolynomialΓ{I, M, T}}
 
     new_sig = mul(ctx, sig...)
-    @debug "new syzygy" pretty_print(ctx, sig)
     ctx(new_sig, zero(eltype(ctx.po)), sig_tail)
     push!(H[new_sig[1]], new_sig[2])
     new_rewriter!(ctx, pairs, new_sig)
