@@ -156,7 +156,7 @@ function f5core!(dat::F5Data{I, SΓ},
 
         #- PAIR SELECTION -#
         total_num_pairs = length(pairs)
-        to_reduce, are_pairs, nselected, indx, max_key, tagg, sig_degree = select!(ctx, pairs, Val(select), select_both = select_both)
+        to_reduce, are_pairs, nselected, sig_degree = select!(ctx, pairs, Val(select), select_both = select_both)
 
         #- SYMBOLIC PP -#
         symbolic_pp_timed  = @timed symbolic_pp!(ctx, to_reduce, G, H,
@@ -167,7 +167,7 @@ function f5core!(dat::F5Data{I, SΓ},
                                                  enable_lower_pos_rewrite = !(interreduction))
         done = symbolic_pp_timed.value
         symbolic_pp_time = symbolic_pp_timed.time
-        mat = f5matrix(ctx, done, collect(to_reduce), indx, max_key, tagg,
+        mat = f5matrix(ctx, done, collect(to_reduce), curr_pos, curr_pos_key, curr_tag,
                        trace_sig_tail_tags = dat.trace_sig_tail_tags,
                        enable_lower_pos_rewrite = !(interreduction))
         mat_size = (length(rows(mat)), length(mat.tbl))
