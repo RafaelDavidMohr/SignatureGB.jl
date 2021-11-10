@@ -210,14 +210,18 @@ function f5core!(dat::F5Data{I, SΓ},
     end
 
     verbose_groebner && println("-----")
-    
+
+    if saturate
+        G[curr_pos_key] = Tuple{M, M}[]
+    end
+        
     if interreduction
         verbose_groebner && println("FINAL INTERREDUCTION STEP")
         G, arit_ops = interreduce(ctx, G, H, verbose = verbose_groebner)
         num_arit_operations_interreduction += arit_ops
         verbose_groebner && println("-----")
     end
-
+    
     if verbose
         println("total number of arithmetic operations (groebner): $(num_arit_operations_groebner)")
         println("total number of arithmetic operations (module overhead): $(num_arit_operations_module_overhead)")
@@ -305,7 +309,7 @@ function decompose(I::Vector{P};
                                new_elems = new_elems_decomp!, select_both = false,
                                interreduction = interreduction)
 
-    @debug [R(dat.ctx, h) for h in non_zero_cond]
+    sort!(non_zero_cond, by = p -> leadingmonomial(p), lt = (m1, m2) -> degree(dat.ctx.po.mo, m1) < degree(dat.ctx.po.mo, m2))
     for h in non_zero_cond
         G, H = saturate(dat, G, H, h, verbose = verbose)
     end
@@ -331,11 +335,9 @@ function saturate(dat::F5Data{I, SΓ},
     H[new_pos_key] = M[]
     pair!(ctx, pairs, new_sig)
 
-    G, _ = f5core!(dat, G, H, pairs, verbose = verbose,
-                   new_elems = new_elems_decomp!, select_both = false,
-                   saturate = true)
-    filter!(kv -> kv[1] != new_pos_key, G)
-    filter!(kv -> kv[1] != new_pos_key, H)
+    G, stuff = f5core!(dat, G, H, pairs, verbose = verbose,
+                       new_elems = new_elems_decomp!, select_both = false,
+                       saturate = true)
     G, H
 end
 end
