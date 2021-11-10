@@ -210,6 +210,7 @@ function new_syz!(ctx::SΓ,
                   pairs::PairSet{I, M, SΓ},
                   H::Syz{I, M}) where {I, M, T, SΓ <: SigPolynomialΓ{I, M, T}}
 
+    @debug "new syzygy" pretty_print(ctx, mul(ctx, sig...))
     new_sig = mul(ctx, sig...)
     ctx(new_sig, zero(eltype(ctx.po)), sig_tail)
     push!(H[new_sig[1]], new_sig[2])
@@ -231,6 +232,9 @@ function new_basis!(ctx::SΓ,
     # reductions of initial generators are added
     add_cond_1 = isone(ctx.po.mo[m]) && isone(ctx.po.mo[t]) && !(t in keys(G[pos_key]))
     # leading term dropped during reduction
+    if isempty(ctx(sig..., orig_elem = true)[:poly])
+        error("$(pretty_print(ctx, sig)) is syzygy")
+    end
     add_cond_2 = lt(ctx.po.mo, leadingmonomial(poly), leadingmonomial(ctx(sig..., orig_elem = true)[:poly]))
     if add_cond_1 || add_cond_2
         ctx(new_sig, poly, sig_tail)
