@@ -55,7 +55,6 @@ function fancy_loop(I::Vector{MP};
         I_prime = I_sat + f_id
     end
 
-    println(length(Js))
     for J in Js
         I_prime = saturation(I_prime, J)[1]
     end

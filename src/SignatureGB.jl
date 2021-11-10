@@ -310,7 +310,6 @@ function decompose(I::Vector{P};
                                interreduction = interreduction)
 
     sort!(non_zero_cond, by = p -> leadingmonomial(p), lt = (m1, m2) -> degree(dat.ctx.po.mo, m1) < degree(dat.ctx.po.mo, m2))
-    @debug [R(dat.ctx.po, h) for h in non_zero_cond]
     verbose && println("adding $(length(non_zero_cond)) non-zero conditions...")
     for h in non_zero_cond
         G, H = saturate(dat, G, H, h, verbose = verbose)

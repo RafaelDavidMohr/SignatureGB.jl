@@ -41,7 +41,9 @@ mutable struct Nmod32Γ<:NmodΓ{UInt32, UInt64}
         uchar = UInt64(char)
         nbits = 64 - leading_zeros(uchar)
         @assert 2*nbits <= 64
-
+        if 2*char > typemax(UInt32)
+            error("Addition won't work properly in this characteristic. Choose a higher bitcount for the field element type.")
+        end
         new(uchar, uchar << leading_zeros(uchar))
     end
 end
@@ -52,10 +54,10 @@ end
 
 function add(ctx::Nmod32Γ, a::UInt32, b::UInt32)
     c0 = a+b
-    c1 = c0 - ctx.char
-    d = max(c0, c1)
+    # c1 = c0 - ctx.char
+    # d = max(c0, c1)
     #@assert d%ctx.char == (a%ctx.char + b%ctx.char)%ctx.char
-    return d
+    return c0 % ctx.char
 end
 
 @inline function addmul(ctx::Nmod32Γ, a::UInt64, b::UInt32, c::UInt32)

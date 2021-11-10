@@ -232,9 +232,6 @@ function new_basis!(ctx::SΓ,
     # reductions of initial generators are added
     add_cond_1 = isone(ctx.po.mo[m]) && isone(ctx.po.mo[t]) && !(t in keys(G[pos_key]))
     # leading term dropped during reduction
-    if isempty(ctx(sig..., orig_elem = true)[:poly])
-        error("$(pretty_print(ctx, sig)) is syzygy")
-    end
     add_cond_2 = lt(ctx.po.mo, leadingmonomial(poly), leadingmonomial(ctx(sig..., orig_elem = true)[:poly]))
     if add_cond_1 || add_cond_2
         ctx(new_sig, poly, sig_tail)
@@ -299,7 +296,6 @@ function new_elems_decomp!(ctx::SΓ,
             G[posit_key] = Tuple{M, M}[]
             if !(posit_key in keys(H))
                 H[posit_key] = copy(non_triv_syz)
-                # H[posit_key] = M[]
             end
         end
     end
