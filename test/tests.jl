@@ -49,10 +49,13 @@ function fancy_loop(I::Vector{MP};
     for f in I[2:end]
         f_id = Ideal(R, f)
         I_sat = saturation(I_prime, f_id)[1]
-        push!(Js, saturation(I_prime, I_sat)[1])
+        if !(is_eq(I_prime, I_sat))
+            push!(Js, saturation(I_prime, I_sat)[1])
+        end
         I_prime = I_sat + f_id
     end
 
+    println(length(Js))
     for J in Js
         I_prime = saturation(I_prime, J)[1]
     end

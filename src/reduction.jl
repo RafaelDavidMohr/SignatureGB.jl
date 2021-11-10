@@ -299,6 +299,7 @@ function new_elems_decomp!(ctx::SΓ,
             G[posit_key] = Tuple{M, M}[]
             if !(posit_key in keys(H))
                 H[posit_key] = copy(non_triv_syz)
+                # H[posit_key] = M[]
             end
         end
     end
