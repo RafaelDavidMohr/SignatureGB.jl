@@ -14,6 +14,8 @@ include("./reduction.jl")
 include("./interreduction.jl")
 include("./gen_example_file.jl")
 
+export f5, naive_decomp, decompose
+
 # converting a vector of singular polynomials into our own data structures
 function f5setup(I::Vector{P};
                  mod_order=:POT,
