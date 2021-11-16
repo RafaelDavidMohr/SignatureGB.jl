@@ -217,7 +217,7 @@ function new_syz!(ctx::SΓ,
     if gettag(ctx, new_sig) == :g_prime
         attached_to = getattkey(ctx, new_sig)
         for (i, Hi) in H
-            if ctx.ord_indices[i][:att_key] == attached_to && ctx.ord_indices[:position] > pos(ctx, new_sig)
+            if ctx.ord_indices[i][:att_key] == attached_to && ctx.ord_indices[i][:position] > pos(ctx, new_sig)
                 push!(Hi, new_sig[2])
             end
         end
@@ -291,7 +291,7 @@ function new_elems_decomp!(ctx::SΓ,
     pols_to_insert = [unindexpolynomial(mat.sigtail_mat.tbl, mat.sigtail_mat.rows[sig]) for (sig, _) in zero_red]
     g_prime = random_lin_comb(ctx.po, pols_to_insert)
     new_gen!(ctx, mat.max_pos, mat.max_posit_key, :g_prime, g_prime)
-    for (j, (sig, _)) in enumerate(zero_red)[2:end]
+    for (j, (sig, _)) in enumerate(zero_red)
         ctx(mul(ctx, sig...), zero(eltype(ctx.po)), tail(pols_to_insert[j]))
         if j < length(zero_red)
             new_gen!(ctx, pos(ctx, sig), mat.max_posit_key, :g, pols_to_insert[j])

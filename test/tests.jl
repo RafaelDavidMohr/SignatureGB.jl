@@ -73,7 +73,7 @@ end
 
 # stolen from pierre
 @testset "polynomials" begin
-    char = 4294967291
+    char = 65521
     ctx = SG.polynomialctx(SG.Nmod32Γ(char), monomials = SG.monomialctx(order=SG.Grevlex(5)))
 
     # Conversion from and to AA
@@ -288,7 +288,7 @@ end
     pol = ctx.po(x)
     G, H = SG.saturate(dat, G, H, pol, verbose = true)
     gb = [R(dat.ctx, (i, g[1])) for i in keys(G) for g in G[i]]
-    @test all(p -> p in [y, z], gb)
+    @test is_eq(Ideal(R, gb), Ideal(R, [y, z]))
 end     
 
 @testset "small-decomposition" begin

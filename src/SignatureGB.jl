@@ -330,7 +330,7 @@ function saturate(dat::F5Data{I, SΓ},
     dat.trace_sig_tail_tags = [:f]
     max_pos = maximum(i -> ctx.ord_indices[i][:position], keys(G))
     new_pos_key = maximum(keys(ctx.ord_indices)) + one(I)
-    new_gen!(ctx, max_pos + one(I), :f, pol)
+    new_gen!(ctx, max_pos + one(I), zero(I), :f, pol)
     
     pairs = pairset(ctx)
     new_sig = (new_pos_key, one(ctx.po.mo))

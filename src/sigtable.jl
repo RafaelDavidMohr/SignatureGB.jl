@@ -3,7 +3,7 @@ const Data{M, T} = NamedTuple{(:poly, :sigtail, :sigratio),
 const SigTable{I, M, T} = Dict{Tuple{I, M}, Data{M, T}}
 const GenData{I} = NamedTuple{(:position, :att_key, :tag),
                               Tuple{I, I, Symbol}}
-gendata(i::I, tg::Symbol) where I = (position = i, tag = tg)
+gendata(i::I, j::I, tg::Symbol) where I = (position = i, att_key = j, tag = tg)
 
 mutable struct SigPolynomialΓ{I, M, T, MΓ<:Context{M}, TΓ<:Context{T}, PΓ<:PolynomialΓ{M, T, MΓ, TΓ}, S}<:Context{Tuple{I, M}}
     po::PΓ
@@ -43,9 +43,9 @@ function new_gen!(ctx::SigPolynomialΓ{I, M, T},
     ctx((posit_key, one(ctx.po.mo)), pol)
 
     # rebuild ord_indices
-    new_dict_arr = [(k, j, i >= posit ? (position = i + one(I), att_key = j, tag = tg) : (position = i, att_key = j, tag = tg))
+    new_dict_arr = [(k, i >= posit ? gendata(i + one(I), j, tg) : gendata(i, j, tg))
                     for (k, (i, j, tg)) in ctx.ord_indices]
-    push!(new_dict_arr, (posit_key, (position = posit, att_key = attached_to, tag = tagg)))
+    push!(new_dict_arr, (posit_key, gendata(posit, attached_to, tagg)))
     ctx.ord_indices = Dict(new_dict_arr)
 end
 
@@ -63,7 +63,7 @@ function idxsigpolynomialctx(coefficients,
     end
     po = polynomialctx(coefficients, monomials = moctx)
     tbl = SigTable{pos_type, index_type, eltype(coefficients)}()
-    ord_indices = Dict([(pos_type(i), gendata(pos_type(i), zero(pos_type(i), :f)) for i in 1:ngens])
+    ord_indices = Dict([(pos_type(i), gendata(pos_type(i), zero(pos_type(i)), :f)) for i in 1:ngens])
     SigPolynomialΓ{pos_type, eltype(moctx), eltype(coefficients),
                    typeof(moctx), typeof(coefficients), typeof(po), mod_order}(po, tbl, ord_indices)
 end
