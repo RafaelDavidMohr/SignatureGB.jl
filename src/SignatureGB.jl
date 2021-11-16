@@ -107,7 +107,7 @@ function f5core!(dat::F5Data{I, SΓ},
             end
 
             # if we are in a decomposition computation we add non-zero conditions
-            if curr_tag == :g && !(saturate)
+            if curr_tag == :g_prime && !(saturate)
                 non_zero_cond_local_sigs = [(curr_pos_key, m) for m in H[curr_pos_key]]
                 non_zero_cond_local = eltype(ctx.po)[]
                 for sig in non_zero_cond_local_sigs
