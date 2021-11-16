@@ -278,7 +278,7 @@ function naive_decomp(I::Vector{P};
     dat = f5setup(I, mod_order = mod_order,
                   mon_order = mon_order, index_type = index_type,
                   mask_type = mask_type, pos_type = pos_type,
-                  trace_sig_tail_tags = [:f, :g],
+                  trace_sig_tail_tags = [:f, :g_prime],
                   max_remasks = max_remasks, kwargs...)
     G, H, pairs = pairs_and_basis(dat, length(I), start_gen = start_gen)
     G, _ = f5core!(dat, G, H, pairs, select = select, verbose = verbose,
@@ -304,7 +304,7 @@ function decompose(I::Vector{P};
     dat = f5setup(I, mod_order = mod_order,
                   mon_order = mon_order, index_type = index_type,
                   mask_type = mask_type, pos_type = pos_type,
-                  trace_sig_tail_tags = [:f, :g],
+                  trace_sig_tail_tags = [:f, :g_prime],
                   max_remasks = max_remasks, kwargs...)
     G, H, pairs = pairs_and_basis(dat, length(I), start_gen = start_gen)
     G, non_zero_cond = f5core!(dat, G, H, pairs, select = select, verbose = verbose,

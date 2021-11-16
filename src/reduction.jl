@@ -214,6 +214,14 @@ function new_syz!(ctx::SΓ,
     new_sig = mul(ctx, sig...)
     ctx(new_sig, zero(eltype(ctx.po)), sig_tail)
     push!(H[new_sig[1]], new_sig[2])
+    if gettag(ctx, new_sig) == :g_prime
+        attached_to = getattkey(ctx, new_sig)
+        for (i, Hi) in H
+            if ctx.ord_indices[i][:att_key] == attached_to && ctx.ord_indices[:position] > pos(ctx, new_sig)
+                push!(Hi, new_sig[2])
+            end
+        end
+    end
     new_rewriter!(ctx, pairs, new_sig)
 end
 
@@ -280,10 +288,14 @@ function new_elems_decomp!(ctx::SΓ,
     isempty(zero_red) && return new_elems_f5!(ctx, mat, pairs, G, H, enable_lower_pos_rewrite = enable_lower_pos_rewrite)
 
     # insert g's s.t. g*f in I
-    for (j, (sig, _)) in enumerate(zero_red)
-        prj = unindexpolynomial(mat.sigtail_mat.tbl, mat.sigtail_mat.rows[sig])
-        ctx(mul(ctx, sig...), zero(eltype(ctx.po)), tail(prj))
-        new_gen!(ctx, pos(ctx, sig), :g, prj)
+    pols_to_insert = [unindexpolynomial(mat.sigtail_mat.tbl, mat.sigtail_mat.rows[sig]) for (sig, _) in zero_red]
+    g_prime = random_lin_comb(ctx.po, pols_to_insert)
+    new_gen!(ctx, mat.max_pos, mat.max_posit_key, :g_prime, g_prime)
+    for (j, (sig, _)) in enumerate(zero_red)[2:end]
+        ctx(mul(ctx, sig...), zero(eltype(ctx.po)), tail(pols_to_insert[j]))
+        if j < length(zero_red)
+            new_gen!(ctx, pos(ctx, sig), mat.max_posit_key, :g, pols_to_insert[j])
+        end
     end
 
     non_triv_syz = [g[2] for g in G[mat.max_posit_key]]

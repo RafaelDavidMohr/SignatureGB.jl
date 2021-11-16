@@ -1,8 +1,8 @@
 const Data{M, T} = NamedTuple{(:poly, :sigtail, :sigratio),
                               Tuple{Polynomial{M, T}, Polynomial{M, T}, M}}
 const SigTable{I, M, T} = Dict{Tuple{I, M}, Data{M, T}}
-const GenData{I} = NamedTuple{(:position, :tag),
-                              Tuple{I, Symbol}}
+const GenData{I} = NamedTuple{(:position, :att_key, :tag),
+                              Tuple{I, I, Symbol}}
 gendata(i::I, tg::Symbol) where I = (position = i, tag = tg)
 
 mutable struct SigPolynomialΓ{I, M, T, MΓ<:Context{M}, TΓ<:Context{T}, PΓ<:PolynomialΓ{M, T, MΓ, TΓ}, S}<:Context{Tuple{I, M}}
@@ -16,8 +16,25 @@ mon_type(::SigPolynomialΓ{I, M}) where {I, M} = M
 coeff_type(::SigPolynomialΓ{I, M, T}) where {I, M, T} = T
 mod_order(::SigPolynomialΓ{I, M, T, MΓ, TΓ, PΓ, S}) where {I, M, T, MΓ, TΓ, PΓ, S} = S
 
+function pos(ctx::SigPolynomialΓ{I, M},
+             p::Tuple{I, M}) where {I, M}
+    
+    iszero(p[1]) && return zero(I)
+    ctx.ord_indices[p[1]][:position]
+end
+
+function gettag(ctx::SigPolynomialΓ{I, M},
+                p::Tuple{I, M}) where {I, M}
+
+    iszero(p[1]) && return :nil
+    ctx.ord_indices[p[1]][:tag]
+end
+
+getattkey(ctx::SigPolynomialΓ{I, M}, p::Tuple{I, M}) where {I, M} = ctx.ord_indices[p[1]][:att_key]
+
 function new_gen!(ctx::SigPolynomialΓ{I, M, T},
                   posit::I,
+                  attached_to::I,
                   tagg::Symbol,
                   pol::Polynomial{M, T}) where {I, M, T}
 
@@ -26,9 +43,9 @@ function new_gen!(ctx::SigPolynomialΓ{I, M, T},
     ctx((posit_key, one(ctx.po.mo)), pol)
 
     # rebuild ord_indices
-    new_dict_arr = [(k, i >= posit ? (position = i + one(I), tag = tg) : (position = i, tag = tg))
-                    for (k, (i, tg)) in ctx.ord_indices]
-    push!(new_dict_arr, (posit_key, (position = posit, tag = tagg)))
+    new_dict_arr = [(k, j, i >= posit ? (position = i + one(I), att_key = j, tag = tg) : (position = i, att_key = j, tag = tg))
+                    for (k, (i, j, tg)) in ctx.ord_indices]
+    push!(new_dict_arr, (posit_key, (position = posit, att_key = attached_to, tag = tagg)))
     ctx.ord_indices = Dict(new_dict_arr)
 end
 
@@ -46,7 +63,7 @@ function idxsigpolynomialctx(coefficients,
     end
     po = polynomialctx(coefficients, monomials = moctx)
     tbl = SigTable{pos_type, index_type, eltype(coefficients)}()
-    ord_indices = Dict([(pos_type(i), gendata(pos_type(i), :f)) for i in 1:ngens])
+    ord_indices = Dict([(pos_type(i), gendata(pos_type(i), zero(pos_type(i), :f)) for i in 1:ngens])
     SigPolynomialΓ{pos_type, eltype(moctx), eltype(coefficients),
                    typeof(moctx), typeof(coefficients), typeof(po), mod_order}(po, tbl, ord_indices)
 end
