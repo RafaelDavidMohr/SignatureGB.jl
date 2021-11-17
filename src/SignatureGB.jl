@@ -14,7 +14,7 @@ include("./reduction.jl")
 include("./interreduction.jl")
 include("./gen_example_file.jl")
 
-export f5, naive_decomp, decompose
+export f5, decompose
 
 # converting a vector of singular polynomials into our own data structures
 function f5setup(I::Vector{P};
@@ -230,7 +230,9 @@ function f5core!(dat::F5Data{I, SΓ},
         println("total number of arithmetic operations (interreduction): $(num_arit_operations_interreduction)")
         verbose_saturate && println("saturation added $(global_zero_red_count) elements not in the original ideal.")
     end
-    G, non_zero_cond
+    total_num_arit_ops = num_arit_operations_groebner + num_arit_operations_module_overhead + num_arit_operations_interreduction
+    
+    G, non_zero_cond, total_num_arit_ops
 end
 
 function f5(I::Vector{P};
@@ -254,7 +256,12 @@ function f5(I::Vector{P};
                   trace_sig_tail_tags = trace_sig_tail_tags,
                   max_remasks = max_remasks, kwargs...)
     G, H, pairs = pairs_and_basis(dat, length(I), start_gen = start_gen)
-    G, _ = f5core!(dat, G, H, pairs, select = select, interreduction = interreduction, verbose = verbose)
+    G, _, total_num_arit_ops = f5core!(dat, G, H, pairs, select = select, interreduction = interreduction, verbose = verbose)
+    if verbose
+        println("-----")
+        println("final number of arithmetic operations: $(total_num_arit_ops)")
+        println("-----")
+    end
     [R(dat.ctx, (i, g[1])) for i in keys(G) for g in G[i]]
 end
 
@@ -281,9 +288,9 @@ function naive_decomp(I::Vector{P};
                   trace_sig_tail_tags = [:f, :g_prime],
                   max_remasks = max_remasks, kwargs...)
     G, H, pairs = pairs_and_basis(dat, length(I), start_gen = start_gen)
-    G, _ = f5core!(dat, G, H, pairs, select = select, verbose = verbose,
-                   new_elems = new_elems_decomp!, select_both = false,
-                   interreduction = interreduction)
+    G, _, total_num_arit_ops = f5core!(dat, G, H, pairs, select = select, verbose = verbose,
+                                       new_elems = new_elems_decomp!, select_both = false,
+                                       interreduction = interreduction)
     [R(dat.ctx, (i, g[1])) for i in keys(G) for g in G[i]]
 end
 
@@ -307,14 +314,20 @@ function decompose(I::Vector{P};
                   trace_sig_tail_tags = [:f, :g_prime],
                   max_remasks = max_remasks, kwargs...)
     G, H, pairs = pairs_and_basis(dat, length(I), start_gen = start_gen)
-    G, non_zero_cond = f5core!(dat, G, H, pairs, select = select, verbose = verbose,
-                               new_elems = new_elems_decomp!, select_both = false,
-                               interreduction = interreduction)
+    G, non_zero_cond, total_num_arit_ops = f5core!(dat, G, H, pairs, select = select, verbose = verbose,
+                                                   new_elems = new_elems_decomp!, select_both = false,
+                                                   interreduction = interreduction)
 
     sort!(non_zero_cond, by = p -> leadingmonomial(p), lt = (m1, m2) -> degree(dat.ctx.po.mo, m1) < degree(dat.ctx.po.mo, m2))
     verbose && println("adding $(length(non_zero_cond)) non-zero conditions...")
     for h in non_zero_cond
-        G, H = saturate(dat, G, H, h, verbose = verbose)
+        G, H, num_arit_ops = saturate(dat, G, H, h, verbose = verbose)
+        total_num_arit_ops += num_arit_ops
+    end
+    if verbose
+        println("-----")
+        println("final number of arithmetic operations: $(total_num_arit_ops)")
+        println("-----")
     end
     [R(dat.ctx, (i, g[1])) for i in keys(G) for g in G[i]]
 end
@@ -338,9 +351,9 @@ function saturate(dat::F5Data{I, SΓ},
     H[new_pos_key] = M[]
     pair!(ctx, pairs, new_sig)
 
-    G, stuff = f5core!(dat, G, H, pairs, verbose = verbose,
-                       new_elems = new_elems_decomp!, select_both = false,
-                       saturate = true)
-    G, H
+    G, stuff, num_arit_ops = f5core!(dat, G, H, pairs, verbose = verbose,
+                                     new_elems = new_elems_decomp!, select_both = false,
+                                     saturate = true)
+    G, H, num_arit_ops
 end
 end
