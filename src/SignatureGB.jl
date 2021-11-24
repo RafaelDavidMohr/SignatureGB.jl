@@ -321,12 +321,15 @@ function decompose(I::Vector{P};
     sort!(non_zero_cond, by = p -> leadingmonomial(p), lt = (m1, m2) -> degree(dat.ctx.po.mo, m1) < degree(dat.ctx.po.mo, m2))
     verbose && println("adding $(length(non_zero_cond)) non-zero conditions...")
     dat.trace_sig_tail_tags = [:f]
+    num_arit_ops_cleanup = 0
     for h in non_zero_cond
         G, H, num_arit_ops = saturate(dat, G, H, h, verbose = verbose)
-        total_num_arit_ops += num_arit_ops
+        num_arit_ops_cleanup += num_arit_ops
     end
+    total_num_arit_ops += num_arit_ops_cleanup
     if verbose
         println("-----")
+        println("final number of arithmetic operations (just cleanup): $(num_arit_ops_cleanup)")
         println("final number of arithmetic operations: $(total_num_arit_ops)")
         println("-----")
     end
