@@ -258,9 +258,9 @@ function f5(I::Vector{P};
     G, H, pairs = pairs_and_basis(dat, length(I), start_gen = start_gen)
     G, _, total_num_arit_ops = f5core!(dat, G, H, pairs, select = select, interreduction = interreduction, verbose = verbose)
     if verbose
-        println("-----")
-        println("final number of arithmetic operations: $(total_num_arit_ops)")
-        println("-----")
+        println("F5-----")
+        println("final number of arithmetic operations (total):        $(total_num_arit_ops)")
+        println("F5-----")
     end
     [R(dat.ctx, (i, g[1])) for i in keys(G) for g in G[i]]
 end
@@ -328,10 +328,11 @@ function decompose(I::Vector{P};
     end
     total_num_arit_ops += num_arit_ops_cleanup
     if verbose
-        println("-----")
-        println("final number of arithmetic operations (just cleanup): $(num_arit_ops_cleanup)")
-        println("final number of arithmetic operations: $(total_num_arit_ops)")
-        println("-----")
+        println("Decompose-----")
+        println("final number of arithmetic operations (core loop):    $(total_num_arit_ops - num_arit_ops_cleanup)")
+        println("final number of arithmetic operations (cleanup step): $(num_arit_ops_cleanup)")
+        println("final number of arithmetic operations (total):        $(total_num_arit_ops)")
+        println("Decompose-----")
     end
     [R(dat.ctx, (i, g[1])) for i in keys(G) for g in G[i]]
 end
