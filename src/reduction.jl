@@ -255,7 +255,8 @@ function new_elems_f5!(ctx::SΓ,
                        mat::F5matrix{I, M, T},
                        pairs::PairSet{I, M, SΓ},
                        G::Basis{I, M},
-                       H::Syz{I, M};
+                       H::Syz{I, M},
+                       info_hashmap::Dict{I, Info};
                        enable_lower_pos_rewrite = true) where {I, M, T, SΓ <: SigPolynomialΓ{I, M, T}}
 
     for (sig, row) in mat.sigs_rows
@@ -278,23 +279,24 @@ function new_elems_decomp!(ctx::SΓ,
                            mat::F5matrix{I, M, T},
                            pairs::PairSet{I, M, SΓ},
                            G::Basis{I, M},
-                           H::Syz{I, M};
+                           H::Syz{I, M},
+                           info_hashmap::Dict{I, Info};
                            enable_lower_pos_rewrite = true) where {I, M, T, SΓ <: SigPolynomialΓ{I, M, T}}
 
-    mat.tag != :f && return new_elems_f5!(ctx, mat, pairs, G, H, enable_lower_pos_rewrite = enable_lower_pos_rewrite)
+    mat.tag != :f && return new_elems_f5!(ctx, mat, pairs, G, H, info_hashmap, enable_lower_pos_rewrite = enable_lower_pos_rewrite)
     
     zero_red = filter(sig_row -> isempty(sig_row[2]) && pos(ctx, sig_row[1]) == mat.max_pos && gettag(ctx, sig_row[1]) == :f,
                       mat.sigs_rows)
-    isempty(zero_red) && return new_elems_f5!(ctx, mat, pairs, G, H, enable_lower_pos_rewrite = enable_lower_pos_rewrite)
+    isempty(zero_red) && return new_elems_f5!(ctx, mat, pairs, G, H, info_hashmap, enable_lower_pos_rewrite = enable_lower_pos_rewrite)
 
     # insert g's s.t. g*f in I
     pols_to_insert = [unindexpolynomial(mat.sigtail_mat.tbl, mat.sigtail_mat.rows[sig]) for (sig, _) in zero_red]
     g_prime = random_lin_comb(ctx.po, pols_to_insert)
-    new_gen!(ctx, mat.max_pos, mat.max_posit_key, :g_prime, g_prime)
+    new_gen!(ctx, info_hashmap, mat.max_pos, mat.max_posit_key, :g_prime, g_prime)
     for (j, (sig, _)) in enumerate(zero_red)
         ctx(mul(ctx, sig...), zero(eltype(ctx.po)), tail(pols_to_insert[j]))
         if j < length(zero_red)
-            new_gen!(ctx, pos(ctx, sig), mat.max_posit_key, :g, pols_to_insert[j])
+            new_gen!(ctx, info_hashmap, pos(ctx, sig), mat.max_posit_key, :g, pols_to_insert[j])
         end
     end
 

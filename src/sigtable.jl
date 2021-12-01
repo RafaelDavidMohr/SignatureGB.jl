@@ -33,6 +33,7 @@ end
 getattkey(ctx::SigPolynomialΓ{I, M}, p::Tuple{I, M}) where {I, M} = ctx.ord_indices[p[1]][:att_key]
 
 function new_gen!(ctx::SigPolynomialΓ{I, M, T},
+                  info_hashmap::Dict{I, Info},
                   posit::I,
                   attached_to::I,
                   tagg::Symbol,
@@ -45,6 +46,7 @@ function new_gen!(ctx::SigPolynomialΓ{I, M, T},
     # rebuild ord_indices
     new_dict_arr = [(k, i >= posit ? gendata(i + one(I), j, tg) : gendata(i, j, tg))
                     for (k, (i, j, tg)) in ctx.ord_indices]
+    info_hashmap[posit_key] = new_info()
     push!(new_dict_arr, (posit_key, gendata(posit, attached_to, tagg)))
     ctx.ord_indices = Dict(new_dict_arr)
 end

@@ -1,5 +1,13 @@
 module SignatureGB
 
+const Info = Dict{String, Int}
+new_info() = Dict([("arit_ops_groebner", 0),
+                   ("arit_ops_module", 0),
+                   ("arit_ops_interred", 0),
+                   ("interred_mat_size_rows", 0),
+                   ("interred_mat_size_cols", 0),
+                   ("num_zero_red", 0)])
+
 include("./useful.jl")
 include("./context.jl")
 include("./termorder.jl")
@@ -76,28 +84,26 @@ function f5core!(dat::F5Data{I, SΓ},
     R = dat.R
     use_max_sig = (select == :deg_and_pos || select == :pos)
     orig_length = length(ctx.ord_indices)
-    
-    cnt = 1
+
+    info_hashmap = Dict([(i, new_info()) for i in keys(ctx.ord_indices)])
+    mat_cnt = 0
     global_zero_red_count = 0
     num_arit_operations_groebner = 0
     num_arit_operations_module_overhead = 0
     num_arit_operations_interreduction = 0
+    verbose_groebner = verbose && !(saturate)
+    verbose_saturate = verbose && saturate
+    
     curr_pos = zero(pos_type(ctx))
     curr_pos_key = zero(pos_type(ctx))
     curr_tag = :f
 
-    decomp_core_step = new_elems == new_elems_decomp! && !(saturate)
     non_zero_cond = eltype(ctx.po)[]
 
-    verbose_groebner = !(saturate) && verbose
-    verbose_saturate = saturate && verbose
-
-    verbose_saturate && println("STARTING SATURATION")
     while !(isempty(pairs))
         #- INTERREDUCTION -#
         indx = pos(ctx, first(pairs)[1])
         if indx != curr_pos && mod_order(dat.ctx) == :POT
-            verbose_groebner && println("-----------")
 
             # here we do several steps when the index jumps:
             # possibly remasking
@@ -123,32 +129,10 @@ function f5core!(dat::F5Data{I, SΓ},
             end
 
             # interreducing
-            if indx > 2
-                @debug begin
-                    println("before interreduction")
-                    gb = [R(dat.ctx, (i, g[1])) for i in keys(G) for g in G[i]]
-                !(is_gb(gb)) && error("not a groebner basis")
-                end
-            end
             if interreduction && indx > 2
                 verbose_groebner && println("INTERREDUCING")
                 G, arit_ops = interreduce(ctx, G, H, verbose = verbose_groebner)
-                num_arit_operations_interreduction += arit_ops
-                @debug begin
-                    println("after interreduction")
-                    gb = [R(dat.ctx, (i, g[1])) for i in keys(G) for g in G[i]]
-                    !(is_gb(gb)) && error("not a groebner basis")
-                end
-            end
-
-            # some printing
-            if verbose_groebner
-                if first(pairs)[1][2][1] <= orig_length
-                    println("STARTING WITH INDEX $(indx) (ORIGINAL ELEMENT)")
-                else
-                    println("STARTING WITH INDEX $(indx)")
-                end
-                println("-----------")
+                info_hashmap[curr_pos_key]["num_arit_ops_interred"] = arit_ops
             end
         end
         # update current index, current tag and current index key
@@ -177,26 +161,29 @@ function f5core!(dat::F5Data{I, SΓ},
 
         #- REDUCTION -#
         reduction_dat = @timed reduction!(mat)
-        num_arit_operations_groebner += reduction_dat.value[1]
-        num_arit_operations_module_overhead += reduction_dat.value[2]
+
+        # storing computational information
+        zero_red_count = length(filter(sig_rw -> isempty(sig_rw[2]), mat.sigs_rows))
+        info_hashmap[curr_pos_key]["arit_ops_groebner"] += reduction_dat.value[1]
+        info_hashmap[curr_pos_key]["arit_ops_module"] += reduction_dat.value[2]
+        info_hashmap[curr_pos_key]["num_zero_red"] += zero_red_count
 
         #- PAIR GENERATION -#
-        pair_gen_dat = @timed new_elems(ctx, mat, pairs, G, H,
+        pair_gen_dat = @timed new_elems(ctx, mat, pairs, G, H, info_hashmap,
                                         enable_lower_pos_rewrite = !(interreduction))
         pairs = pair_gen_dat.value
         pair_gen_time = pair_gen_dat.time
 
         #- PRINTING INFORMATION -#
-        if verbose
-            zero_red_count = 0
+        if verbose_groebner
+            mat_cnt += 1
             if verbose_groebner
                 println("selected $(nselected) / $(total_num_pairs) pairs, sig-degree of sel. pairs: $(sig_degree)")
                 println("symbolic pp took $(symbolic_pp_time) seconds.")
-                println("Matrix $(cnt) : $(reduction_dat.time) secs reduction / size = $(mat_size) / density = $(mat_dens)")
+                println("Matrix $(mat_cnt) : $(reduction_dat.time) secs reduction / size = $(mat_size) / density = $(mat_dens)")
             end
             for (sig, rw) in mat.sigs_rows
                 if isempty(rw)
-                    zero_red_count += 1
                     if gettag(ctx, sig) == :f
                         global_zero_red_count +=1
                     end
@@ -207,8 +194,6 @@ function f5core!(dat::F5Data{I, SΓ},
             end
             verbose_groebner && println("Pair generation took $(pair_gen_time) seconds.")
         end
-        
-        cnt += 1
     end
 
     verbose_groebner && println("-----")
@@ -225,9 +210,35 @@ function f5core!(dat::F5Data{I, SΓ},
     end
     
     if verbose
-        println("total number of arithmetic operations (groebner): $(num_arit_operations_groebner)")
-        println("total number of arithmetic operations (module overhead): $(num_arit_operations_module_overhead)")
-        println("total number of arithmetic operations (interreduction): $(num_arit_operations_interreduction)")
+        println("-----")
+        num_arit_operations_groebner = 0
+        num_arit_operations_module_overhead = 0
+        num_arit_operations_interreduction = 0
+        for (k, info) in info_hashmap
+            arit_ops_groebner = info["arit_ops_groebner"]
+            arit_ops_module = info["arit_ops_module"]
+            arit_ops_interred = info["arit_ops_interred"]
+            interred_mat_size_rows = info["interred_mat_size_rows"]
+            interred_mat_size_cols = info["interred_mat_size_cols"]
+            num_zero_red = info["num_zero_red"]
+            num_arit_operations_groebner += arit_ops_groebner
+            num_arit_operations_module_overhead += arit_ops_module
+            num_arit_operations_interreduction += arit_ops_interred
+            if k < orig_length
+                println("INFO for index $(ctx.ord_indices[k][:position]), original index $(k), tagged $(ctx.ord_indices[k][:tag])")
+            else
+                println("INFO for index $(ctx.ord_indices[k][:position]), tagged $(ctx.ord_indices[k][:tag])")
+            end
+            println("Arithmetic operations in GB computation:            $(arit_ops_groebner)")
+            println("Arithmetic operations in module overhead:           $(arit_ops_module)")
+            println("Arithmetic operations in interreduction:            $(arit_ops_interred)")
+            println("Size of interreduction matrix:                      $((interred_mat_size_rows, interred_mat_size_cols))")
+            println("Number of zero reductions:              $(num_zero_red)")
+            println("-----")
+        end
+        println("total arithmetic operations (groebner):        $(num_arit_operations_groebner)")
+        println("total arithmetic operations (module overhead): $(num_arit_operations_module_overhead)")
+        println("total arithmetic operations (interreduction):  $(num_arit_operations_interreduction)")
         verbose_saturate && println("saturation added $(global_zero_red_count) elements not in the original ideal.")
     end
     total_num_arit_ops = num_arit_operations_groebner + num_arit_operations_module_overhead + num_arit_operations_interreduction
@@ -346,10 +357,11 @@ function saturate(dat::F5Data{I, SΓ},
                   verbose = false) where {I, M, T, SΓ <: SigPolynomialΓ{I, M, T}}
 
     ctx = dat.ctx
+    dummy_info_hashmap = Dict{I, Info}()
     dat.trace_sig_tail_tags = [:f]
     max_pos = maximum(i -> ctx.ord_indices[i][:position], keys(G))
     new_pos_key = maximum(keys(ctx.ord_indices)) + one(I)
-    new_gen!(ctx, max_pos + one(I), zero(I), :f, pol)
+    new_gen!(ctx, dummy_info_hashmap, max_pos + one(I), zero(I), :f, pol)
     
     pairs = pairset(ctx)
     new_sig = (new_pos_key, one(ctx.po.mo))
