@@ -31,8 +31,6 @@ function new_basis(ctx::SigPolynomialΓ, length)
     Dict([(pos_type(ctx)(i), Tuple{M, M}[]) for i in 1:length])
 end
 
-# leadingmonomial(G_pos::SortedDict{M, M}, g::M) where M = G_pos[g]
-
 function new_basis_elem!(ctx::SigPolynomialΓ{I, M},
                          G::Basis{I, M},
                          g::Tuple{I, M},

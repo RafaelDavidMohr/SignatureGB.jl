@@ -1,9 +1,9 @@
 const Data{M, T} = NamedTuple{(:poly, :sigtail, :sigratio),
                               Tuple{Polynomial{M, T}, Polynomial{M, T}, M}}
 const SigTable{I, M, T} = Dict{Tuple{I, M}, Data{M, T}}
-const GenData{I} = NamedTuple{(:position, :att_key, :tag),
-                              Tuple{I, I, Symbol}}
-gendata(i::I, j::I, tg::Symbol) where I = (position = i, att_key = j, tag = tg)
+const GenData{I} = NamedTuple{(:position, :att_key, :tag, :done),
+                              Tuple{I, I, Symbol, Bool}}
+gendata(i::I, j::I, tg::Symbol) where I = (position = i, att_key = j, tag = tg, done = false)
 
 mutable struct SigPolynomialΓ{I, M, T, MΓ<:Context{M}, TΓ<:Context{T}, PΓ<:PolynomialΓ{M, T, MΓ, TΓ}, S}<:Context{Tuple{I, M}}
     po::PΓ
@@ -21,6 +21,11 @@ function pos(ctx::SigPolynomialΓ{I, M},
     
     iszero(p[1]) && return zero(I)
     ctx.ord_indices[p[1]][:position]
+end
+
+function maxpos(ctx::SigPolynomialΓ{I, M}) where {I, M}
+
+    maximum(v -> v[:position], values(ctx.ord_indices))
 end
 
 function gettag(ctx::SigPolynomialΓ{I, M},
