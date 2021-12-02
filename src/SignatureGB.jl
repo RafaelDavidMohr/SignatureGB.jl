@@ -6,7 +6,9 @@ new_info() = Dict([("arit_ops_groebner", 0),
                    ("arit_ops_interred", 0),
                    ("interred_mat_size_rows", 0),
                    ("interred_mat_size_cols", 0),
-                   ("num_zero_red", 0)])
+                   ("num_zero_red", 0),
+                   ("gb_size_bef_interred", 0),
+                   ("gb_size_aft_interred", 0)])
 
 include("./useful.jl")
 include("./context.jl")
@@ -130,7 +132,8 @@ function f5core!(dat::F5Data{I, SΓ},
             end
 
             # interreducing
-            if interreduction && indx >= 2
+            info_hashmap[curr_pos_key]["gb_size_bef_interred"] = gb_size(ctx, G)
+            if interreduction && indx > 2
                 verbose_mat && println("-----")
                 verbose_mat && println("INTERREDUCING")
                 G, arit_ops, mat_size = interreduce(ctx, G, H, verbose = verbose_mat)
@@ -139,6 +142,7 @@ function f5core!(dat::F5Data{I, SΓ},
                 info_hashmap[curr_pos_key]["interred_mat_size_cols"] = mat_size[2]
                 verbose_mat && println("-----")
             end
+            info_hashmap[curr_pos_key]["gb_size_aft_interred"] = gb_size(ctx, G)
         end
         # update current index, current tag and current index key
         curr_pos = indx
@@ -204,10 +208,12 @@ function f5core!(dat::F5Data{I, SΓ},
     # interreducing
     if interreduction
         verbose_mat && println("FINAL INTERREDUCTION STEP")
+        info_hashmap[curr_pos_key]["gb_size_bef_interred"] = gb_size(ctx, G)
         G, arit_ops, mat_size = interreduce(ctx, G, H, verbose = verbose_mat)
         info_hashmap[curr_pos_key]["interred_mat_size_rows"] = mat_size[1]
         info_hashmap[curr_pos_key]["interred_mat_size_cols"] = mat_size[2]
         info_hashmap[curr_pos_key]["arit_ops_interred"] += arit_ops
+        info_hashmap[curr_pos_key]["gb_size_aft_interred"] = gb_size(ctx, G)
     end
 
     #- PRINTING INFORMATIOn -#
@@ -222,6 +228,8 @@ function f5core!(dat::F5Data{I, SΓ},
         interred_mat_size_rows = info["interred_mat_size_rows"]
         interred_mat_size_cols = info["interred_mat_size_cols"]
         num_zero_red = info["num_zero_red"]
+        gb_size_bef_interred = info["gb_size_bef_interred"]
+        gb_size_aft_interred = info["gb_size_aft_interred"]
         num_arit_operations_groebner += arit_ops_groebner
         num_arit_operations_module_overhead += arit_ops_module
         num_arit_operations_interreduction += arit_ops_interred
@@ -235,6 +243,8 @@ function f5core!(dat::F5Data{I, SΓ},
             println("Arithmetic operations in module overhead:           $(arit_ops_module)")
             println("Arithmetic operations in interreduction:            $(arit_ops_interred)")
             println("Size of interreduction matrix:                      $((interred_mat_size_rows, interred_mat_size_cols))")
+            println("GB size before interreduction:                      $(gb_size_bef_interred)")
+            println("GB size after interreduction:                       $(gb_size_aft_interred)")
             println("Number of zero reductions:                          $(num_zero_red)")
             println("-----")
         end
@@ -275,6 +285,7 @@ function f5(I::Vector{P};
     if verbose > 0
         println("F5-----")
         println("final number of arithmetic operations (total):        $(total_num_arit_ops)")
+        println("final size of GB:                                     $(gb_size(dat.ctx, G))")
         println("F5-----")
     end
     [R(dat.ctx, (i, g[1])) for i in keys(G) for g in G[i]]
@@ -305,6 +316,7 @@ function decompose(I::Vector{P};
                                                    interreduction = interreduction)
 
     sort!(non_zero_cond, by = p -> leadingmonomial(p), lt = (m1, m2) -> degree(dat.ctx.po.mo, m1) < degree(dat.ctx.po.mo, m2))
+    verbose > 0 && println("GB size before cleanup-step:                        $(gb_size(dat.ctx, G))")
     verbose > 0 && println("adding $(length(non_zero_cond)) non-zero conditions...")
     dat.trace_sig_tail_tags = [:f]
     num_arit_ops_cleanup = 0
@@ -318,6 +330,7 @@ function decompose(I::Vector{P};
         println("final number of arithmetic operations (core loop):    $(total_num_arit_ops - num_arit_ops_cleanup)")
         println("final number of arithmetic operations (cleanup step): $(num_arit_ops_cleanup)")
         println("final number of arithmetic operations (total):        $(total_num_arit_ops)")
+        println("final size of GB:                                     $(gb_size(dat.ctx, G))")
         println("Decompose-----")
     end
     [R(dat.ctx, (i, g[1])) for i in keys(G) for g in G[i]]
@@ -347,5 +360,35 @@ function saturate(dat::F5Data{I, SΓ},
                                      new_elems = new_elems_decomp!, select_both = false,
                                      saturate = true)
     G, H, num_arit_ops
+end
+
+
+# we have two decomposition functions for testing purposes, the ''simple''
+# and the ''fancy'' loop
+function naive_decomp(I::Vector{P};
+                      start_gen = 1,
+                      mod_order=:POT,
+                      mon_order=:GREVLEX,
+                      index_type=UInt32,
+                      mask_type=UInt32,
+                      pos_type=UInt32,
+                      select = :deg_and_pos,
+                      verbose = 0,
+                      interreduction = true,
+                      max_remasks = 3,
+                      kwargs...) where {P <: AA.MPolyElem}
+    
+    R = parent(first(I))
+    dat = f5setup(I, mod_order = mod_order,
+                  mon_order = mon_order, index_type = index_type,
+                  mask_type = mask_type, pos_type = pos_type,
+                  trace_sig_tail_tags = [:f],
+                  max_remasks = max_remasks, kwargs...)
+    G, H, pairs = pairs_and_basis(dat, length(I), start_gen = start_gen)
+    G, _, total_num_arit_ops = f5core!(dat, G, H, pairs, select = select, verbose = verbose,
+                                       new_elems = new_elems_decomp!, select_both = false,
+                                       interreduction = interreduction)
+    verbose > 0 && println("final number of arithmetic operations (total):        $(total_num_arit_ops)")
+    [R(dat.ctx, (i, g[1])) for i in keys(G) for g in G[i]]
 end
 end

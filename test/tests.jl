@@ -187,7 +187,7 @@ end
 @testset "cyclic 4" begin
     R, (x, y, z, w) = Singular.PolynomialRing(Singular.Fp(101), ["x", "y", "z", "w"])
     I = SG.cyclic([x,y,z,w])
-    gb = SG.f5(I, interreduction = false, verbose = true)
+    gb = SG.f5(I, interreduction = false, verbose = 1)
     @test SG.is_gb(gb)
 end
 
@@ -286,7 +286,7 @@ end
     ctx = dat.ctx
     G, H, _ = SG.pairs_and_basis(dat, 2, start_gen = 3)
     pol = ctx.po(x)
-    G, H = SG.saturate(dat, G, H, pol, verbose = true)
+    G, H = SG.saturate(dat, G, H, pol, verbose = 2)
     gb = [R(dat.ctx, (i, g[1])) for i in keys(G) for g in G[i]]
     @test is_eq(Ideal(R, gb), Ideal(R, [y, z]))
 end     

@@ -5,6 +5,17 @@ const Pair{I, M} = Tuple{MonSigPair{I, M}, MonSigPair{I, M}}
 const Basis{I, M} = Dict{I, Vector{Tuple{M, M}}}
 const Syz{I, M} = Dict{I, Vector{M}}
 
+function gb_size(ctx::SigPolynomialΓ{I, M}, G::Basis{I, M}) where {I, M}
+    
+    size = 0
+    for (i, Gi) in G
+        for (g, _) in Gi
+            size += length(ctx((i, g))[:poly])
+        end
+    end
+    return size
+end
+
 function degree(ctx::SigPolynomialΓ{I, M}, p::MonSigPair{I, M}) where {I, M}
     degree(ctx.po.mo, p[1]) + degree(ctx.po.mo, p[2][2])
 end
