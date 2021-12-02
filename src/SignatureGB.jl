@@ -101,7 +101,7 @@ function f5core!(dat::F5Data{I, SΓ},
     curr_pos_key = first(pairs)[1][2][1]
     curr_tag = gettag(ctx, first(pairs)[1])
 
-    non_zero_cond = eltype(ctx.po)[]
+    non_zero_cond = Dict([(posit_key, eltype(ctx.po)[]) for posit_key in keys(ctx.ord_indices)])
 
     while !(isempty(pairs))
         #- INTERREDUCTION -#
@@ -127,7 +127,8 @@ function f5core!(dat::F5Data{I, SΓ},
                     end
                 end
                 if !(isempty(non_zero_cond_local))
-                    push!(non_zero_cond, random_lin_comb(ctx.po, non_zero_cond_local))
+                    key = ctx.ord_indices[curr_pos_key][:att_key]
+                    push!(non_zero_cond[key], random_lin_comb(ctx.po, non_zero_cond_local))
                 end
             end
 
@@ -257,7 +258,7 @@ function f5core!(dat::F5Data{I, SΓ},
     verbose_saturate && println("saturation added $(global_zero_red_count) elements not in the original ideal.")
     total_num_arit_ops = num_arit_operations_groebner + num_arit_operations_module_overhead + num_arit_operations_interreduction
     
-    G, non_zero_cond, total_num_arit_ops
+    G, vcat([kv[2] for kv in non_zero_cond]...), total_num_arit_ops
 end
 
 function f5(I::Vector{P};
