@@ -133,8 +133,10 @@ function f5core!(dat::F5Data{I, SΓ},
             if interreduction && indx >= 2
                 verbose_mat && println("-----")
                 verbose_mat && println("INTERREDUCING")
-                G, arit_ops = interreduce(ctx, G, H, verbose = verbose_mat)
+                G, arit_ops, mat_size = interreduce(ctx, G, H, verbose = verbose_mat)
                 info_hashmap[curr_pos_key]["arit_ops_interred"] += arit_ops
+                info_hashmap[curr_pos_key]["interred_mat_size_rows"] = mat_size[1]
+                info_hashmap[curr_pos_key]["interred_mat_size_cols"] = mat_size[2]
                 verbose_mat && println("-----")
             end
         end
@@ -198,28 +200,32 @@ function f5core!(dat::F5Data{I, SΓ},
     if saturate
         G[curr_pos_key] = Tuple{M, M}[]
     end
-        
+
+    # interreducing
     if interreduction
         verbose_mat && println("FINAL INTERREDUCTION STEP")
-        G, arit_ops = interreduce(ctx, G, H, verbose = verbose_mat)
+        G, arit_ops, mat_size = interreduce(ctx, G, H, verbose = verbose_mat)
+        info_hashmap[curr_pos_key]["interred_mat_size_rows"] = mat_size[1]
+        info_hashmap[curr_pos_key]["interred_mat_size_cols"] = mat_size[2]
         info_hashmap[curr_pos_key]["arit_ops_interred"] += arit_ops
     end
-    
-    if verbose_stats
-        println("-----")
-        num_arit_operations_groebner = 0
-        num_arit_operations_module_overhead = 0
-        num_arit_operations_interreduction = 0
-        for (k, info) in info_hashmap
-            arit_ops_groebner = info["arit_ops_groebner"]
-            arit_ops_module = info["arit_ops_module"]
-            arit_ops_interred = info["arit_ops_interred"]
-            interred_mat_size_rows = info["interred_mat_size_rows"]
-            interred_mat_size_cols = info["interred_mat_size_cols"]
-            num_zero_red = info["num_zero_red"]
-            num_arit_operations_groebner += arit_ops_groebner
-            num_arit_operations_module_overhead += arit_ops_module
-            num_arit_operations_interreduction += arit_ops_interred
+
+    #- PRINTING INFORMATIOn -#
+    verbose_stats && println("-----")
+    num_arit_operations_groebner = 0
+    num_arit_operations_module_overhead = 0
+    num_arit_operations_interreduction = 0
+    for (k, info) in info_hashmap
+        arit_ops_groebner = info["arit_ops_groebner"]
+        arit_ops_module = info["arit_ops_module"]
+        arit_ops_interred = info["arit_ops_interred"]
+        interred_mat_size_rows = info["interred_mat_size_rows"]
+        interred_mat_size_cols = info["interred_mat_size_cols"]
+        num_zero_red = info["num_zero_red"]
+        num_arit_operations_groebner += arit_ops_groebner
+        num_arit_operations_module_overhead += arit_ops_module
+        num_arit_operations_interreduction += arit_ops_interred
+        if verbose_stats
             if k <= orig_length
                 println("INFO for index $(ctx.ord_indices[k][:position]), original index $(k), tagged $(ctx.ord_indices[k][:tag])")
             else
@@ -232,6 +238,8 @@ function f5core!(dat::F5Data{I, SΓ},
             println("Number of zero reductions:                          $(num_zero_red)")
             println("-----")
         end
+    end
+    if verbose_stats
         println("total arithmetic operations (groebner):             $(num_arit_operations_groebner)")
         println("total arithmetic operations (module overhead):      $(num_arit_operations_module_overhead)")
         println("total arithmetic operations (interreduction):       $(num_arit_operations_interreduction)")

@@ -35,7 +35,7 @@ function interreduce(ctx::SigPolynomialΓ{I, M},
         push!(G_new[pos_key], (t, leadingmonomial(p)))
     end
 
-    G_new, arit_operations_interreduction
+    G_new, arit_operations_interreduction, mat_size
 end
 
 struct InterredOrder{I, M, J, T, SΓ <: SigPolynomialΓ}<:Base.Order.Ordering
