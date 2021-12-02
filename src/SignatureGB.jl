@@ -77,7 +77,7 @@ function f5core!(dat::F5Data{I, SΓ},
                  new_elems = new_elems_f5!,
                  interreduction = true,
                  select_both = true,
-                 verbose = false,
+                 verbose = 0,
                  saturate = false) where {I, M, SΓ <: SigPolynomialΓ{I, M}}
     
     ctx = dat.ctx
@@ -91,12 +91,13 @@ function f5core!(dat::F5Data{I, SΓ},
     num_arit_operations_groebner = 0
     num_arit_operations_module_overhead = 0
     num_arit_operations_interreduction = 0
-    verbose_groebner = verbose && !(saturate)
-    verbose_saturate = verbose && saturate
+    verbose_stats = verbose > 0 && !(saturate)
+    verbose_mat = verbose > 1
+    verbose_saturate = verbose > 0 && saturate
     
-    curr_pos = zero(pos_type(ctx))
-    curr_pos_key = zero(pos_type(ctx))
-    curr_tag = :f
+    curr_pos = pos(ctx, first(pairs)[1])
+    curr_pos_key = first(pairs)[1][2][1]
+    curr_tag = gettag(ctx, first(pairs)[1])
 
     non_zero_cond = eltype(ctx.po)[]
 
@@ -113,7 +114,7 @@ function f5core!(dat::F5Data{I, SΓ},
             end
 
             # if we are in a decomposition computation we add non-zero conditions
-            if curr_tag == :g_prime && !(saturate)
+            if curr_tag == :g_gen && !(saturate)
                 non_zero_cond_local_sigs = [(curr_pos_key, m) for m in H[curr_pos_key]]
                 non_zero_cond_local = eltype(ctx.po)[]
                 for sig in non_zero_cond_local_sigs
@@ -129,10 +130,12 @@ function f5core!(dat::F5Data{I, SΓ},
             end
 
             # interreducing
-            if interreduction && indx > 2
-                verbose_groebner && println("INTERREDUCING")
-                G, arit_ops = interreduce(ctx, G, H, verbose = verbose_groebner)
-                info_hashmap[curr_pos_key]["num_arit_ops_interred"] = arit_ops
+            if interreduction && indx >= 2
+                verbose_mat && println("-----")
+                verbose_mat && println("INTERREDUCING")
+                G, arit_ops = interreduce(ctx, G, H, verbose = verbose_mat)
+                info_hashmap[curr_pos_key]["arit_ops_interred"] += arit_ops
+                verbose_mat && println("-----")
             end
         end
         # update current index, current tag and current index key
@@ -167,6 +170,9 @@ function f5core!(dat::F5Data{I, SΓ},
         info_hashmap[curr_pos_key]["arit_ops_groebner"] += reduction_dat.value[1]
         info_hashmap[curr_pos_key]["arit_ops_module"] += reduction_dat.value[2]
         info_hashmap[curr_pos_key]["num_zero_red"] += zero_red_count
+        if saturate && curr_tag == :f
+            global_zero_red_count += zero_red_count
+        end
 
         #- PAIR GENERATION -#
         pair_gen_dat = @timed new_elems(ctx, mat, pairs, G, H, info_hashmap,
@@ -175,41 +181,31 @@ function f5core!(dat::F5Data{I, SΓ},
         pair_gen_time = pair_gen_dat.time
 
         #- PRINTING INFORMATION -#
-        if verbose_groebner
+        if verbose_mat
             mat_cnt += 1
-            if verbose_groebner
-                println("selected $(nselected) / $(total_num_pairs) pairs, sig-degree of sel. pairs: $(sig_degree)")
-                println("symbolic pp took $(symbolic_pp_time) seconds.")
-                println("Matrix $(mat_cnt) : $(reduction_dat.time) secs reduction / size = $(mat_size) / density = $(mat_dens)")
-            end
-            for (sig, rw) in mat.sigs_rows
-                if isempty(rw)
-                    if gettag(ctx, sig) == :f
-                        global_zero_red_count +=1
-                    end
-                end
-            end
+            println("selected $(nselected) / $(total_num_pairs) pairs, in position $(curr_pos), sig-degree of sel. pairs: $(sig_degree)")
+            println("symbolic pp took $(symbolic_pp_time) secs.")
+            println("Matrix $(mat_cnt): $(reduction_dat.time) secs reduction / size = $(mat_size) / density = $(mat_dens)")
             if !(iszero(zero_red_count))
                 println("$(zero_red_count) zero reductions at sig-degree $(sig_degree) / position $(curr_pos)")
             end
-            verbose_groebner && println("Pair generation took $(pair_gen_time) seconds.")
+            verbose_mat && println("Pair generation took $(pair_gen_time) seconds.")
         end
     end
 
-    verbose_groebner && println("-----")
+    verbose_mat && println("-----")
 
     if saturate
         G[curr_pos_key] = Tuple{M, M}[]
     end
         
     if interreduction
-        verbose_groebner && println("FINAL INTERREDUCTION STEP")
-        G, arit_ops = interreduce(ctx, G, H, verbose = verbose_groebner)
-        num_arit_operations_interreduction += arit_ops
-        verbose_groebner && println("-----")
+        verbose_mat && println("FINAL INTERREDUCTION STEP")
+        G, arit_ops = interreduce(ctx, G, H, verbose = verbose_mat)
+        info_hashmap[curr_pos_key]["arit_ops_interred"] += arit_ops
     end
     
-    if verbose
+    if verbose_stats
         println("-----")
         num_arit_operations_groebner = 0
         num_arit_operations_module_overhead = 0
@@ -224,7 +220,7 @@ function f5core!(dat::F5Data{I, SΓ},
             num_arit_operations_groebner += arit_ops_groebner
             num_arit_operations_module_overhead += arit_ops_module
             num_arit_operations_interreduction += arit_ops_interred
-            if k < orig_length
+            if k <= orig_length
                 println("INFO for index $(ctx.ord_indices[k][:position]), original index $(k), tagged $(ctx.ord_indices[k][:tag])")
             else
                 println("INFO for index $(ctx.ord_indices[k][:position]), tagged $(ctx.ord_indices[k][:tag])")
@@ -233,14 +229,14 @@ function f5core!(dat::F5Data{I, SΓ},
             println("Arithmetic operations in module overhead:           $(arit_ops_module)")
             println("Arithmetic operations in interreduction:            $(arit_ops_interred)")
             println("Size of interreduction matrix:                      $((interred_mat_size_rows, interred_mat_size_cols))")
-            println("Number of zero reductions:              $(num_zero_red)")
+            println("Number of zero reductions:                          $(num_zero_red)")
             println("-----")
         end
-        println("total arithmetic operations (groebner):        $(num_arit_operations_groebner)")
-        println("total arithmetic operations (module overhead): $(num_arit_operations_module_overhead)")
-        println("total arithmetic operations (interreduction):  $(num_arit_operations_interreduction)")
-        verbose_saturate && println("saturation added $(global_zero_red_count) elements not in the original ideal.")
+        println("total arithmetic operations (groebner):             $(num_arit_operations_groebner)")
+        println("total arithmetic operations (module overhead):      $(num_arit_operations_module_overhead)")
+        println("total arithmetic operations (interreduction):       $(num_arit_operations_interreduction)")
     end
+    verbose_saturate && println("saturation added $(global_zero_red_count) elements not in the original ideal.")
     total_num_arit_ops = num_arit_operations_groebner + num_arit_operations_module_overhead + num_arit_operations_interreduction
     
     G, non_zero_cond, total_num_arit_ops
@@ -255,7 +251,7 @@ function f5(I::Vector{P};
             mask_type=UInt32,
             pos_type=UInt32,
             select = :deg_and_pos,
-            verbose = false,
+            verbose = 0,
             interreduction = true,
             max_remasks = 3,
             kwargs...) where {P <: AA.MPolyElem}
@@ -268,41 +264,11 @@ function f5(I::Vector{P};
                   max_remasks = max_remasks, kwargs...)
     G, H, pairs = pairs_and_basis(dat, length(I), start_gen = start_gen)
     G, _, total_num_arit_ops = f5core!(dat, G, H, pairs, select = select, interreduction = interreduction, verbose = verbose)
-    if verbose
+    if verbose > 0
         println("F5-----")
         println("final number of arithmetic operations (total):        $(total_num_arit_ops)")
         println("F5-----")
     end
-    [R(dat.ctx, (i, g[1])) for i in keys(G) for g in G[i]]
-end
-
-
-# we have two decomposition functions for testing purposes, the ''simple''
-# and the ''fancy'' loop
-function naive_decomp(I::Vector{P};
-                      start_gen = 1,
-                      mod_order=:POT,
-                      mon_order=:GREVLEX,
-                      index_type=UInt32,
-                      mask_type=UInt32,
-                      pos_type=UInt32,
-                      select = :deg_and_pos,
-                      verbose = false,
-                      interreduction = true,
-                      max_remasks = 3,
-                      kwargs...) where {P <: AA.MPolyElem}
-    
-    R = parent(first(I))
-    dat = f5setup(I, mod_order = mod_order,
-                  mon_order = mon_order, index_type = index_type,
-                  mask_type = mask_type, pos_type = pos_type,
-                  trace_sig_tail_tags = [:f],
-                  max_remasks = max_remasks, kwargs...)
-    G, H, pairs = pairs_and_basis(dat, length(I), start_gen = start_gen)
-    G, _, total_num_arit_ops = f5core!(dat, G, H, pairs, select = select, verbose = verbose,
-                                       new_elems = new_elems_decomp!, select_both = false,
-                                       interreduction = interreduction)
-    verbose && println("final number of arithmetic operations (total):        $(total_num_arit_ops)")
     [R(dat.ctx, (i, g[1])) for i in keys(G) for g in G[i]]
 end
 
@@ -314,7 +280,7 @@ function decompose(I::Vector{P};
                    mask_type=UInt32,
                    pos_type=UInt32,
                    select = :deg_and_pos,
-                   verbose = false,
+                   verbose = 0,
                    interreduction = true,
                    max_remasks = 3,
                    kwargs...) where {P <: AA.MPolyElem}
@@ -323,7 +289,7 @@ function decompose(I::Vector{P};
     dat = f5setup(I, mod_order = mod_order,
                   mon_order = mon_order, index_type = index_type,
                   mask_type = mask_type, pos_type = pos_type,
-                  trace_sig_tail_tags = [:f, :g_prime],
+                  trace_sig_tail_tags = [:f, :g_gen],
                   max_remasks = max_remasks, kwargs...)
     G, H, pairs = pairs_and_basis(dat, length(I), start_gen = start_gen)
     G, non_zero_cond, total_num_arit_ops = f5core!(dat, G, H, pairs, select = select, verbose = verbose,
@@ -331,7 +297,7 @@ function decompose(I::Vector{P};
                                                    interreduction = interreduction)
 
     sort!(non_zero_cond, by = p -> leadingmonomial(p), lt = (m1, m2) -> degree(dat.ctx.po.mo, m1) < degree(dat.ctx.po.mo, m2))
-    verbose && println("adding $(length(non_zero_cond)) non-zero conditions...")
+    verbose > 0 && println("adding $(length(non_zero_cond)) non-zero conditions...")
     dat.trace_sig_tail_tags = [:f]
     num_arit_ops_cleanup = 0
     for h in non_zero_cond
@@ -339,7 +305,7 @@ function decompose(I::Vector{P};
         num_arit_ops_cleanup += num_arit_ops
     end
     total_num_arit_ops += num_arit_ops_cleanup
-    if verbose
+    if verbose > 0
         println("Decompose-----")
         println("final number of arithmetic operations (core loop):    $(total_num_arit_ops - num_arit_ops_cleanup)")
         println("final number of arithmetic operations (cleanup step): $(num_arit_ops_cleanup)")
@@ -354,7 +320,7 @@ function saturate(dat::F5Data{I, SΓ},
                   G::Basis{I, M},
                   H::Syz{I, M},
                   pol::Polynomial{M, T};
-                  verbose = false) where {I, M, T, SΓ <: SigPolynomialΓ{I, M, T}}
+                  verbose = 0) where {I, M, T, SΓ <: SigPolynomialΓ{I, M, T}}
 
     ctx = dat.ctx
     dummy_info_hashmap = Dict{I, Info}()

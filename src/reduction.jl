@@ -133,7 +133,7 @@ function reduction!(mat::F5matrix{I, M, T, J};
         end
         first_nz, new_row = unbuffer!(buffer, ctx.po.co, J)
         if !(iszero(first_nz))
-                pivots[first_nz] = sig
+            pivots[first_nz] = sig
         end
         
         if should_add_sig_tails
@@ -214,7 +214,7 @@ function new_syz!(ctx::SΓ,
     new_sig = mul(ctx, sig...)
     ctx(new_sig, zero(eltype(ctx.po)), sig_tail)
     push!(H[new_sig[1]], new_sig[2])
-    if gettag(ctx, new_sig) == :g_prime
+    if gettag(ctx, new_sig) == :g_gen
         attached_to = getattkey(ctx, new_sig)
         for (i, Hi) in H
             if ctx.ord_indices[i][:att_key] == attached_to && ctx.ord_indices[i][:position] > pos(ctx, new_sig)
@@ -291,8 +291,8 @@ function new_elems_decomp!(ctx::SΓ,
 
     # insert g's s.t. g*f in I
     pols_to_insert = [unindexpolynomial(mat.sigtail_mat.tbl, mat.sigtail_mat.rows[sig]) for (sig, _) in zero_red]
-    g_prime = random_lin_comb(ctx.po, pols_to_insert)
-    new_gen!(ctx, info_hashmap, mat.max_pos, mat.max_posit_key, :g_prime, g_prime)
+    g_gen = random_lin_comb(ctx.po, pols_to_insert)
+    new_gen!(ctx, info_hashmap, mat.max_pos, mat.max_posit_key, :g_gen, g_gen)
     for (j, (sig, _)) in enumerate(zero_red)
         ctx(mul(ctx, sig...), zero(eltype(ctx.po)), tail(pols_to_insert[j]))
         if j < length(zero_red)
