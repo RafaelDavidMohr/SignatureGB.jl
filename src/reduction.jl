@@ -214,10 +214,11 @@ function new_syz!(ctx::SΓ,
     new_sig = mul(ctx, sig...)
     ctx(new_sig, zero(eltype(ctx.po)), sig_tail)
     push!(H[new_sig[1]], new_sig[2])
-    if gettag(ctx, new_sig) == :g_gen
+    if gettag(ctx, new_sig) in [:g_gen, :p_gen]
+        gettag(ctx, new_sig) == :g_gen ? look_for_tag = :g : look_for_tag = :p
         attached_to = getattkey(ctx, new_sig)
         for (i, Hi) in H
-            if ctx.ord_indices[i][:att_key] == attached_to && ctx.ord_indices[i][:position] > pos(ctx, new_sig)
+            if ctx.ord_indices[i][:att_key] == attached_to && ctx.ord_indices[i][:tag] == look_for_tag && ctx.ord_indices[i][:position] > pos(ctx, new_sig)
                 push!(Hi, new_sig[2])
             end
         end
