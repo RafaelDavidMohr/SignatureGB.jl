@@ -136,7 +136,7 @@ function f5core!(dat::F5Data{I, SΓ},
             # prepare for the cleanup needed at the end
             if curr_tag == :h
                 G[curr_pos_key] = Tuple{M, M}[]
-                if !(ctx.ord_indices[:done])
+                if !(ctx.ord_indices[curr_pos_key][:done])
                     inf = ctx.ord_indices[curr_pos_key]
                     ctx.ord_indices[curr_pos_key] = (position = maxpos(ctx) + one(I),
                                                      att_key = inf[:att_key],
@@ -237,7 +237,9 @@ function f5core!(dat::F5Data{I, SΓ},
     num_arit_operations_module_overhead = 0
     num_arit_operations_interreduction = 0
     num_arit_operations_cleanup = 0
-    for (k, info) in info_hashmap
+    kys = sort(collect(keys(info_hashmap)), by = k -> ctx.ord_indices[k][:position])
+    for k in kys
+        info = info_hashmap[k]
         arit_ops_groebner = info["arit_ops_groebner"]
         arit_ops_module = info["arit_ops_module"]
         arit_ops_interred = info["arit_ops_interred"]
@@ -306,12 +308,6 @@ function f5(I::Vector{P};
                   max_remasks = max_remasks, kwargs...)
     G, H, pairs = pairs_and_basis(dat, length(I), start_gen = start_gen)
     G, _, total_num_arit_ops = f5core!(dat, G, H, pairs, select = select, interreduction = interreduction, verbose = verbose)
-    # if verbose > 0
-    #     println("F5-----")
-    #     println("final number of arithmetic operations (total):        $(total_num_arit_ops)")
-    #     println("final size of GB:                                     $(gb_size(dat.ctx, G))")
-    #     println("F5-----")
-    # end
     [R(dat.ctx, (i, g[1])) for i in keys(G) for g in G[i]]
 end
 
@@ -353,7 +349,7 @@ function saturate(dat::F5Data{I, SΓ},
     dat.trace_sig_tail_tags = [:f]
     max_pos = maximum(i -> ctx.ord_indices[i][:position], keys(G))
     new_pos_key = maximum(keys(ctx.ord_indices)) + one(I)
-    new_gen!(ctx, dummy_info_hashmap, max_pos + one(I), zero(I), :f, pol)
+    new_gen!(ctx, dummy_info_hashmap, max_pos + one(I), zero(I), :h, pol)
     
     pairs = pairset(ctx)
     new_sig = (new_pos_key, one(ctx.po.mo))
@@ -362,8 +358,7 @@ function saturate(dat::F5Data{I, SΓ},
     pair!(ctx, pairs, new_sig)
 
     G, stuff, num_arit_ops = f5core!(dat, G, H, pairs, verbose = verbose,
-                                     new_elems = new_elems_decomp!, select_both = false,
-                                     saturate = true)
+                                     new_elems = new_elems_decomp!, select_both = false)
     G, H, num_arit_ops
 end
 
