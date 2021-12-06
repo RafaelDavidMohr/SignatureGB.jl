@@ -126,10 +126,11 @@ function f5core!(dat::F5Data{I, SΓ},
                     non_zero_pol = random_lin_comb(ctx.po, non_zero_cond_local)
                     non_zero_pos = ctx.ord_indices[f_key][:position] + I(1 + length(non_zero_cond[f_key]))
                     new_gen!(ctx, info_hashmap, non_zero_pos, curr_pos_key, :h, non_zero_pol)
-                    push!(non_zero_cond[f_key], (non_zero_pos, one(ctx.po.mo)))
-                    G[maximum(keys(ctx.ord_indices))] = Tuple{M, M}[]
-                    H[maximum(keys(ctx.ord_indices))] = M[]
-                    pair!(ctx, pairs, (non_zero_pos, one(ctx.po.mo)))
+                    non_zero_sig = (maximum(keys(ctx.ord_indices)), one(ctx.po.mo))
+                    push!(non_zero_cond[f_key], non_zero_sig)
+                    G[non_zero_sig[1]] = Tuple{M, M}[]
+                    H[non_zero_sig[1]] = M[]
+                    pair!(ctx, pairs, non_zero_sig)
                 end
             end
 
