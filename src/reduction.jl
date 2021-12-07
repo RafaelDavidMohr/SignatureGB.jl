@@ -293,7 +293,16 @@ function new_elems_decomp!(ctx::SΓ,
     # insert g's s.t. g*f in I
     pols_to_insert = [unindexpolynomial(mat.sigtail_mat.tbl, mat.sigtail_mat.rows[sig]) for (sig, _) in zero_red]
     g_gen = random_lin_comb(ctx.po, pols_to_insert)
-    new_gen!(ctx, info_hashmap, mat.max_pos, mat.max_posit_key, mat.tag == :f ? :g_gen : :p_gen, g_gen)
+    have_added = false
+    if mat.tag == :f && !(ctx.ord_indices[mat.max_posit_key][:done])
+        # insert f + g_gen
+        have_added = true
+        pol = add(ctx.po, ctx((mat.max_posit_key, one(ctx.po.mo)))[:poly], g_gen)
+        new_gen!(ctx, info_hashmap, mat.max_pos, mat.max_posit_key, :fplusg, pol)
+    end
+
+    new_gen!(ctx, info_hashmap, have_added ? mat.max_pos + one(I) : mat.max_pos,
+             mat.max_posit_key, mat.tag == :f ? :g_gen : :p_gen, g_gen)
     for (j, (sig, _)) in enumerate(zero_red)
         ctx(mul(ctx, sig...), zero(eltype(ctx.po)), tail(pols_to_insert[j]))
         if j < length(zero_red)

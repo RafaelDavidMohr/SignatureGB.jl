@@ -22,12 +22,7 @@ function pos(ctx::SigPolynomialΓ{I, M},
     iszero(p[1]) && return zero(I)
     ctx.ord_indices[p[1]][:position]
 end
-
-function maxpos(ctx::SigPolynomialΓ{I, M}) where {I, M}
-
-    maximum(v -> v[:position], values(ctx.ord_indices))
-end
-
+    
 function gettag(ctx::SigPolynomialΓ{I, M},
                 p::Tuple{I, M}) where {I, M}
 
@@ -54,6 +49,31 @@ function new_gen!(ctx::SigPolynomialΓ{I, M, T},
     info_hashmap[posit_key] = new_info()
     push!(new_dict_arr, (posit_key, gendata(posit, attached_to, tagg, false)))
     ctx.ord_indices = Dict(new_dict_arr)
+end
+
+# find maximal index
+function maxpos(ctx::SigPolynomialΓ{I, M}) where {I, M}
+
+    maximum(v -> v[:position], values(ctx.ord_indices))
+end
+
+# does there exist an original generator of higher index than pos
+function f_left(ctx::SigPolynomialΓ{I, M}, pos::I) where {I, M}
+    
+    for (i, v) in ctx.ord_indices
+        v[:position] <= i && continue
+        v[:tag] == :f && return true
+    end
+    return false
+end
+
+# mark an index as done
+function mark_done!(ctx::SigPolynomialΓ{I}, pos_key::I) where {I}
+    inf = ctx.ord_indices[pos_key]
+    ctx.ord_indices[pos_key] = (position = inf[:position],
+                                att_key = inf[:att_key],
+                                tag = inf[:tag],
+                                done = true)
 end
 
 function idxsigpolynomialctx(coefficients,

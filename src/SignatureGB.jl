@@ -111,33 +111,60 @@ function f5core!(dat::F5Data{I, SΓ},
             end
 
             # if we are in a decomposition computation we add non-zero conditions
-            if curr_tag == :g_gen
-                non_zero_cond_local_sigs = [(curr_pos_key, m) for m in H[curr_pos_key]]
-                non_zero_cond_local = eltype(ctx.po)[]
-                for sig in non_zero_cond_local_sigs
-                    try
-                        push!(non_zero_cond_local, project(ctx, sig))
-                    catch
-                        continue
+            f_key = ctx.ord_indices[curr_pos_key][:att_key]
+            if curr_tag == :g_gen 
+                insert_h_cond_1 = ctx.ord_indices[f_key][:done] && ctx.ord_indices[curr_pos_key][:done]
+                insert_h_cond_2 = !(ctx.ord_indices[f_key][:done])
+                if insert_h_cond_1 || insert_h_cond_2
+                # generate a random h with h*g_gen in I
+                    non_zero_cond_local_sigs = [(curr_pos_key, m) for m in H[curr_pos_key]]
+                    non_zero_cond_local = eltype(ctx.po)[]
+                    for sig in non_zero_cond_local_sigs
+                        try
+                            push!(non_zero_cond_local, project(ctx, sig))
+                        catch
+                            continue
+                        end
                     end
-                end
-                if !(isempty(non_zero_cond_local))
-                    f_key = ctx.ord_indices[curr_pos_key][:att_key]
-                    non_zero_pol = random_lin_comb(ctx.po, non_zero_cond_local)
-                    non_zero_pos = ctx.ord_indices[f_key][:position] + I(1 + length(non_zero_cond[f_key]))
-                    new_gen!(ctx, info_hashmap, non_zero_pos, curr_pos_key, :h, non_zero_pol)
-                    non_zero_sig = (maximum(keys(ctx.ord_indices)), one(ctx.po.mo))
-                    push!(non_zero_cond[f_key], non_zero_sig)
-                    G[non_zero_sig[1]] = Tuple{M, M}[]
-                    H[non_zero_sig[1]] = M[]
-                    pair!(ctx, pairs, non_zero_sig)
+                    # prepare the element h for saturation
+                    if !(isempty(non_zero_cond_local))
+                        non_zero_pol = random_lin_comb(ctx.po, non_zero_cond_local)
+                        non_zero_pos = ctx.ord_indices[f_key][:position] + I(1 + length(non_zero_cond[f_key]))
+                        new_gen!(ctx, info_hashmap, non_zero_pos, curr_pos_key, :h, non_zero_pol)
+                        non_zero_sig = (maximum(keys(ctx.ord_indices)), one(ctx.po.mo))
+                        push!(non_zero_cond[f_key], non_zero_sig)
+                        G[non_zero_sig[1]] = Tuple{M, M}[]
+                        H[non_zero_sig[1]] = M[]
+                        pair!(ctx, pairs, non_zero_sig)
+                    end
                 end
             end
 
-            # prepare for the cleanup needed at the end
+            # insert idea from paris with (I : f + g) == I
+            if curr_tag == :fplusg
+                # case (I : f + g) == I
+                if iszero(info_hashmap[curr_pos_key]["num_zero_red"])
+                    # mark the index corresponding to f as done
+                    mark_done!(ctx, f_key)
+                    # mark the index corresponding to g as done
+                    mark_done!(ctx, curr_pos_key + one(I))
+                    # if mT is a signature corresponding to f + g we may register it at the index corresponding to f
+                    for (m, lm) in G[curr_pos_key]
+                        data = ctx((curr_pos_key, m))
+                        try
+                            ctx((f_key, m))
+                        catch KeyError
+                            ctx((f_key, m), data[:poly], data[:sigtail])
+                        end
+                    end
+                end
+                G[curr_pos_key] = Tuple{M, M}[]
+            end
+
+            # prepare for the additional cleanup needed at the end
             if curr_tag == :h
                 G[curr_pos_key] = Tuple{M, M}[]
-                if !(ctx.ord_indices[curr_pos_key][:done])
+                if !(ctx.ord_indices[curr_pos_key][:done]) && f_left(ctx, curr_pos)
                     inf = ctx.ord_indices[curr_pos_key]
                     ctx.ord_indices[curr_pos_key] = (position = maxpos(ctx) + one(I),
                                                      att_key = inf[:att_key],
@@ -205,7 +232,7 @@ function f5core!(dat::F5Data{I, SΓ},
         #- PRINTING INFORMATION -#
         if verbose_mat
             mat_cnt += 1
-            println("selected $(nselected) / $(total_num_pairs) pairs, in position $(curr_pos), sig-degree of sel. pairs: $(sig_degree)")
+            println("selected $(nselected) / $(total_num_pairs) pairs, in position $(curr_pos), tagged $(curr_tag), sig-degree of sel. pairs: $(sig_degree)")
             println("symbolic pp took $(symbolic_pp_time) secs.")
             println("Matrix $(mat_cnt): $(reduction_dat.time) secs reduction / size = $(mat_size) / density = $(mat_dens)")
             if !(iszero(zero_red_count))
