@@ -1,17 +1,66 @@
 using Combinatorics
 
-mutable struct SimpleMatrix{I, M, T, J}
-    rows::Dict{MonSigPair{I, M}, Polynomial{J, T}}
+"""must implement:
+    - rows::Dict{H, R}
+    - buffer
+    - pivots::Vector{H}
+    - arit_ops
+    - critical loop!, buffer!, unbuffer! methods"""
+abstract type SparseMatrix end
+
+function reduction!(mat::SparseMatrix)
+
+    for (h, row) in mat.rows
+        if dont_red_cond(mat, h)
+            mat.pivots[first_non_zero(mat, row)] = h
+            continue
+        end
+        buffer!(mat, h)
+        for (k, entry) in enumerate(mat.buffer)
+            (iszero(entry) || iszero(pivots[k])) && continue
+            critical_loop!(mat, pivots[k])
+        end
+        first_non_zero_index = unbuffer!(mat, h)
+        if !(iszero(first_non_zero_index))
+            pivots[first_non_zero_index] = h
+        end
+    end
+end
+
+mutable struct SparsePolMatrix{H, T, Tbuf, M, J} <: SparseMatrix
+    rows::Dict{H, Polynomial{J, T}}
+    buffer::Vector{Tbuf}
+    pivots::Vector{H}
     tbl::EasyTable{M, J}
+    ctx::NmodLikeΓ{T, Tbuf}
+    arit_ops::Int
+end
+
+function critical_loop!(mat::SparsePolMatrix{H, T, Tbuf}, pivot_key::H) where {H, T, Tbuf}
+
+    pivot = mat.pivots[pivot_key]
+    mult1 = deflate(ctx, normal(ctx, mat.buffer[leadingmonomial(pivot)]))
+    # TODO: write leadingcoefficient
+    mult2 = inv(ctx, coefficient(pivot, 1))
+    mult = mul(ctx, mult1, mult2)
+    mat.buffer[leadingmonomial(pivot)] = zero(Tbuf)
+    try
+        for (j, entry) in pivot[2:end]
+            mat.buffer[j] = submul(ctx, mat.buffer[j], mult, entry)
+        end
+        return mult
+    catch BoundsError
+        return mult
+    end
 end
 
 mutable struct F5matrix{I, M, T, J,
                         SΓ <: SigPolynomialΓ{I, M, T},
                         O <: Base.Order.Ordering}
-    sigtail_mat::SimpleMatrix{I, M, T, J}
     sigs_rows::SortedDict{MonSigPair{I, M}, Polynomial{J, T}, O}
     tbl::EasyTable{M, J}
     ctx::SΓ
+    sigtail_mat::SparsePolMatrix{I, M, T, J}
     max_pos::I
     max_posit_key::I
     tag::Symbol
@@ -57,10 +106,10 @@ function f5matrix(ctx::SigPolynomialΓ{I, M, T},
         row_order = mpairordering(ctx)
     end
 
-    F5matrix(SimpleMatrix(sigtail_sigs_rows, sigtail_tbl),
-             SortedDict(sigs_rows, row_order),
+    F5matrix(SortedDict(sigs_rows, row_order),
              tbl,
              ctx,
+             SparsePolMatrix(sigtail_sigs_rows, sigtail_tbl),
              max_pos,
              max_posit_key,
              tag,
@@ -82,7 +131,7 @@ end
 function mat_show(mat)
     mat_vis = zeros(Int, length(mat.sigs_rows), length(mat.tbl.val))
     for (i, (sig, row)) in enumerate(mat.sigs_rows)
-        if typeof(mat) <: SimpleMatrix
+        if typeof(mat) <: SparsePolMatrix
             for (j, c) in row[2]
                 mat_vis[i, j] = Int(c)
             end
@@ -120,6 +169,7 @@ function reduction!(mat::F5matrix{I, M, T, J};
         buffer!(row, buffer)
         should_add_sig_tails && buffer!(mat.sigtail_mat.rows[sig], sig_tail_buffer)
         for (k, c) in enumerate(buffer)
+            # TODO: change isnull to iszero
             (iszero(c) || isnull(pivots[k])) && continue
             arit_operations_groebner += length(mat.sigs_rows[pivots[k]])
             mult = critical_loop!(buffer, mat.sigs_rows[pivots[k]], ctx.po.co)
