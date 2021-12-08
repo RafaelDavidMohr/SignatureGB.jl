@@ -113,52 +113,27 @@ function f5core!(dat::F5Data{I, SΓ},
             # if we are in a decomposition computation we add non-zero conditions
             f_key = ctx.ord_indices[curr_pos_key][:att_key]
             if curr_tag == :g_gen 
-                insert_h_cond_1 = ctx.ord_indices[f_key][:done] && ctx.ord_indices[curr_pos_key][:done]
-                insert_h_cond_2 = !(ctx.ord_indices[f_key][:done])
-                if insert_h_cond_1 || insert_h_cond_2
                 # generate a random h with h*g_gen in I
-                    non_zero_cond_local_sigs = [(curr_pos_key, m) for m in H[curr_pos_key]]
-                    non_zero_cond_local = eltype(ctx.po)[]
-                    for sig in non_zero_cond_local_sigs
-                        try
-                            push!(non_zero_cond_local, project(ctx, sig))
-                        catch
-                            continue
-                        end
-                    end
-                    # prepare the element h for saturation
-                    if !(isempty(non_zero_cond_local))
-                        non_zero_pol = random_lin_comb(ctx.po, non_zero_cond_local)
-                        non_zero_pos = ctx.ord_indices[f_key][:position] + I(1 + length(non_zero_cond[f_key]))
-                        new_gen!(ctx, info_hashmap, non_zero_pos, curr_pos_key, :h, non_zero_pol)
-                        non_zero_sig = (maximum(keys(ctx.ord_indices)), one(ctx.po.mo))
-                        push!(non_zero_cond[f_key], non_zero_sig)
-                        G[non_zero_sig[1]] = Tuple{M, M}[]
-                        H[non_zero_sig[1]] = M[]
-                        pair!(ctx, pairs, non_zero_sig)
+                non_zero_cond_local_sigs = [(curr_pos_key, m) for m in H[curr_pos_key]]
+                non_zero_cond_local = eltype(ctx.po)[]
+                for sig in non_zero_cond_local_sigs
+                    try
+                        push!(non_zero_cond_local, project(ctx, sig))
+                    catch
+                        continue
                     end
                 end
-            end
-
-            # insert idea from paris with (I : f + g) == I
-            if curr_tag == :fplusg
-                # case (I : f + g) == I
-                if iszero(info_hashmap[curr_pos_key]["num_zero_red"])
-                    # mark the index corresponding to f as done
-                    mark_done!(ctx, f_key)
-                    # mark the index corresponding to g as done
-                    mark_done!(ctx, curr_pos_key + one(I))
-                    # if mT is a signature corresponding to f + g we may register it at the index corresponding to f
-                    for (m, lm) in G[curr_pos_key]
-                        data = ctx((curr_pos_key, m))
-                        try
-                            ctx((f_key, m))
-                        catch KeyError
-                            ctx((f_key, m), data[:poly], data[:sigtail])
-                        end
-                    end
+                # prepare the element h for saturation
+                if !(isempty(non_zero_cond_local))
+                    non_zero_pol = random_lin_comb(ctx.po, non_zero_cond_local)
+                    non_zero_pos = ctx.ord_indices[f_key][:position] + I(1 + length(non_zero_cond[f_key]))
+                    new_gen!(ctx, info_hashmap, non_zero_pos, curr_pos_key, :h, non_zero_pol)
+                    non_zero_sig = (maximum(keys(ctx.ord_indices)), one(ctx.po.mo))
+                    push!(non_zero_cond[f_key], non_zero_sig)
+                    G[non_zero_sig[1]] = Tuple{M, M}[]
+                    H[non_zero_sig[1]] = M[]
+                    pair!(ctx, pairs, non_zero_sig)
                 end
-                G[curr_pos_key] = Tuple{M, M}[]
             end
 
             # prepare for the additional cleanup needed at the end
