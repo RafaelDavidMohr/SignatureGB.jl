@@ -27,8 +27,8 @@ function reduction!(mat::SparseMatrix)
     end
 end
 
-mutable struct SparsePolMatrix{H, T, Tbuf, M, J} <: SparseMatrix
-    rows::Dict{H, Polynomial{J, T}}
+mutable struct SparsePolMatrix{H, T, Tbuf, M, J, O <: Base.Order.Ordering} <: SparseMatrix
+    rows::SortedDict{H, Polynomial{J, T}, O}
     buffer::Vector{Tbuf}
     pivots::Vector{H}
     tbl::EasyTable{M, J}
@@ -36,9 +36,24 @@ mutable struct SparsePolMatrix{H, T, Tbuf, M, J} <: SparseMatrix
     arit_ops::Int
 end
 
+function sparsepolmatrix(hashes::Vector{H},
+                         pols::Vector{Polynomial{M, T}},
+                         ctx::PolynomialΓ{M, T},
+                         ord::Base.Order.Ordering) where {H, M, T, Tbuf}
+
+    mons = sort(union([p.mo for p in pols]...), rev = true, order = order(ctx.mo))
+    tbl = easytable(mons)
+    indexed_pols = [indexpolynomial(tbl, p) for p in pols]
+    rows = SortedDict(zip(hashes, indexed_pols), ord)
+    buffer = zeros(buftype(ctx.co), length(mons))
+    pivots = zeros(H, length(mons))
+    return SparsePolMatrix(rows, buffer, pivots, tbl, ctx.co, 0) 
+end
+
 function critical_loop!(mat::SparsePolMatrix{H, T, Tbuf}, pivot_key::H) where {H, T, Tbuf}
 
-    pivot = mat.pivots[pivot_key]
+    pivot = mat.rows[pivot_key]
+    mat.arit_ops += length(pivot)
     mult1 = deflate(ctx, normal(ctx, mat.buffer[leadingmonomial(pivot)]))
     # TODO: write leadingcoefficient
     mult2 = inv(ctx, coefficient(pivot, 1))
@@ -52,6 +67,52 @@ function critical_loop!(mat::SparsePolMatrix{H, T, Tbuf}, pivot_key::H) where {H
     catch BoundsError
         return mult
     end
+end
+
+function sub_row!(mat::SparsePolMatrix{H, T}
+                  pivot_key::H,
+                  mult::T) where {H, T}
+
+    pivot = mat.rows[pivot_key]
+    for (j, c) in pivot
+        mat.buffer[j] = submul(mat.ctx, mat.buffer[j], mult, c)
+    end
+end
+
+function buffer!(mat::SparsePolMatrix{H, T, Tbuf},
+                 h::H) where {H, T, Tbuf}
+
+    [mat.buffer[j] = Tbuf(c) for (j, c) in mat.rows[h]]
+end
+
+function unbuffer!(mat::SparsePolMatrix{H, T, Tbuf, M, J},
+                   h::H) where {H, T, Tbuf, M, J}
+
+    coeffs = T[]
+    mons = J[]
+    first_nz = 0
+    for (j, c) in enumerate(mat.buffer)
+        mod_coeff = deflate(ctx, normal(ctx, c))
+        iszero(mod_coeff) && continue
+        if iszero(first_nz)
+            first_nz = J(j)
+        end
+        push!(coeffs, mod_coeff)
+        push!(mons, J(j))
+        mat.buffer[j] = zero(Tbuf)
+    end
+    row = Polynomial(mons, coeffs)
+    mat.rows[h] = row
+    first_nz
+end
+
+mutable struct F5matrix <: SparseMatrix
+    matrix::SparsePolMatrix
+    sigtail_matrix::SparsePolMatrix
+    max_pos::I
+    max_posit_key::I
+    tag::Symbol
+    trace_sig_tail_tags::Vector{Symbol}
 end
 
 mutable struct F5matrix{I, M, T, J,
@@ -222,16 +283,6 @@ function unbuffer!(buffer::Vector{Tbuf},
     end
     row = Polynomial(mons, coeffs)
     first_nz, row
-end
-
-function sub_row!(buffer::Vector{Tbuf},
-                  pivot_row::Polynomial{J, T},
-                  mult::T,
-                  ctx::NmodLikeΓ{T, Tbuf}) where {J, T, Tbuf}
-
-    for (j, c) in pivot_row
-        buffer[j] = submul(ctx, buffer[j], mult, c)
-    end
 end
 
 function critical_loop!(buffer::Vector{Tbuf},
