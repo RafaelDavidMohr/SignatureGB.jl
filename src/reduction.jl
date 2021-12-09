@@ -268,6 +268,17 @@ function new_elems_f5!(ctx::SΓ,
                     new_syz!(ctx, sig, sig_tail, pairs, H)
                 else
                     p = unindexpolynomial(mat.tbl, row)
+                    if p.mo == [one(ctx.po.mo)] && mat.tag == :h
+                        # clear pairset of elements in current position
+                        while !(isempty(pairs))
+                            if first(pairs)[1][2][1] == mat.max_posit_key
+                                println("killed a pair")
+                                pop!(pairs)
+                            else
+                                break
+                            end
+                        end
+                    end
                     new_basis!(ctx, sig, p, sig_tail, pairs, G, H, enable_lower_pos_rewrite = enable_lower_pos_rewrite)
                 end
             end

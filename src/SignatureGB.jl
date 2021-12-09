@@ -96,7 +96,7 @@ function f5core!(dat::F5Data{I, SΓ},
     curr_pos_key = first(pairs)[1][2][1]
     curr_tag = gettag(ctx, first(pairs)[1])
 
-    non_zero_cond = Dict([(posit_key, eltype(ctx)[]) for posit_key in keys(ctx.ord_indices)])
+    non_zero_cond = Dict([(posit_key, 0) for posit_key in keys(ctx.ord_indices)])
 
     while !(isempty(pairs))
         #- INTERREDUCTION -#
@@ -113,26 +113,34 @@ function f5core!(dat::F5Data{I, SΓ},
             # if we are in a decomposition computation we add non-zero conditions
             f_key = ctx.ord_indices[curr_pos_key][:att_key]
             if curr_tag == :g_gen 
-                # generate a random h with h*g_gen in I
-                non_zero_cond_local_sigs = [(curr_pos_key, m) for m in H[curr_pos_key]]
-                non_zero_cond_local = eltype(ctx.po)[]
-                for sig in non_zero_cond_local_sigs
-                    try
-                        push!(non_zero_cond_local, project(ctx, sig))
-                    catch
-                        continue
+                # generat random hs with h*g_gen in I
+                non_zero_cond_local_sigs = H[curr_pos_key]
+                non_zero_cond_local = Dict{I, Vector{eltype(ctx.po)}}()
+                for d in one(I):maximum(m -> degree(ctx.po.mo, m), non_zero_cond_local_sigs)
+                    ms = filter(m -> degree(ctx.po.mo, m) == d, non_zero_cond_local_sigs)
+                    isempty(ms) && continue
+                    non_zero_cond_local[d] = eltype(ctx.po)[]
+                    for m in ms
+                        try
+                            push!(non_zero_cond_local[d], project(ctx, (curr_pos_key, m)))
+                        catch
+                            continue
+                        end
                     end
                 end
-                # prepare the element h for saturation
-                if !(isempty(non_zero_cond_local))
-                    non_zero_pol = random_lin_comb(ctx.po, non_zero_cond_local)
-                    non_zero_pos = ctx.ord_indices[f_key][:position] + I(1 + length(non_zero_cond[f_key]))
-                    new_gen!(ctx, info_hashmap, non_zero_pos, curr_pos_key, :h, non_zero_pol)
-                    non_zero_sig = (maximum(keys(ctx.ord_indices)), one(ctx.po.mo))
-                    push!(non_zero_cond[f_key], non_zero_sig)
-                    G[non_zero_sig[1]] = Tuple{M, M}[]
-                    H[non_zero_sig[1]] = M[]
-                    pair!(ctx, pairs, non_zero_sig)
+                
+                # prepare the elements h for saturation
+                for (d, hs) in non_zero_cond_local
+                    if !(isempty(hs))
+                        non_zero_pol = random_lin_comb(ctx.po, hs)
+                        non_zero_pos = ctx.ord_indices[f_key][:position] + I(1 + non_zero_cond[f_key])
+                        new_gen!(ctx, info_hashmap, non_zero_pos, curr_pos_key, :h, non_zero_pol)
+                        non_zero_sig = (maximum(keys(ctx.ord_indices)), one(ctx.po.mo))
+                        non_zero_cond[f_key] += 1
+                        G[non_zero_sig[1]] = Tuple{M, M}[]
+                        H[non_zero_sig[1]] = M[]
+                        pair!(ctx, pairs, non_zero_sig)
+                    end
                 end
             end
 
@@ -286,7 +294,7 @@ function f5core!(dat::F5Data{I, SΓ},
     verbose_stats && println("saturation added $(global_zero_red_count) elements not in the original ideal.")
     total_num_arit_ops = num_arit_operations_groebner + num_arit_operations_module_overhead + num_arit_operations_interreduction
     
-    G, vcat([[ctx(sig)[:poly] for sig in kv[2]] for kv in non_zero_cond]...), total_num_arit_ops
+    G, total_num_arit_ops
 end
 
 function f5(I::Vector{P};
@@ -310,7 +318,7 @@ function f5(I::Vector{P};
                   trace_sig_tail_tags = trace_sig_tail_tags,
                   max_remasks = max_remasks, kwargs...)
     G, H, pairs = pairs_and_basis(dat, length(I), start_gen = start_gen)
-    G, _, total_num_arit_ops = f5core!(dat, G, H, pairs, select = select, interreduction = interreduction, verbose = verbose)
+    G, total_num_arit_ops = f5core!(dat, G, H, pairs, select = select, interreduction = interreduction, verbose = verbose)
     [R(dat.ctx, (i, g[1])) for i in keys(G) for g in G[i]]
 end
 
@@ -334,9 +342,9 @@ function decompose(I::Vector{P};
                   trace_sig_tail_tags = [:f, :g_gen, :h],
                   max_remasks = max_remasks, kwargs...)
     G, H, pairs = pairs_and_basis(dat, length(I), start_gen = start_gen)
-    G, non_zero_cond, total_num_arit_ops = f5core!(dat, G, H, pairs, select = select, verbose = verbose,
-                                                   new_elems = new_elems_decomp!, select_both = false,
-                                                   interreduction = interreduction)
+    G, total_num_arit_ops = f5core!(dat, G, H, pairs, select = select, verbose = verbose,
+                                    new_elems = new_elems_decomp!, select_both = false,
+                                    interreduction = interreduction)
     [R(dat.ctx, (i, g[1])) for i in keys(G) for g in G[i]]
 end
 
