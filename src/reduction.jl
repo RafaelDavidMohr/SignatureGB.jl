@@ -269,10 +269,10 @@ function new_elems_f5!(ctx::SΓ,
                 else
                     p = unindexpolynomial(mat.tbl, row)
                     if p.mo == [one(ctx.po.mo)] && mat.tag == :h
-                        # clear pairset of elements in current position
+                        att_key = ctx.ord_indices[mat.max_posit_key][:att_key]
                         while !(isempty(pairs))
-                            if first(pairs)[1][2][1] == mat.max_posit_key
-                                println("killed a pair")
+                            alpha = first(pairs)[1]
+                            if alpha[2][1] == mat.max_posit_key || (gettag(ctx, alpha) == :h && ctx.ord_indices[alpha[2][1]][:att_key] == att_key)
                                 pop!(pairs)
                             else
                                 break
