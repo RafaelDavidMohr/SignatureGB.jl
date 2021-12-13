@@ -260,6 +260,7 @@ function new_elems_f5!(ctx::SΓ,
                        info_hashmap::Dict{I, Info};
                        enable_lower_pos_rewrite = true) where {I, M, T, SΓ <: SigPolynomialΓ{I, M, T}}
 
+    max_degree = zero(I)
     for (sig, row) in mat.sigs_rows
         @inbounds begin
             if pos(ctx, sig) == mat.max_pos
@@ -268,11 +269,15 @@ function new_elems_f5!(ctx::SΓ,
                     new_syz!(ctx, sig, sig_tail, pairs, H)
                 else
                     p = unindexpolynomial(mat.tbl, row)
+                    d = degree(ctx.po, p)
+                    if d > max_degree
+                        max_degree = d
+                    end
                     if p.mo == [one(ctx.po.mo)] && mat.tag == :h
                         att_key = ctx.ord_indices[mat.max_posit_key][:att_key]
                         while !(isempty(pairs))
                             alpha = first(pairs)[1]
-                            if alpha[2][1] == mat.max_posit_key || (gettag(ctx, alpha) == :h && ctx.ord_indices[alpha[2][1]][:att_key] == att_key)
+                            if alpha[2][1] == mat.max_posit_key
                                 pop!(pairs)
                             else
                                 break
@@ -283,6 +288,9 @@ function new_elems_f5!(ctx::SΓ,
                 end
             end
         end
+    end
+    if max_degree > info_hashmap[mat.max_posit_key]["max_deg_reached"]
+        info_hashmap[mat.max_posit_key]["max_deg_reached"] = max_degree
     end
     pairs
 end

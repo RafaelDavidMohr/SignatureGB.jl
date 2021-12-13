@@ -7,6 +7,7 @@ new_info() = Dict([("arit_ops_groebner", 0),
                    ("interred_mat_size_rows", 0),
                    ("interred_mat_size_cols", 0),
                    ("num_zero_red", 0),
+                   ("max_deg_reached", 0),
                    ("gb_size_bef_interred", 0),
                    ("gb_size_aft_interred", 0)])
 
@@ -112,35 +113,26 @@ function f5core!(dat::F5Data{I, SΓ},
 
             # if we are in a decomposition computation we add non-zero conditions
             f_key = ctx.ord_indices[curr_pos_key][:att_key]
-            if curr_tag == :g_gen 
-                # generat random hs with h*g_gen in I
+            if curr_tag == :g_gen
                 non_zero_cond_local_sigs = H[curr_pos_key]
-                non_zero_cond_local = Dict{I, Vector{eltype(ctx.po)}}()
-                for d in one(I):maximum(m -> degree(ctx.po.mo, m), non_zero_cond_local_sigs)
-                    ms = filter(m -> degree(ctx.po.mo, m) == d, non_zero_cond_local_sigs)
-                    isempty(ms) && continue
-                    non_zero_cond_local[d] = eltype(ctx.po)[]
-                    for m in ms
-                        try
-                            push!(non_zero_cond_local[d], project(ctx, (curr_pos_key, m)))
-                        catch
-                            continue
-                        end
+                non_zero_cond_local = eltype(ctx.po)[]
+                for m in non_zero_cond_local_sigs
+                    sig = (curr_pos_key, m)
+                    try
+                        push!(non_zero_cond_local, project(ctx, (curr_pos_key, m)))
+                    catch
+                        continue
                     end
                 end
-                
-                # prepare the elements h for saturation
-                for (d, hs) in non_zero_cond_local
-                    if !(isempty(hs))
-                        non_zero_pol = random_lin_comb(ctx.po, hs)
-                        non_zero_pos = ctx.ord_indices[f_key][:position] + I(1 + non_zero_cond[f_key])
-                        new_gen!(ctx, info_hashmap, non_zero_pos, curr_pos_key, :h, non_zero_pol)
-                        non_zero_sig = (maximum(keys(ctx.ord_indices)), one(ctx.po.mo))
-                        non_zero_cond[f_key] += 1
-                        G[non_zero_sig[1]] = Tuple{M, M}[]
-                        H[non_zero_sig[1]] = M[]
-                        pair!(ctx, pairs, non_zero_sig)
-                    end
+                if !(isempty(non_zero_cond_local))
+                    h = random_lin_comb(ctx.po, non_zero_cond_local)
+                    non_zero_pos = ctx.ord_indices[f_key][:position] + I(1 + non_zero_cond[f_key])
+                    new_gen!(ctx, info_hashmap, non_zero_pos, curr_pos_key, :h, h)
+                    non_zero_sig = (maximum(keys(ctx.ord_indices)), one(ctx.po.mo))
+                    non_zero_cond[f_key] += 1
+                    G[non_zero_sig[1]] = Tuple{M, M}[]
+                    H[non_zero_sig[1]] = M[]
+                    pair!(ctx, pairs, non_zero_sig)
                 end
             end
 
@@ -259,6 +251,7 @@ function f5core!(dat::F5Data{I, SΓ},
         num_zero_red = info["num_zero_red"]
         gb_size_bef_interred = info["gb_size_bef_interred"]
         gb_size_aft_interred = info["gb_size_aft_interred"]
+        max_degree = info["max_deg_reached"]
         num_arit_operations_groebner += arit_ops_groebner
         num_arit_operations_module_overhead += arit_ops_module
         num_arit_operations_interreduction += arit_ops_interred
@@ -277,6 +270,7 @@ function f5core!(dat::F5Data{I, SΓ},
             println("Size of interreduction matrix:                        $((interred_mat_size_rows, interred_mat_size_cols))")
             println("GB size before interreduction:                        $(gb_size_bef_interred)")
             println("GB size after interreduction:                         $(gb_size_aft_interred)")
+            println("Maximal degree reached:                               $(max_degree)")
             println("Number of zero reductions:                            $(num_zero_red)")
             println("-----")
         end

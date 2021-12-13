@@ -209,6 +209,10 @@ nvars(ctx::PolynomialΓ) = nvars(ctx.mo)
 variables(ctx::PolynomialΓ) = variables(ctx.mo)
 termorder(ctx::PolynomialΓ) = termorder(ctx.mo)
 
+function degree(ctx::PolynomialΓ{M}, p::Polynomial{M}) where M
+    maximum(m -> degree(ctx.mo, m), p.mo)
+end
+
 function lt(ctx::PolynomialΓ, a, b)
     lt(ctx.mo, leadingmonomial(a), leadingmonomial(b))
 end
