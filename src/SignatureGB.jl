@@ -80,6 +80,7 @@ function f5core!(dat::F5Data{I, SΓ},
                  new_elems = new_elems_f5!,
                  interreduction = true,
                  select_both = true,
+                 cleanup_at_end = true,
                  verbose = 0) where {I, M, SΓ <: SigPolynomialΓ{I, M}}
     
     ctx = dat.ctx
@@ -139,13 +140,15 @@ function f5core!(dat::F5Data{I, SΓ},
             # prepare for the additional cleanup needed at the end
             if curr_tag == :h
                 G[curr_pos_key] = Tuple{M, M}[]
-                if !(ctx.ord_indices[curr_pos_key][:done]) && f_left(ctx, curr_pos)
-                    inf = ctx.ord_indices[curr_pos_key]
-                    ctx.ord_indices[curr_pos_key] = (position = maxpos(ctx) + one(I),
-                                                     att_key = inf[:att_key],
-                                                     tag = inf[:tag],
-                                                     done = true)
-                    pair!(ctx, pairs, (curr_pos_key, one(ctx.po.mo)))
+                if cleanup_at_end
+                    if !(ctx.ord_indices[curr_pos_key][:done]) && f_left(ctx, curr_pos)
+                        inf = ctx.ord_indices[curr_pos_key]
+                        ctx.ord_indices[curr_pos_key] = (position = maxpos(ctx) + one(I),
+                                                         att_key = inf[:att_key],
+                                                         tag = inf[:tag],
+                                                         done = true)
+                        pair!(ctx, pairs, (curr_pos_key, one(ctx.po.mo)))
+                    end
                 end
             end
 
@@ -326,6 +329,7 @@ function decompose(I::Vector{P};
                    mask_type=UInt32,
                    pos_type=UInt32,
                    select = :deg_and_pos,
+                   cleanup_at_end = true,
                    verbose = 0,
                    interreduction = true,
                    max_remasks = 3,
@@ -340,7 +344,7 @@ function decompose(I::Vector{P};
     G, H, pairs = pairs_and_basis(dat, length(I), start_gen = start_gen)
     G, total_num_arit_ops = f5core!(dat, G, H, pairs, select = select, verbose = verbose,
                                     new_elems = new_elems_decomp!, select_both = false,
-                                    interreduction = interreduction)
+                                    cleanup_at_end = cleanup_at_end, interreduction = interreduction)
     [R(dat.ctx, (i, g[1])) for i in keys(G) for g in G[i]]
 end
 

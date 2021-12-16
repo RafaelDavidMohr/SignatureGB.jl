@@ -275,6 +275,7 @@ function new_elems_f5!(ctx::SΓ,
                     end
                     if p.mo == [one(ctx.po.mo)] && mat.tag == :h
                         att_key = ctx.ord_indices[mat.max_posit_key][:att_key]
+                        mark_done!(ctx, mat.max_posit_key)
                         while !(isempty(pairs))
                             alpha = first(pairs)[1]
                             if alpha[2][1] == mat.max_posit_key
