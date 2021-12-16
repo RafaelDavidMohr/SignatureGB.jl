@@ -258,7 +258,7 @@ function new_elems_f5!(ctx::SΓ,
                        G::Basis{I, M},
                        H::Syz{I, M},
                        info_hashmap::Dict{I, Info},
-                       non_zero_cond::Dict{I, Int};
+                       non_zero_cond::Vector{I};
                        enable_lower_pos_rewrite = true) where {I, M, T, SΓ <: SigPolynomialΓ{I, M, T}}
 
     max_degree = zero(I)
@@ -276,8 +276,7 @@ function new_elems_f5!(ctx::SΓ,
                     end
                     if p.mo == [one(ctx.po.mo)] && mat.tag == :h
                         att_key = ctx.ord_indices[mat.max_posit_key][:att_key]
-                        mark_done!(ctx, mat.max_posit_key)
-                        non_zero_cond[att_key] = non_zero_cond[att_key] - 1
+                        filter!(j -> j != mat.max_posit_key, non_zero_cond)
                         while !(isempty(pairs))
                             alpha = first(pairs)[1]
                             if alpha[2][1] == mat.max_posit_key
@@ -304,7 +303,7 @@ function new_elems_decomp!(ctx::SΓ,
                            G::Basis{I, M},
                            H::Syz{I, M},
                            info_hashmap::Dict{I, Info},
-                           non_zero_cond::Dict{I, Int};
+                           non_zero_cond::Vector{I};
                            enable_lower_pos_rewrite = true) where {I, M, T, SΓ <: SigPolynomialΓ{I, M, T}}
 
     !(mat.tag in [:f, :h]) && return new_elems_f5!(ctx, mat, pairs, G, H, info_hashmap, non_zero_cond, enable_lower_pos_rewrite = enable_lower_pos_rewrite)

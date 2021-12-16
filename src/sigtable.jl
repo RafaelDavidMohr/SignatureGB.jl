@@ -1,9 +1,9 @@
 const Data{M, T} = NamedTuple{(:poly, :sigtail, :sigratio),
                               Tuple{Polynomial{M, T}, Polynomial{M, T}, M}}
 const SigTable{I, M, T} = Dict{Tuple{I, M}, Data{M, T}}
-const GenData{I} = NamedTuple{(:position, :att_key, :tag, :done),
-                              Tuple{I, I, Symbol, Bool}}
-gendata(i::I, j::I, tg::Symbol, dn::Bool) where I = (position = i, att_key = j, tag = tg, done = dn)
+const GenData{I} = NamedTuple{(:position, :att_key, :tag),
+                              Tuple{I, I, Symbol}}
+gendata(i::I, j::I, tg::Symbol) where I = (position = i, att_key = j, tag = tg)
 
 mutable struct SigPolynomialΓ{I, M, T, MΓ<:Context{M}, TΓ<:Context{T}, PΓ<:PolynomialΓ{M, T, MΓ, TΓ}, S}<:Context{Tuple{I, M}}
     po::PΓ
@@ -40,15 +40,38 @@ function new_gen!(ctx::SigPolynomialΓ{I, M, T},
                   pol::Polynomial{M, T}) where {I, M, T}
 
     # register new generator
-    posit_key = maximum(keys(ctx.ord_indices)) + one(I)
-    ctx((posit_key, one(ctx.po.mo)), pol)
+    posit_key = register!(ctx, pol, info_hashmap)
 
     # rebuild ord_indices
-    new_dict_arr = [(k, i >= posit ? gendata(i + one(I), j, tg, dn) : gendata(i, j, tg, dn))
-                    for (k, (i, j, tg, dn)) in ctx.ord_indices]
+    new_pos!(ctx, posit_key, posit, attached_to, tagg)
+end
+
+function register!(ctx::SigPolynomialΓ{I, M, T},
+                   pol::Polynomial{M, T},
+                   info_hashmap::Dict{I, Dict{String, Int}}) where {I, M, T}
+
+    posit_key = maximum(keys(ctx.ord_indices)) + one(I)
+    ctx((posit_key, one(ctx.po.mo)), pol)
     info_hashmap[posit_key] = new_info()
-    push!(new_dict_arr, (posit_key, gendata(posit, attached_to, tagg, false)))
+    return posit_key
+end
+
+function new_pos!(ctx::SigPolynomialΓ{I},
+                  posit_key::I,
+                  posit::I,
+                  attached_to::I,
+                  tagg::Symbol) where I
+
+    delete!(ctx.ord_indices, posit_key)
+    new_dict_arr = [(k, i >= posit ? gendata(i + one(I), j, tg) : gendata(i, j, tg))
+                    for (k, (i, j, tg)) in ctx.ord_indices]
+    push!(new_dict_arr, (posit_key, gendata(posit, attached_to, tagg)))
     ctx.ord_indices = Dict(new_dict_arr)
+end
+
+function new_pos!(ctx::SigPolynomialΓ{I}, posit_key::I, posit::I) where I
+    new_pos!(ctx, posit_key, posit, ctx.ord_indices[posit_key][:att_key],
+             ctx.ord_indices[posit_key][:tag])
 end
 
 # find maximal index
@@ -71,15 +94,6 @@ function f_left(ctx::SigPolynomialΓ{I, M}, pos::I) where {I, M}
     return result
 end
 
-# mark an index as done
-function mark_done!(ctx::SigPolynomialΓ{I}, pos_key::I) where {I}
-    inf = ctx.ord_indices[pos_key]
-    ctx.ord_indices[pos_key] = (position = inf[:position],
-                                att_key = inf[:att_key],
-                                tag = inf[:tag],
-                                done = true)
-end
-
 function idxsigpolynomialctx(coefficients,
                              ngens;
                              monomials=nothing,
@@ -94,7 +108,7 @@ function idxsigpolynomialctx(coefficients,
     end
     po = polynomialctx(coefficients, monomials = moctx)
     tbl = SigTable{pos_type, index_type, eltype(coefficients)}()
-    ord_indices = Dict([(pos_type(i), gendata(pos_type(i), zero(pos_type(i)), :f, false)) for i in 1:ngens])
+    ord_indices = Dict([(pos_type(i), gendata(pos_type(i), zero(pos_type(i)), :f)) for i in 1:ngens])
     SigPolynomialΓ{pos_type, eltype(moctx), eltype(coefficients),
                    typeof(moctx), typeof(coefficients), typeof(po), mod_order}(po, tbl, ord_indices)
 end
