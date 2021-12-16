@@ -252,6 +252,8 @@ function f5core!(dat::F5Data{I, SΓ},
         gb_size_bef_interred = info["gb_size_bef_interred"]
         gb_size_aft_interred = info["gb_size_aft_interred"]
         max_degree = info["max_deg_reached"]
+        generator_poly = ctx((k, one(ctx.po.mo)))[:poly]
+        isempty(generator_poly.mo) ? deg = -1 : deg = degree(ctx.po, generator_poly)
         num_arit_operations_groebner += arit_ops_groebner
         num_arit_operations_module_overhead += arit_ops_module
         num_arit_operations_interreduction += arit_ops_interred
@@ -260,9 +262,9 @@ function f5core!(dat::F5Data{I, SΓ},
         end
         if verbose_stats
             if k <= orig_length
-                println("INFO for index $(ctx.ord_indices[k][:position]), original index $(k), tagged $(ctx.ord_indices[k][:tag])")
+                println("INFO for index $(ctx.ord_indices[k][:position]), original index $(k), tagged $(ctx.ord_indices[k][:tag]), degree $(deg)")
             else
-                println("INFO for index $(ctx.ord_indices[k][:position]), tagged $(ctx.ord_indices[k][:tag])")
+                println("INFO for index $(ctx.ord_indices[k][:position]), tagged $(ctx.ord_indices[k][:tag]), degree $(deg)")
             end
             println("Arithmetic operations in GB computation:              $(arit_ops_groebner)")
             println("Arithmetic operations in module overhead:             $(arit_ops_module)")
