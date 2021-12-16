@@ -274,15 +274,17 @@ function new_elems_f5!(ctx::SΓ,
                     if d > max_degree
                         max_degree = d
                     end
-                    if p.mo == [one(ctx.po.mo)] && mat.tag == :h
-                        att_key = ctx.ord_indices[mat.max_posit_key][:att_key]
-                        filter!(j -> j != mat.max_posit_key, non_zero_cond)
-                        while !(isempty(pairs))
-                            alpha = first(pairs)[1]
-                            if alpha[2][1] == mat.max_posit_key
-                                pop!(pairs)
-                            else
-                                break
+                    if p.mo == [one(ctx.po.mo)]
+                        println("constant in basis")
+                        if mat.tag == :h
+                            filter!(j -> j != mat.max_posit_key, non_zero_cond)
+                            while !(isempty(pairs))
+                                alpha = first(pairs)[1]
+                                if alpha[2][1] == mat.max_posit_key
+                                    pop!(pairs)
+                                else
+                                    break
+                                end
                             end
                         end
                     end

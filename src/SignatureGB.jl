@@ -113,7 +113,6 @@ function f5core!(dat::F5Data{I, SΓ},
             end
 
             # if we are in a decomposition computation we add non-zero conditions
-            f_key = ctx.ord_indices[curr_pos_key][:att_key]
             if curr_tag == :g_gen
                 non_zero_cond_local_sigs = H[curr_pos_key]
                 non_zero_cond_local = eltype(ctx.po)[]
@@ -134,6 +133,7 @@ function f5core!(dat::F5Data{I, SΓ},
 
             if curr_tag == :f
                 for (j, i) in enumerate(non_zero_cond)
+                    println("adding h at poskey $(i) to position $(curr_pos + I(j))")
                     new_pos!(ctx, i, curr_pos + I(j), curr_pos_key, :h)
                     G[i] = Tuple{M, M}[]
                     H[i] = M[]
@@ -142,6 +142,7 @@ function f5core!(dat::F5Data{I, SΓ},
             end
 
             if curr_tag == :h
+                println("clearing out h at poskey $(curr_pos_key)")
                 G[curr_pos_key] = Tuple{M, M}[]
             end
 
@@ -212,11 +213,29 @@ function f5core!(dat::F5Data{I, SΓ},
             verbose_mat && println("Pair generation took $(pair_gen_time) seconds.")
         end
 
-        if isempty(pairs) && curr_tag == :f
+        if isempty(pairs) && curr_tag == :f && !(isempty(non_zero_cond))
             for (j, i) in enumerate(non_zero_cond)
+                println("adding h at poskey $(i) to position $(curr_pos + I(j))")
                 new_pos!(ctx, i, curr_pos + I(j), curr_pos_key, :h)
                 pair!(ctx, pairs, (i, one(ctx.po.mo)))
+                G[i] = Tuple{M, M}[]
+                H[i] = M[]
             end
+            if !(isempty(pairs))
+                curr_pos = pos(ctx, first(pairs)[1])
+                curr_tag = gettag(ctx, first(pairs)[1])
+                curr_pos_key = first(pairs)[1][2][1]
+                if interreduction
+                    verbose_mat && println("interreducing")
+                    info_hashmap[curr_pos_key]["gb_size_bef_interred"] = gb_size(ctx, G)
+                    G, arit_ops, mat_size = interreduce(ctx, G, H, verbose = verbose_mat)
+                    info_hashmap[curr_pos_key]["interred_mat_size_rows"] = mat_size[1]
+                    info_hashmap[curr_pos_key]["interred_mat_size_cols"] = mat_size[2]
+                    info_hashmap[curr_pos_key]["arit_ops_interred"] += arit_ops
+                    info_hashmap[curr_pos_key]["gb_size_aft_interred"] = gb_size(ctx, G)
+                end
+            end
+            println("goodbye")
         end
     end
 
