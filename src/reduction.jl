@@ -257,7 +257,8 @@ function new_elems_f5!(ctx::SΓ,
                        pairs::PairSet{I, M, SΓ},
                        G::Basis{I, M},
                        H::Syz{I, M},
-                       info_hashmap::Dict{I, Info};
+                       info_hashmap::Dict{I, Info},
+                       non_zero_cond::Dict{I, Int};
                        enable_lower_pos_rewrite = true) where {I, M, T, SΓ <: SigPolynomialΓ{I, M, T}}
 
     max_degree = zero(I)
@@ -276,6 +277,7 @@ function new_elems_f5!(ctx::SΓ,
                     if p.mo == [one(ctx.po.mo)] && mat.tag == :h
                         att_key = ctx.ord_indices[mat.max_posit_key][:att_key]
                         mark_done!(ctx, mat.max_posit_key)
+                        non_zero_cond[att_key] = non_zero_cond[att_key] - 1
                         while !(isempty(pairs))
                             alpha = first(pairs)[1]
                             if alpha[2][1] == mat.max_posit_key
@@ -301,14 +303,15 @@ function new_elems_decomp!(ctx::SΓ,
                            pairs::PairSet{I, M, SΓ},
                            G::Basis{I, M},
                            H::Syz{I, M},
-                           info_hashmap::Dict{I, Info};
+                           info_hashmap::Dict{I, Info},
+                           non_zero_cond::Dict{I, Int};
                            enable_lower_pos_rewrite = true) where {I, M, T, SΓ <: SigPolynomialΓ{I, M, T}}
 
-    !(mat.tag in [:f, :h]) && return new_elems_f5!(ctx, mat, pairs, G, H, info_hashmap, enable_lower_pos_rewrite = enable_lower_pos_rewrite)
+    !(mat.tag in [:f, :h]) && return new_elems_f5!(ctx, mat, pairs, G, H, info_hashmap, non_zero_cond, enable_lower_pos_rewrite = enable_lower_pos_rewrite)
     
     zero_red = filter(sig_row -> isempty(sig_row[2]) && pos(ctx, sig_row[1]) == mat.max_pos && gettag(ctx, sig_row[1]) == mat.tag,
                       mat.sigs_rows)
-    isempty(zero_red) && return new_elems_f5!(ctx, mat, pairs, G, H, info_hashmap, enable_lower_pos_rewrite = enable_lower_pos_rewrite)
+    isempty(zero_red) && return new_elems_f5!(ctx, mat, pairs, G, H, info_hashmap, non_zero_cond, enable_lower_pos_rewrite = enable_lower_pos_rewrite)
 
     # insert g's s.t. g*f in I
     pols_to_insert = [unindexpolynomial(mat.sigtail_mat.tbl, mat.sigtail_mat.rows[sig]) for (sig, _) in zero_red]

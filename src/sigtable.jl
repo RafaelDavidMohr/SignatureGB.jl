@@ -57,14 +57,18 @@ function maxpos(ctx::SigPolynomialΓ{I, M}) where {I, M}
     maximum(v -> v[:position], values(ctx.ord_indices))
 end
 
-# does there exist an original generator of higher index than pos
+# return original generator of higher index than pos if it exists
 function f_left(ctx::SigPolynomialΓ{I, M}, pos::I) where {I, M}
-    
+
+    result = zero(I)
     for (i, v) in ctx.ord_indices
-        v[:position] <= i && continue
-        v[:tag] == :f && return true
+        if v[:tag] == :f && v[:position] > pos
+            if iszero(result) || v[:position] < ctx.ord_indices[result][:position]
+                result = i
+            end
+        end
     end
-    return false
+    return result
 end
 
 # mark an index as done

@@ -80,7 +80,8 @@ function f5core!(dat::F5Data{I, SΓ},
                  new_elems = new_elems_f5!,
                  interreduction = true,
                  select_both = true,
-                 cleanup_at_end = true,
+                 cleanup_level = 1, # 0, 1 or 2
+                 continous_cleanup = true,
                  verbose = 0) where {I, M, SΓ <: SigPolynomialΓ{I, M}}
     
     ctx = dat.ctx
@@ -98,8 +99,8 @@ function f5core!(dat::F5Data{I, SΓ},
     curr_pos_key = first(pairs)[1][2][1]
     curr_tag = gettag(ctx, first(pairs)[1])
 
-    non_zero_cond = Dict([(posit_key, 0) for posit_key in keys(ctx.ord_indices)])
-
+    non_zero_cond = Dict{I, Bool}()
+    
     while !(isempty(pairs))
         #- INTERREDUCTION -#
         indx = pos(ctx, first(pairs)[1])
@@ -128,7 +129,7 @@ function f5core!(dat::F5Data{I, SΓ},
                 if !(isempty(non_zero_cond_local))
                     h = random_lin_comb(ctx.po, non_zero_cond_local)
                     non_zero_pos = ctx.ord_indices[f_key][:position] + I(1 + non_zero_cond[f_key])
-                    new_gen!(ctx, info_hashmap, non_zero_pos, curr_pos_key, :h, h)
+                    new_gen!(ctx, info_hashmap, non_zero_pos, f_key, :h, h)
                     non_zero_sig = (maximum(keys(ctx.ord_indices)), one(ctx.po.mo))
                     non_zero_cond[f_key] += 1
                     G[non_zero_sig[1]] = Tuple{M, M}[]
@@ -140,15 +141,26 @@ function f5core!(dat::F5Data{I, SΓ},
             # prepare for the additional cleanup needed at the end
             if curr_tag == :h
                 G[curr_pos_key] = Tuple{M, M}[]
-                if cleanup_at_end
-                    if !(ctx.ord_indices[curr_pos_key][:done]) && f_left(ctx, curr_pos)
-                        inf = ctx.ord_indices[curr_pos_key]
+                next_highest_f_key = f_left(ctx, ctx.ord_indices[f_key][:position])
+                if !(ctx.ord_indices[curr_pos_key][:done]) && !(iszero(next_highest_f_key))
+                    inf = ctx.ord_indices[curr_pos_key]
+                    if cleanup_level == 1
                         ctx.ord_indices[curr_pos_key] = (position = maxpos(ctx) + one(I),
                                                          att_key = inf[:att_key],
                                                          tag = inf[:tag],
                                                          done = true)
-                        pair!(ctx, pairs, (curr_pos_key, one(ctx.po.mo)))
                     end
+                    if cleanup_level == 2
+                        nh_f_key_pos = ctx.ord_indices[next_highest_f_key][:position]
+                        ctx.ord_indices[curr_pos_key] = (position = nh_f_key_pos + non_zero_cond[f_key],
+                                                         att_key = next_highest_f_key,
+                                                         tag = inf[:tag],
+                                                         done = false)
+                        non_zero_cond[f_key] -= 1
+                        non_zero_cond[next_highest_f_key] += 1
+                        println("shifted h belonging to position $(ctx.ord_indices[f_key][:position]) over position $(nh_f_key_pos) to position $(ctx.ord_indices[curr_pos_key][:position])")
+                    end
+                    pair!(ctx, pairs, (curr_pos_key, one(ctx.po.mo)))
                 end
             end
 
@@ -201,8 +213,8 @@ function f5core!(dat::F5Data{I, SΓ},
             global_zero_red_count += zero_red_count
         end
 
-        #- PAIR GENERATION -#
-        pair_gen_dat = @timed new_elems(ctx, mat, pairs, G, H, info_hashmap,
+        #- PAIR GENERATION AND ADDING ELEMENTS TO BASIS/SYZYGIES -#
+        pair_gen_dat = @timed new_elems(ctx, mat, pairs, G, H, info_hashmap, non_zero_cond,
                                         enable_lower_pos_rewrite = !(interreduction))
         pairs = pair_gen_dat.value
         pair_gen_time = pair_gen_dat.time
@@ -329,7 +341,7 @@ function decompose(I::Vector{P};
                    mask_type=UInt32,
                    pos_type=UInt32,
                    select = :deg_and_pos,
-                   cleanup_at_end = true,
+                   cleanup_level = 1,
                    verbose = 0,
                    interreduction = true,
                    max_remasks = 3,
@@ -344,7 +356,7 @@ function decompose(I::Vector{P};
     G, H, pairs = pairs_and_basis(dat, length(I), start_gen = start_gen)
     G, total_num_arit_ops = f5core!(dat, G, H, pairs, select = select, verbose = verbose,
                                     new_elems = new_elems_decomp!, select_both = false,
-                                    cleanup_at_end = cleanup_at_end, interreduction = interreduction)
+                                    cleanup_level = cleanup_level, interreduction = interreduction)
     [R(dat.ctx, (i, g[1])) for i in keys(G) for g in G[i]]
 end
 
