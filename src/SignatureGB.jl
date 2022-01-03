@@ -120,7 +120,7 @@ function f5core!(dat::F5Data{I, SΓ},
                     sig = (curr_pos_key, m)
                     try
                         push!(non_zero_cond_local, project(ctx, (curr_pos_key, m)))
-                    catch
+                    catch KeyError
                         continue
                     end
                 end
