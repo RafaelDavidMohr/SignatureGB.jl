@@ -222,9 +222,6 @@ function f5core!(dat::F5Data{I, SΓ},
                 H[i] = M[]
             end
             if !(isempty(pairs))
-                curr_pos = pos(ctx, first(pairs)[1])
-                curr_tag = gettag(ctx, first(pairs)[1])
-                curr_pos_key = first(pairs)[1][2][1]
                 if interreduction
                     verbose_mat && println("interreducing")
                     info_hashmap[curr_pos_key]["gb_size_bef_interred"] = gb_size(ctx, G)
@@ -234,6 +231,9 @@ function f5core!(dat::F5Data{I, SΓ},
                     info_hashmap[curr_pos_key]["arit_ops_interred"] += arit_ops
                     info_hashmap[curr_pos_key]["gb_size_aft_interred"] = gb_size(ctx, G)
                 end
+                curr_pos = pos(ctx, first(pairs)[1])
+                curr_tag = gettag(ctx, first(pairs)[1])
+                curr_pos_key = first(pairs)[1][2][1]
             end
             println("goodbye")
         end
