@@ -31,6 +31,10 @@ function new_basis(ctx::SigPolynomialΓ, length)
     Dict([(pos_type(ctx)(i), Tuple{M, M}[]) for i in 1:length])
 end
 
+function new_basis(ctx::SigPolynomialΓ, G::Basis{I, M}) where {I, M}
+    Dict([(posit_key, Tuple{M, M}[]) for posit_key in keys(G)])
+end
+
 function new_basis_elem!(ctx::SigPolynomialΓ{I, M},
                          G::Basis{I, M},
                          g::Tuple{I, M},

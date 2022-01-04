@@ -25,7 +25,7 @@ function interreduce(ctx::SigPolynomialΓ{I, M},
         println("reduction of interreduction matrix took $(red_time) seconds.")
     end
     
-    G_new = new_basis(ctx, length(G))
+    G_new = new_basis(ctx, G)
     for (sig, row) in interred_mat.sigs_rows
         (m, (pos_key, t)) = sig
         m != unit && continue

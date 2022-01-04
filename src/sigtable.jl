@@ -16,6 +16,8 @@ mon_type(::SigPolynomialΓ{I, M}) where {I, M} = M
 coeff_type(::SigPolynomialΓ{I, M, T}) where {I, M, T} = T
 mod_order(::SigPolynomialΓ{I, M, T, MΓ, TΓ, PΓ, S}) where {I, M, T, MΓ, TΓ, PΓ, S} = S
 
+gendata(ctx::SigPolynomialΓ{I}) where I = (position = zero(I), att_key = zero(I), tag = :f)
+
 function pos(ctx::SigPolynomialΓ{I, M},
              p::Tuple{I, M}) where {I, M}
     
@@ -53,6 +55,7 @@ function register!(ctx::SigPolynomialΓ{I, M, T},
     posit_key = maximum(keys(ctx.ord_indices)) + one(I)
     ctx((posit_key, one(ctx.po.mo)), pol)
     info_hashmap[posit_key] = new_info()
+    ctx.ord_indices[posit_key] = gendata(ctx)
     return posit_key
 end
 
