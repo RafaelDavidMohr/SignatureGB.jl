@@ -143,6 +143,7 @@ function reduction!(mat::F5matrix{I, M, T, J};
         
         mat.sigs_rows[sig] = new_row
     end
+    @debug "matrix num of arit ops in reduction:" arit_operations_groebner
     arit_operations_groebner, arit_operations_module_overhead
 end
                            
@@ -210,7 +211,6 @@ function new_syz!(ctx::SΓ,
                   pairs::PairSet{I, M, SΓ},
                   H::Syz{I, M}) where {I, M, T, SΓ <: SigPolynomialΓ{I, M, T}}
 
-    @debug "new syzygy" pretty_print(ctx, mul(ctx, sig...))
     new_sig = mul(ctx, sig...)
     ctx(new_sig, zero(eltype(ctx.po)), sig_tail)
     push!(H[new_sig[1]], new_sig[2])
