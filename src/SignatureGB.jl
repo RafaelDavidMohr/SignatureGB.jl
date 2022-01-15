@@ -11,6 +11,12 @@ new_info() = Dict([("arit_ops_groebner", 0),
                    ("gb_size_bef_interred", 0),
                    ("gb_size_aft_interred", 0)])
 
+mutable struct timings
+    time_core_loop::Float64
+    time_intermed_clean::Float64
+    time_final_clean::Float64
+end
+
 include("./useful.jl")
 include("./context.jl")
 include("./termorder.jl")
@@ -91,6 +97,7 @@ function f5core!(dat::F5Data{I, SΓ},
     info_hashmap = Dict([(i, new_info()) for i in keys(ctx.ord_indices)])
     mat_cnt = 0
     global_zero_red_count = 0
+    times = timings(0.0, 0.0, 0.0)
     verbose_stats = verbose > 0
     verbose_mat = verbose > 1
     
@@ -102,139 +109,148 @@ function f5core!(dat::F5Data{I, SΓ},
     
     while !(isempty(pairs))
         #- INTERREDUCTION -#
-        indx = pos(ctx, first(pairs)[1])
-        if indx != curr_pos && mod_order(dat.ctx) == :POT
+        timed = @elapsed begin
+            indx = pos(ctx, first(pairs)[1])
+            if indx != curr_pos && mod_order(dat.ctx) == :POT
 
-            # here we do several steps when the index jumps:
-            # possibly remasking
-            if dat.remasks_left > 0
-                remask!(dat.ctx.po.mo.table)
-                dat.remasks_left -= 1
-            end
+                # here we do several steps when the index jumps:
+                # possibly remasking
+                if dat.remasks_left > 0
+                    remask!(dat.ctx.po.mo.table)
+                    dat.remasks_left -= 1
+                end
 
-            # if we are in a decomposition computation we add non-zero conditions
-            if curr_tag == :g_gen
-                non_zero_cond_local_sigs = H[curr_pos_key]
-                non_zero_cond_local = eltype(ctx.po)[]
-                for m in non_zero_cond_local_sigs
-                    sig = (curr_pos_key, m)
-                    try
-                        push!(non_zero_cond_local, project(ctx, (curr_pos_key, m)))
-                    catch KeyError
-                        continue
+                # if we are in a decomposition computation we add non-zero conditions
+                if curr_tag == :g_gen
+                    non_zero_cond_local_sigs = H[curr_pos_key]
+                    non_zero_cond_local = eltype(ctx.po)[]
+                    for m in non_zero_cond_local_sigs
+                        sig = (curr_pos_key, m)
+                        try
+                            push!(non_zero_cond_local, project(ctx, (curr_pos_key, m)))
+                        catch KeyError
+                            continue
+                        end
+                    end
+                    if !(isempty(non_zero_cond_local))
+                        h = random_lin_comb(ctx.po, non_zero_cond_local)
+                        new_posit_key = register!(ctx, h, info_hashmap)
+                        push!(non_zero_cond, new_posit_key)
                     end
                 end
-                if !(isempty(non_zero_cond_local))
-                    h = random_lin_comb(ctx.po, non_zero_cond_local)
-                    new_posit_key = register!(ctx, h, info_hashmap)
-                    push!(non_zero_cond, new_posit_key)
+
+                if curr_tag == :f
+                    for (j, i) in enumerate(non_zero_cond)
+                        new_pos!(ctx, i, curr_pos + I(j), curr_pos_key, :h)
+                        G[i] = Tuple{M, M}[]
+                        H[i] = M[]
+                        pair!(ctx, pairs, (i, one(ctx.po.mo)))
+                    end
                 end
-            end
 
-            if curr_tag == :f
-                for (j, i) in enumerate(non_zero_cond)
-                    new_pos!(ctx, i, curr_pos + I(j), curr_pos_key, :h)
-                    G[i] = Tuple{M, M}[]
-                    H[i] = M[]
-                    pair!(ctx, pairs, (i, one(ctx.po.mo)))
+                if curr_tag == :h
+                    G[curr_pos_key] = Tuple{M, M}[]
                 end
-            end
 
-            if curr_tag == :h
-                G[curr_pos_key] = Tuple{M, M}[]
-            end
-
-            # interreducing
-            info_hashmap[curr_pos_key]["gb_size_bef_interred"] = gb_size(ctx, G)
-            if interreduction && indx > 2
-                verbose_mat && println("-----")
-                verbose_mat && println("INTERREDUCING")
-                G, arit_ops, mat_size = interreduce(ctx, G, H, verbose = verbose_mat)
-                info_hashmap[curr_pos_key]["arit_ops_interred"] += arit_ops
-                info_hashmap[curr_pos_key]["interred_mat_size_rows"] = mat_size[1]
-                info_hashmap[curr_pos_key]["interred_mat_size_cols"] = mat_size[2]
-                verbose_mat && println("-----")
-            end
-            info_hashmap[curr_pos_key]["gb_size_aft_interred"] = gb_size(ctx, G)
-        end
-        # update current index, current tag and current index key
-        curr_pos = indx
-        curr_tag = gettag(ctx, first(pairs)[1])
-        curr_pos_key = first(pairs)[1][2][1]
-
-        #- PAIR SELECTION -#
-        total_num_pairs = length(pairs)
-        to_reduce, are_pairs, nselected, sig_degree = select!(ctx, pairs, Val(select), select_both = select_both)
-
-        #- SYMBOLIC PP -#
-        symbolic_pp_timed  = @timed symbolic_pp!(ctx, to_reduce, G, H,
-                                                 use_max_sig = use_max_sig,
-                                                 sig_degree = sig_degree,
-                                                 max_sig_pos = curr_pos,
-                                                 are_pairs = are_pairs,
-                                                 enable_lower_pos_rewrite = !(interreduction))
-        done = symbolic_pp_timed.value
-        symbolic_pp_time = symbolic_pp_timed.time
-        mat = f5matrix(ctx, done, collect(to_reduce), curr_pos, curr_pos_key, curr_tag,
-                       trace_sig_tail_tags = dat.trace_sig_tail_tags,
-                       enable_lower_pos_rewrite = !(interreduction))
-        mat_size = (length(rows(mat)), length(mat.tbl))
-        mat_dens = sum([length(rw) for rw in rows(mat)]) / (mat_size[1] * mat_size[2])
-
-        #- REDUCTION -#
-        reduction_dat = @timed reduction!(mat)
-
-        # storing computational information
-        zero_red_count = length(filter(sig_rw -> isempty(sig_rw[2]), mat.sigs_rows))
-        info_hashmap[curr_pos_key]["arit_ops_groebner"] += reduction_dat.value[1]
-        info_hashmap[curr_pos_key]["arit_ops_module"] += reduction_dat.value[2]
-        info_hashmap[curr_pos_key]["num_zero_red"] += zero_red_count
-        if curr_tag == :h
-            global_zero_red_count += zero_red_count
-        end
-
-        #- PAIR GENERATION AND ADDING ELEMENTS TO BASIS/SYZYGIES -#
-        pair_gen_dat = @timed new_elems(ctx, mat, pairs, G, H, info_hashmap, non_zero_cond,
-                                        enable_lower_pos_rewrite = !(interreduction))
-        pairs = pair_gen_dat.value
-        pair_gen_time = pair_gen_dat.time
-
-        #- PRINTING INFORMATION -#
-        if verbose_mat
-            mat_cnt += 1
-            println("selected $(nselected) / $(total_num_pairs) pairs, in position $(curr_pos), tagged $(curr_tag), sig-degree of sel. pairs: $(sig_degree)")
-            println("symbolic pp took $(symbolic_pp_time) secs.")
-            println("Matrix $(mat_cnt): $(reduction_dat.time) secs reduction / size = $(mat_size) / density = $(mat_dens)")
-            if !(iszero(zero_red_count))
-                println("$(zero_red_count) zero reductions at sig-degree $(sig_degree) / position $(curr_pos)")
-            end
-            verbose_mat && println("Pair generation took $(pair_gen_time) seconds.")
-        end
-
-        if isempty(pairs) && curr_tag == :f && !(isempty(non_zero_cond))
-            for (j, i) in enumerate(non_zero_cond)
-                new_pos!(ctx, i, curr_pos + I(j), curr_pos_key, :h)
-                pair!(ctx, pairs, (i, one(ctx.po.mo)))
-                G[i] = Tuple{M, M}[]
-                H[i] = M[]
-            end
-            if !(isempty(pairs))
-                if interreduction
-                    verbose_mat && println("interreducing")
-                    info_hashmap[curr_pos_key]["gb_size_bef_interred"] = gb_size(ctx, G)
+                # interreducing
+                info_hashmap[curr_pos_key]["gb_size_bef_interred"] = gb_size(ctx, G)
+                if interreduction && indx > 2
+                    verbose_mat && println("-----")
+                    verbose_mat && println("INTERREDUCING")
                     G, arit_ops, mat_size = interreduce(ctx, G, H, verbose = verbose_mat)
+                    info_hashmap[curr_pos_key]["arit_ops_interred"] += arit_ops
                     info_hashmap[curr_pos_key]["interred_mat_size_rows"] = mat_size[1]
                     info_hashmap[curr_pos_key]["interred_mat_size_cols"] = mat_size[2]
-                    info_hashmap[curr_pos_key]["arit_ops_interred"] += arit_ops
-                    info_hashmap[curr_pos_key]["gb_size_aft_interred"] = gb_size(ctx, G)
+                    verbose_mat && println("-----")
                 end
-                curr_pos = pos(ctx, first(pairs)[1])
-                curr_tag = gettag(ctx, first(pairs)[1])
-                curr_pos_key = first(pairs)[1][2][1]
+                info_hashmap[curr_pos_key]["gb_size_aft_interred"] = gb_size(ctx, G)
+            end
+            # update current index, current tag and current index key
+            curr_pos = indx
+            curr_tag = gettag(ctx, first(pairs)[1])
+            curr_pos_key = first(pairs)[1][2][1]
+
+            #- PAIR SELECTION -#
+            total_num_pairs = length(pairs)
+            to_reduce, are_pairs, nselected, sig_degree = select!(ctx, pairs, Val(select), select_both = select_both)
+
+            #- SYMBOLIC PP -#
+            symbolic_pp_timed  = @timed symbolic_pp!(ctx, to_reduce, G, H,
+                                                     use_max_sig = use_max_sig,
+                                                     sig_degree = sig_degree,
+                                                     max_sig_pos = curr_pos,
+                                                     are_pairs = are_pairs,
+                                                     enable_lower_pos_rewrite = !(interreduction))
+            done = symbolic_pp_timed.value
+            symbolic_pp_time = symbolic_pp_timed.time
+            mat = f5matrix(ctx, done, collect(to_reduce), curr_pos, curr_pos_key, curr_tag,
+                           trace_sig_tail_tags = dat.trace_sig_tail_tags,
+                           enable_lower_pos_rewrite = !(interreduction))
+            mat_size = (length(rows(mat)), length(mat.tbl))
+            mat_dens = sum([length(rw) for rw in rows(mat)]) / (mat_size[1] * mat_size[2])
+
+            #- REDUCTION -#
+            reduction_dat = @timed reduction!(mat)
+
+            # storing computational information
+            zero_red_count = length(filter(sig_rw -> isempty(sig_rw[2]), mat.sigs_rows))
+            info_hashmap[curr_pos_key]["arit_ops_groebner"] += reduction_dat.value[1]
+            info_hashmap[curr_pos_key]["arit_ops_module"] += reduction_dat.value[2]
+            info_hashmap[curr_pos_key]["num_zero_red"] += zero_red_count
+            if curr_tag == :h
+                global_zero_red_count += zero_red_count
+            end
+
+            #- PAIR GENERATION AND ADDING ELEMENTS TO BASIS/SYZYGIES -#
+            pair_gen_dat = @timed new_elems(ctx, mat, pairs, G, H, info_hashmap, non_zero_cond,
+                                            enable_lower_pos_rewrite = !(interreduction))
+            pairs = pair_gen_dat.value
+            pair_gen_time = pair_gen_dat.time
+
+            #- PRINTING INFORMATION -#
+            if verbose_mat
+                mat_cnt += 1
+                println("selected $(nselected) / $(total_num_pairs) pairs, in position $(curr_pos), tagged $(curr_tag), sig-degree of sel. pairs: $(sig_degree)")
+                println("symbolic pp took $(symbolic_pp_time) secs.")
+                println("Matrix $(mat_cnt): $(reduction_dat.time) secs reduction / size = $(mat_size) / density = $(mat_dens)")
+                if !(iszero(zero_red_count))
+                    println("$(zero_red_count) zero reductions at sig-degree $(sig_degree) / position $(curr_pos)")
+                end
+                verbose_mat && println("Pair generation took $(pair_gen_time) seconds.")
+            end
+
+            if isempty(pairs) && curr_tag == :f && !(isempty(non_zero_cond))
+                for (j, i) in enumerate(non_zero_cond)
+                    new_pos!(ctx, i, curr_pos + I(j), curr_pos_key, :h)
+                    pair!(ctx, pairs, (i, one(ctx.po.mo)))
+                    G[i] = Tuple{M, M}[]
+                    H[i] = M[]
+                end
+                if !(isempty(pairs))
+                    if interreduction
+                        verbose_mat && println("interreducing")
+                        info_hashmap[curr_pos_key]["gb_size_bef_interred"] = gb_size(ctx, G)
+                        G, arit_ops, mat_size = interreduce(ctx, G, H, verbose = verbose_mat)
+                        info_hashmap[curr_pos_key]["interred_mat_size_rows"] = mat_size[1]
+                        info_hashmap[curr_pos_key]["interred_mat_size_cols"] = mat_size[2]
+                        info_hashmap[curr_pos_key]["arit_ops_interred"] += arit_ops
+                        info_hashmap[curr_pos_key]["gb_size_aft_interred"] = gb_size(ctx, G)
+                    end
+                    curr_pos = pos(ctx, first(pairs)[1])
+                    curr_tag = gettag(ctx, first(pairs)[1])
+                    curr_pos_key = first(pairs)[1][2][1]
+                end
             end
         end
+        # Split up timings between core loop and cleanup
+        if curr_tag in [:f, :g, :g_gen]
+            times.time_core_loop += timed
+        elseif iszero(f_left(ctx, curr_pos))
+            times.time_final_clean += timed
+        else
+            times.time_intermed_clean += timed
+        end            
     end
-
     verbose_mat && println("-----")
 
     if ctx.ord_indices[curr_pos_key][:tag] == :h
@@ -242,15 +258,18 @@ function f5core!(dat::F5Data{I, SΓ},
     end
 
     # interreducing
-    if interreduction
-        verbose_mat && println("FINAL INTERREDUCTION STEP")
-        info_hashmap[curr_pos_key]["gb_size_bef_interred"] = gb_size(ctx, G)
-        G, arit_ops, mat_size = interreduce(ctx, G, H, verbose = verbose_mat)
-        info_hashmap[curr_pos_key]["interred_mat_size_rows"] = mat_size[1]
-        info_hashmap[curr_pos_key]["interred_mat_size_cols"] = mat_size[2]
-        info_hashmap[curr_pos_key]["arit_ops_interred"] += arit_ops
-        info_hashmap[curr_pos_key]["gb_size_aft_interred"] = gb_size(ctx, G)
+    timed = @elapsed begin
+        if interreduction
+            verbose_mat && println("FINAL INTERREDUCTION STEP")
+            info_hashmap[curr_pos_key]["gb_size_bef_interred"] = gb_size(ctx, G)
+            G, arit_ops, mat_size = interreduce(ctx, G, H, verbose = verbose_mat)
+            info_hashmap[curr_pos_key]["interred_mat_size_rows"] = mat_size[1]
+            info_hashmap[curr_pos_key]["interred_mat_size_cols"] = mat_size[2]
+            info_hashmap[curr_pos_key]["arit_ops_interred"] += arit_ops
+            info_hashmap[curr_pos_key]["gb_size_aft_interred"] = gb_size(ctx, G)
+        end
     end
+    times.time_core_loop += timed
 
     #- PRINTING INFORMATION -#
     verbose_stats && println("-----")
@@ -304,7 +323,12 @@ function f5core!(dat::F5Data{I, SΓ},
         println("final number of arithmetic operations (cleanup step): $(num_arit_operations_cleanup)")
         println("final number of arithmetic operations (total):        $(total_num_arit_ops)")
         println("final size of GB:                                     $(gb_size(dat.ctx, G))")
+        println("-----")
+        println("time spent in core loop:                              $(times.time_core_loop)")
+        println("time spent in intermediate cleanup:                   $(times.time_intermed_clean)")
+        println("time spent in final cleanup:                          $(times.time_final_clean)")
     end
+
     verbose_stats && println("saturation added $(global_zero_red_count) elements not in the original ideal.")
     total_num_arit_ops = num_arit_operations_groebner + num_arit_operations_module_overhead + num_arit_operations_interreduction
     
