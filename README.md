@@ -1,12 +1,12 @@
 
 # Table of Contents
 
-1.  [Installation](#orgef3632b)
-2.  [Usage](#org8efb3ca)
+1.  [Installation](#org50bba8d)
+2.  [Usage](#org1968a9e)
 
 
 
-<a id="orgef3632b"></a>
+<a id="org50bba8d"></a>
 
 # Installation
 
@@ -29,13 +29,13 @@ If you don't want to activate the package every time you want to use it you can 
     (@v1.7) pkg> dev ~/somedir/SignatureGB.jl/
 
 
-<a id="org8efb3ca"></a>
+<a id="org1968a9e"></a>
 
 # Usage
 
-This package exports two main functions: `f5` which computes a Gröbner basis for a polynomial ideal \(I\) using Jean Charles Faugere's F5 algorithm and `decompose` which computes the locus of highest codimension of \(I\) if given fewer generators for \(I\) than the number of variables of the underlying polynomial ring.
+This package exports two main functions: `f5` which computes a Gröbner basis for a polynomial ideal I using Jean Charles Faugere's F5 algorithm and `decompose` which computes the locus of highest codimension of I if given fewer generators for I than the number of variables of the underlying polynomial ring.
 
-Both functions take as input a variable of type `Vector{spoly{n_Zp}}`, using this vector as a list of generators for \(I\):
+Both functions take as input a variable of type `Vector{spoly{n_Zp}}`, using this vector as a list of generators for I:
 
     using SignatureGB
     using Singular
@@ -46,7 +46,7 @@ Both functions take as input a variable of type `Vector{spoly{n_Zp}}`, using thi
     f5(F)
     decompose(F)
 
-Additionally, the following optional arguments are currently supported:
+Additionally, the following optional arguments might be of interest to most users:
 
 <table border="2" cellspacing="0" cellpadding="6" rules="groups" frame="hsides">
 
@@ -83,6 +83,14 @@ Additionally, the following optional arguments are currently supported:
 <td class="org-left">Whether or not to interreduce the Gröbner basis in intermediate computation steps</td>
 <td class="org-left"><code>true</code></td>
 <td class="org-left"><code>true</code> or <code>false</code></td>
+</tr>
+
+
+<tr>
+<td class="org-left"><code>verbose</code></td>
+<td class="org-left">Prints out computational stats. if <code>0</code>, nothing is printed. If <code>1</code>, stats are printed out at the end, for example timings and number of arithmetic operations. If <code>2</code> also print out stats about individual matrices.</td>
+<td class="org-left"><code>0</code></td>
+<td class="org-left"><code>0</code>, <code>1</code> or <code>2</code></td>
 </tr>
 </tbody>
 </table>
