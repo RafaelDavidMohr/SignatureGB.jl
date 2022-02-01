@@ -1,95 +1,93 @@
-const Data{M, T} = NamedTuple{(:poly, :sigtail, :sigratio),
-                              Tuple{Polynomial{M, T}, Polynomial{M, T}, M}}
-const SigTable{I, M, T} = Dict{Tuple{I, M}, Data{M, T}}
-const GenData{I} = NamedTuple{(:position, :att_key, :tag),
-                              Tuple{I, I, Symbol}}
-gendata(i::I, j::I, tg::Symbol) where I = (position = i, att_key = j, tag = tg)
+# TODO: Maybe introduce a type parameter to have specialized methods for different kinds
+# of module reps
+struct SigPolynomial{M, MM, T, MODT}
+    poly::Polynomial{M, T}
+    module_rep::Polynomial{MM, T}
+    sigratio::M
+end
 
-mutable struct SigPolynomialΓ{I, M, T, MΓ<:Context{M}, TΓ<:Context{T}, PΓ<:PolynomialΓ{M, T, MΓ, TΓ}, S}<:Context{Tuple{I, M}}
+# TODO: figure out if comes_from is needed
+mutable struct F5Index{I}
+    index::I
+    comes_from::I
+    tag::Symbol
+end
+
+const SigHash{I, M} = Tuple{I, M}
+const SigTable{I, M, MM, T, MODT} = Dict{SigHash{I, M}, SigPolynomial{M, MM, T, MODT}}
+
+mutable struct SigPolynomialΓ{I, M, MM, T, MODT,
+                              MΓ<:Context{M}, TΓ<:Context{T},
+                              MMΓ<:Context{MM},
+                              PΓ<:PolynomialΓ{M, T, MΓ, TΓ},
+                              PPΓ<:PolynomialΓ{M, T, MMΓ, TΓ}, MORD}<:Context{SigHash{I, M}}
     po::PΓ
-    tbl::SigTable{I, M, T}
-    ord_indices::Dict{I, GenData{I}}
+    mod_po::PPΓ
+    tbl::SigTable{I, M, MM, T, MODT}
+    f5_indices::Dict{I, F5Index{I}}
 end
 
 pos_type(::SigPolynomialΓ{I}) where {I} = I
 mon_type(::SigPolynomialΓ{I, M}) where {I, M} = M
+mod_mon_type(::SigPolynomialΓ{I, M, MM}) where {I, M, MM} = MM
 coeff_type(::SigPolynomialΓ{I, M, T}) where {I, M, T} = T
-mod_order(::SigPolynomialΓ{I, M, T, MΓ, TΓ, PΓ, S}) where {I, M, T, MΓ, TΓ, PΓ, S} = S
+mod_order(::SigPolynomialΓ{I, M, T, MΓ, TΓ, PΓ, MORD}) where {I, M, T, MΓ, TΓ, PΓ, MORD} = MORD
 
-gendata(ctx::SigPolynomialΓ{I}) where I = (position = zero(I), att_key = zero(I), tag = :f)
+function index(ctx::SigPolynomialΓ{I},
+               i::I) where {I}
 
-function pos(ctx::SigPolynomialΓ{I, M},
-             p::Tuple{I, M}) where {I, M}
-    
     iszero(p[1]) && return zero(I)
-    ctx.ord_indices[p[1]][:position]
+    ctx.f5_indices[i].index
 end
+tag(ctx::SigPolynomialΓ{I}, i::I) where {I} = ctx.f5_indices[i].tag
+comes_from(ctx::SigPolynomialΓ{I}, i::I) where I = ctx.f5_indices[i].comes_from
+
+index(ctx::SigPolynomialΓ{I, M}, p::SigHash{I, M}) where {I, M} = index(ctx, p[1])
+tag(ctx::SigPolynomialΓ{I, M}, p::SigHash{I, M}) where {I, M} = tag(ctx, p[1])
+comes_from(ctx::SigPolynomialΓ{I, M}, p::SigHash{I, M}) where {I, M} = comes_from(ctx, p[1])
+
+function new_index!(ctx::SigPolynomialΓ{I},
+                    index_key::I,
+                    index::I,
+                    comes_from = zero(I),
+                    tag = :f) where I
+
+    for i in keys(ctx.f5_indices)
+        if index(ctx, i) >= index
+            ctx.f5_indices[i].index += one(I)
+        end
+    end
+    ctx.f5_indices[index_key] = F5Index(index, comes_from, tag)
+end
+
+function new_generator!(ctx::SigPolynomialΓ{I, M, MM, T},
+                        index::I,
+                        pol::Polynomial{M, T},
+                        module_rep::Polynomial{MM, T},
+                        comes_from = zero(I),
+                        tag = :f) where {I, M, MM, T}
+
+    new_index_key = maximum(keys(ctx.f5_indices)) + one(I)
     
-function gettag(ctx::SigPolynomialΓ{I, M},
-                p::Tuple{I, M}) where {I, M}
-
-    iszero(p[1]) && return :nil
-    ctx.ord_indices[p[1]][:tag]
-end
-
-getattkey(ctx::SigPolynomialΓ{I, M}, p::Tuple{I, M}) where {I, M} = ctx.ord_indices[p[1]][:att_key]
-
-function new_gen!(ctx::SigPolynomialΓ{I, M, T},
-                  info_hashmap::Dict{I, Info},
-                  posit::I,
-                  attached_to::I,
-                  tagg::Symbol,
-                  pol::Polynomial{M, T}) where {I, M, T}
-
-    # register new generator
-    posit_key = register!(ctx, pol, info_hashmap)
+    # TODO: register new generator
 
     # rebuild ord_indices
-    new_pos!(ctx, posit_key, posit, attached_to, tagg)
-end
-
-function register!(ctx::SigPolynomialΓ{I, M, T},
-                   pol::Polynomial{M, T},
-                   info_hashmap::Dict{I, Dict{String, Int}}) where {I, M, T}
-
-    posit_key = maximum(keys(ctx.ord_indices)) + one(I)
-    ctx((posit_key, one(ctx.po.mo)), pol)
-    info_hashmap[posit_key] = new_info()
-    ctx.ord_indices[posit_key] = gendata(ctx)
-    return posit_key
-end
-
-function new_pos!(ctx::SigPolynomialΓ{I},
-                  posit_key::I,
-                  posit::I,
-                  attached_to::I,
-                  tagg::Symbol) where I
-
-    delete!(ctx.ord_indices, posit_key)
-    new_dict_arr = [(k, i >= posit ? gendata(i + one(I), j, tg) : gendata(i, j, tg))
-                    for (k, (i, j, tg)) in ctx.ord_indices]
-    push!(new_dict_arr, (posit_key, gendata(posit, attached_to, tagg)))
-    ctx.ord_indices = Dict(new_dict_arr)
-end
-
-function new_pos!(ctx::SigPolynomialΓ{I}, posit_key::I, posit::I) where I
-    new_pos!(ctx, posit_key, posit, ctx.ord_indices[posit_key][:att_key],
-             ctx.ord_indices[posit_key][:tag])
+    new_index!(ctx, new_index_key, index, comes_from, tag)
 end
 
 # find maximal index
-function maxpos(ctx::SigPolynomialΓ{I, M}) where {I, M}
+function maxindex(ctx::SigPolynomialΓ{I, M}) where {I, M}
 
-    maximum(v -> v[:position], values(ctx.ord_indices))
+    maximum(v -> v.index, values(ctx.f5_indices))
 end
 
 # return original generator of higher index than pos if it exists
-function f_left(ctx::SigPolynomialΓ{I, M}, pos::I) where {I, M}
+function orginal_gen_left(ctx::SigPolynomialΓ{I}, index::I) where I
 
     result = zero(I)
-    for (i, v) in ctx.ord_indices
-        if v[:tag] == :f && v[:position] > pos
-            if iszero(result) || v[:position] < ctx.ord_indices[result][:position]
+    for (i, v) in ctx.f5_indices
+        if v.tag == :f && v.index > index
+            if iszero(result) || v.index < ctx.f5_indices[result].index
                 result = i
             end
         end
@@ -97,6 +95,7 @@ function f_left(ctx::SigPolynomialΓ{I, M}, pos::I) where {I, M}
     return result
 end
 
+# TODO: rewrite this constructor
 function idxsigpolynomialctx(coefficients,
                              ngens;
                              monomials=nothing,
@@ -118,93 +117,84 @@ end
 
 # registration functions
 
-function (ctx::SigPolynomialΓ{I, M, T})(sig::Tuple{I, M},
-                                        pol::Polynomial{M, T},
-                                        sigtail::Polynomial{M, T}) where {I, MO, M, T}
+function (ctx::SigPolynomialΓ{I, M, MM, T})(sig::SigHash{I, M},
+                                            pol::Polynomial{M, T},
+                                            module_rep::Polynomial{MM, T}) where {I, M, MM, T}
     if iszero(pol)
         ratio = one(ctx.po.mo)
     else
         ratio = div(ctx.po.mo, sig[2], leadingmonomial(pol))
     end
-    val = Data{M, T}((pol, sigtail, ratio))
-    try
-        ctx.tbl[sig] = val
-    catch
-        insert!(ctx.tbl, sig, val)
-    end
+    val = SigPolynomial(pol, module_rep, ratio)
+    ctx.tbl[sig] = val
 end
 
-(ctx::SigPolynomialΓ{I, M, T})(sig::Tuple{I, M}, pol::Polynomial{M, T}) where {I, M, T} = ctx(sig, pol, zero(pol))
+function (ctx::SigPolynomialΓ{I, M, MM, T})(sig::SigHash{I, M}, pol::Polynomial{M, T}) where {I, M, MM, T}
+    ctx(sig, pol, zero(eltype(ctx.mod_po)))
+end
 
-Base.getindex(ctx::SigPolynomialΓ{I, M}, sig::Tuple{I, M}) where {I, M} = getindex(ctx.tbl, sig)
+Base.getindex(ctx::SigPolynomialΓ{I, M}, sig::SigHash{I, M}) where {I, M} = getindex(ctx.tbl, sig)
 
 # get functions
 
 # WARNING: if sig::Tuple{J, MO} where J != I or MO != M then this will convert sig to a Tuple{I, M}
 
-@inline function (ctx::SigPolynomialΓ{I, M})(sig::Tuple{I, M}) where {I, M, MO}
+@inline function (ctx::SigPolynomialΓ{I, M})(sig::SigHash{I, M}) where {I, M}
     ctx.tbl[sig]
-    # get(ctx.tbl, sig) do
-    #     error("Nothing registered under the signature $(sign)")
-    # end
 end
 
-function (ctx::SigPolynomialΓ{I, M, T})(m::M, sig::Tuple{I, M}; orig_elem = false) where {I, M, T}
-    key = (sig[1], mul(ctx.po.mo, m, sig[2]))
-    if !(orig_elem)
+function (ctx::SigPolynomialΓ{I, M})(m::M, sig::Tuple{I, M}; no_rewrite = false) where {I, M}
+    
+    key = mul(ctx, m, sig)
+    if !(no_rewrite)
         get(ctx.tbl, key) do
             val = ctx.tbl[sig]
-            Data{M, T}((mul(ctx.po, val[:poly], m), mul(ctx.po, val[:sigtail], m), val[:sigratio]))
+            SigPolynomial(mul(ctx.po, val.pol, m), mul(ctx.mod_po, val.module_rep, m), val.sigratio)
         end
     end
     val = ctx.tbl[sig]
-    Data{M, T}((mul(ctx.po, val[:poly], m), mul(ctx.po, val[:sigtail], m), val[:sigratio]))
+    SigPolynomial(mul(ctx.po, val.pol, m), mul(ctx.mod_po, val.module_rep, m), val.sigratio)
 end
 
 # get projection to highest index
 
-function project(sig::Tuple{I, M},
-                 sigtail::Polynomial{M, T}) where {I, M, T}
-    
-    Polynomial{M, T}(vcat(sig[2], sigtail.mo), vcat(one(T), sigtail.co))
-end
+function project(ctx::SigPolynomialΓ{I, M, M, T, :highest_index},
+                 sig::SigHash{I, M}) where {I, M, T}
 
-function project(ctx::SigPolynomialΓ{I, M},
-                 sig::Tuple{I, M}) where {I, M}
-    project(sig, ctx(sig)[:sigtail])
+    Polynomial{M, T}(vcat(sig[2], ctx[sig].module_rep.mo), vcat(one(T), ctx[sig].module_rep.co))
 end
 
 # forwarding of functions on polynomials/monomials
 
-function mul(ctx::SigPolynomialΓ{I, M}, m::M, sig::Tuple{I, M}) where {I, M}
+function mul(ctx::SigPolynomialΓ{I, M}, m::M, sig::SigHash{I, M}) where {I, M}
     (sig[1], mul(ctx.po.mo, m, sig[2]))
 end
 
-function divides(ctx::SigPolynomialΓ{I, M}, s1::Tuple{I, M}, s2::Tuple{I, M}) where {I, M}
+function divides(ctx::SigPolynomialΓ{I, M}, s1::SigHash{I, M}, s2::SigHash{I, M}) where {I, M}
     s1[1] == s2[1] && divides(ctx.po.mo, s1[2], s2[2])
 end
 
-@inline leadingmonomial(ctx::SigPolynomialΓ{I, M}, sig::Tuple{I, M}) where {I, M} = leadingmonomial(ctx(sig)[:poly])
+@inline leadingmonomial(ctx::SigPolynomialΓ{I, M}, sig::SigHash{I, M}) where {I, M} = leadingmonomial(ctx(sig)[:poly])
 
-@inline leadingmonomial(ctx::SigPolynomialΓ{I, M}, m::M, sig::Tuple{I, M}) where {I, M} = leadingmonomial(ctx(m, sig)[:poly])
+@inline leadingmonomial(ctx::SigPolynomialΓ{I, M}, m::M, sig::SigHash{I, M}) where {I, M} = leadingmonomial(ctx(m, sig)[:poly])
 
 # sorting
 
-@inline @generated function lt(ctx::SigPolynomialΓ{I, M, T, MΓ, TΓ, PΓ, S},
-                               a::Tuple{I, M},
-                               b::Tuple{I, M}) where {I, M, T, MΓ, TΓ, PΓ, S}
+@inline @generated function lt(ctx::SigPolynomialΓ{I, M, MM, T, MΓ, MMΓ, TΓ, PΓ, PPΓ, MORD},
+                               a::SigHash{I, M},
+                               b::SigHash{I, M}) where {I, M, MM, T, MΓ, MMΓ, TΓ, PΓ, PPΓ, MORD}
 
-    if S == :POT
+    if MORD == :POT
         quote
             if a[1] == b[1]
                 return lt(ctx.po.mo, a[2], b[2])
             end
-            return ctx.ord_indices[a[1]][:position] < ctx.ord_indices[b[1]][:position]
+            return ctx.f5_indices[a[1]].index < ctx.f5_indices[b[1]].index
         end
-    elseif S == :TOP
+    elseif MORD == :TOP
         quote
             if a[2] == b[2]
-                return ctx.ord_indices[a[1]][:position] < ctx.ord_indices[b[1]][:position]
+                return ctx.f5_indices[a[1]].index < ctx.f5_indices[b[1]].index
             end
             return lt(ctx.po.mo, a[2], b[2])
         end
