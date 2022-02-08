@@ -180,6 +180,7 @@ end
 
 # sorting
 
+# TODO: Schreyer
 @inline @generated function lt(ctx::SigPolynomialΓ{I, M, MM, T, MΓ, MMΓ, TΓ, PΓ, PPΓ, MORD},
                                a::SigHash{I, M},
                                b::SigHash{I, M}) where {I, M, MM, T, MΓ, MMΓ, TΓ, PΓ, PPΓ, MORD}
