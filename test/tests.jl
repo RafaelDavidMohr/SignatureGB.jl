@@ -91,8 +91,8 @@ end
     ctx(sig1, f), ctx(sig2, g)
     m1 = ctx.po.mo(x)
     @test collect(keys(ctx.tbl)) == [sig1, sig2]
-    @test R(ctx.po, ctx(sig1)[:poly]) == f
-    @test R(ctx.po, ctx(m1, sig1)[:poly]) == x*f
+    @test R(ctx.po, ctx(sig1).pol) == f
+    @test R(ctx.po, ctx(m1, sig1).pol) == x*f
 end
 
 @testset "f5 data" begin

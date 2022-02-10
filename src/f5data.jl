@@ -1,3 +1,4 @@
+# TODO: is this needed?
 mutable struct F5Data{I, SΓ<:SigPolynomialΓ{I}}
     ctx::SΓ
     R # singular ring

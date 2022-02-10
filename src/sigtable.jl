@@ -1,11 +1,11 @@
 # TODO: Maybe introduce a type parameter to have specialized methods for different kinds
 # of module reps
 struct SigPolynomial{M, MM, T, MODT}
-    poly::Polynomial{M, T}
+    pol::Polynomial{M, T}
     module_rep::Polynomial{MM, T}
     sigratio::M
 end
-
+    
 mutable struct F5Index{I}
     index::I
     tag::Symbol
@@ -25,11 +25,21 @@ mutable struct SigPolynomialΓ{I, M, MM, T, MODT,
     f5_indices::Dict{I, F5Index{I}}
 end
 
+function SigPolynomial(ctx::SigPolynomialΓ{I, M, MM, T, MODT},
+                       pol::Polynomial{M, T},
+                       module_rep::Polynomial{MM, T},
+                       sigratio::M) where {I, M, MM, T, MODT}
+    
+    SigPolynomial{M, MM, T, MODT}(pol, module_rep, sigratio)
+end
+
 pos_type(::SigPolynomialΓ{I}) where {I} = I
 mon_type(::SigPolynomialΓ{I, M}) where {I, M} = M
 mod_mon_type(::SigPolynomialΓ{I, M, MM}) where {I, M, MM} = MM
 coeff_type(::SigPolynomialΓ{I, M, T}) where {I, M, T} = T
 mod_order(::SigPolynomialΓ{I, M, T, MΓ, TΓ, PΓ, MORD}) where {I, M, T, MΓ, TΓ, PΓ, MORD} = MORD
+
+unitvector(ctx::SigPolynomialΓ, i) = (pos_type(ctx)(i), one(ctx.po.mo))
 
 function index(ctx::SigPolynomialΓ{I},
                i::I) where {I}
@@ -63,7 +73,7 @@ function new_generator!(ctx::SigPolynomialΓ{I, M, MM, T},
 
     new_index_key = maximum(keys(ctx.f5_indices)) + one(I)
     new_index!(ctx, new_index_key, index, tag)
-    sighash = (new_index_key, one(ctx.po.mo))
+    sighash = unitvector(ctx, new_index_key)
     ctx(sighash, pol, module_rep)
 end
 
@@ -88,23 +98,32 @@ function orginal_gen_left(ctx::SigPolynomialΓ{I}, index::I) where I
 end
 
 # TODO: rewrite this constructor
+# I dont understand the 'monomials' kwarg
 function idxsigpolynomialctx(coefficients,
                              ngens;
                              monomials=nothing,
-                             index_type=UInt32,
+                             mon_index_type=UInt32,
                              mask_type=UInt32,
                              pos_type=UInt32,
+                             same_module_context=true,
+                             mod_rep_type=:highest_index,
                              mod_order=:POT,
                              deg_bound = 0,
                              kwargs...)
+    # TODO: what does 'deg_bound' do?
     if isnothing(monomials)
-        moctx = ixmonomialctx(; indices=index_type, mask_type=mask_type, deg_bound=deg_bound, kwargs...)
+        moctx = ixmonomialctx(; indices=mon_index_type, mask_type=mask_type, deg_bound=deg_bound, kwargs...)
+    end
+    # here we need to possibly build a seperate module_moctx
+    if !(same_module_context)
+        error("using a different type of monomials for the module is currently not supported.")
     end
     po = polynomialctx(coefficients, monomials = moctx)
-    tbl = SigTable{pos_type, index_type, eltype(coefficients)}()
-    ord_indices = Dict([(pos_type(i), gendata(pos_type(i), zero(pos_type(i)), :f)) for i in 1:ngens])
-    SigPolynomialΓ{pos_type, eltype(moctx), eltype(coefficients),
-                   typeof(moctx), typeof(coefficients), typeof(po), mod_order}(po, tbl, ord_indices)
+    tbl = SigTable{pos_type, mon_index_type, mon_index_type, eltype(coefficients), mod_rep_type}()
+    f5_indices = Dict([(pos_type(i), F5Index(pos_type(i), :f)) for i in 1:ngens])
+    SigPolynomialΓ{pos_type, eltype(moctx), eltype(moctx), eltype(coefficients),
+                   mod_rep_type, typeof(moctx), typeof(coefficients), typeof(moctx),
+                   typeof(po), typeof(po), mod_order}(po, po, tbl, f5_indices)
 end
 
 # registration functions
@@ -117,7 +136,7 @@ function (ctx::SigPolynomialΓ{I, M, MM, T})(sig::SigHash{I, M},
     else
         ratio = div(ctx.po.mo, sig[2], leadingmonomial(pol))
     end
-    val = SigPolynomial(pol, module_rep, ratio)
+    val = SigPolynomial(ctx, pol, module_rep, ratio)
     ctx.tbl[sig] = val
 end
 
@@ -141,11 +160,11 @@ function (ctx::SigPolynomialΓ{I, M})(m::M, sig::Tuple{I, M}; no_rewrite = false
     if !(no_rewrite)
         get(ctx.tbl, key) do
             val = ctx.tbl[sig]
-            SigPolynomial(mul(ctx.po, val.pol, m), mul(ctx.mod_po, val.module_rep, m), val.sigratio)
+            SigPolynomial(ctx, mul(ctx.po, val.pol, m), mul(ctx.mod_po, val.module_rep, m), val.sigratio)
         end
     end
     val = ctx.tbl[sig]
-    SigPolynomial(mul(ctx.po, val.pol, m), mul(ctx.mod_po, val.module_rep, m), val.sigratio)
+    SigPolynomial(ctx, mul(ctx.po, val.pol, m), mul(ctx.mod_po, val.module_rep, m), val.sigratio)
 end
 
 # get projection to highest index
