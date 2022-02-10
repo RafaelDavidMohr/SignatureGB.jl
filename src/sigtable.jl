@@ -6,10 +6,8 @@ struct SigPolynomial{M, MM, T, MODT}
     sigratio::M
 end
 
-# TODO: figure out if comes_from is needed
 mutable struct F5Index{I}
     index::I
-    comes_from::I
     tag::Symbol
 end
 
@@ -40,16 +38,13 @@ function index(ctx::SigPolynomialΓ{I},
     ctx.f5_indices[i].index
 end
 tag(ctx::SigPolynomialΓ{I}, i::I) where {I} = ctx.f5_indices[i].tag
-comes_from(ctx::SigPolynomialΓ{I}, i::I) where I = ctx.f5_indices[i].comes_from
 
 index(ctx::SigPolynomialΓ{I, M}, p::SigHash{I, M}) where {I, M} = index(ctx, p[1])
 tag(ctx::SigPolynomialΓ{I, M}, p::SigHash{I, M}) where {I, M} = tag(ctx, p[1])
-comes_from(ctx::SigPolynomialΓ{I, M}, p::SigHash{I, M}) where {I, M} = comes_from(ctx, p[1])
 
 function new_index!(ctx::SigPolynomialΓ{I},
                     index_key::I,
                     index::I,
-                    comes_from = zero(I),
                     tag = :f) where I
 
     for i in keys(ctx.f5_indices)
@@ -57,22 +52,19 @@ function new_index!(ctx::SigPolynomialΓ{I},
             ctx.f5_indices[i].index += one(I)
         end
     end
-    ctx.f5_indices[index_key] = F5Index(index, comes_from, tag)
+    ctx.f5_indices[index_key] = F5Index(index, tag)
 end
 
 function new_generator!(ctx::SigPolynomialΓ{I, M, MM, T},
                         index::I,
                         pol::Polynomial{M, T},
                         module_rep::Polynomial{MM, T},
-                        comes_from = zero(I),
                         tag = :f) where {I, M, MM, T}
 
     new_index_key = maximum(keys(ctx.f5_indices)) + one(I)
-    
-    # TODO: register new generator
-
-    # rebuild ord_indices
-    new_index!(ctx, new_index_key, index, comes_from, tag)
+    new_index!(ctx, new_index_key, index, tag)
+    sighash = (new_index_key, one(ctx.po.mo))
+    ctx(sighash, pol, module_rep)
 end
 
 # find maximal index
