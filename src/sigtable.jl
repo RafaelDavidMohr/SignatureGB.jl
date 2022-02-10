@@ -36,15 +36,18 @@ end
 pos_type(::SigPolynomialΓ{I}) where {I} = I
 mon_type(::SigPolynomialΓ{I, M}) where {I, M} = M
 mod_mon_type(::SigPolynomialΓ{I, M, MM}) where {I, M, MM} = MM
-coeff_type(::SigPolynomialΓ{I, M, T}) where {I, M, T} = T
-mod_order(::SigPolynomialΓ{I, M, T, MΓ, TΓ, PΓ, MORD}) where {I, M, T, MΓ, TΓ, PΓ, MORD} = MORD
-
+coeff_type(::SigPolynomialΓ{I, M, MM, T}) where {I, M, MM, T} = T
+function mod_order(::SigPolynomialΓ{I, M, MM, T,
+                                    MODT, MΓ, TΓ,
+                                    MMΓ, PΓ, PPΓ, MORD}) where {I, M, MM, T, MODT, MΓ, TΓ, MMΓ, PΓ, PPΓ, MORD}
+    MORD
+end
 unitvector(ctx::SigPolynomialΓ, i) = (pos_type(ctx)(i), one(ctx.po.mo))
 
 function index(ctx::SigPolynomialΓ{I},
                i::I) where {I}
 
-    iszero(p[1]) && return zero(I)
+    iszero(i) && return zero(I)
     ctx.f5_indices[i].index
 end
 tag(ctx::SigPolynomialΓ{I}, i::I) where {I} = ctx.f5_indices[i].tag
@@ -190,23 +193,22 @@ end
 @inline leadingmonomial(ctx::SigPolynomialΓ{I, M}, m::M, sig::SigHash{I, M}) where {I, M} = leadingmonomial(ctx(m, sig)[:poly])
 
 # sorting
-
-# TODO: Schreyer
-@inline @generated function lt(ctx::SigPolynomialΓ{I, M, MM, T, MΓ, MMΓ, TΓ, PΓ, PPΓ, MORD},
+@inline @generated function lt(ctx::SigPolynomialΓ{I, M, MM, T, MODT, MΓ, MMΓ, TΓ, PΓ, PPΓ, MORD},
                                a::SigHash{I, M},
-                               b::SigHash{I, M}) where {I, M, MM, T, MΓ, MMΓ, TΓ, PΓ, PPΓ, MORD}
+                               b::SigHash{I, M}) where {I, M, MM, T, MODT, MΓ, MMΓ, TΓ, PΓ, PPΓ, MORD}
 
+    println(MORD)
     if MORD == :POT
         quote
             if a[1] == b[1]
                 return lt(ctx.po.mo, a[2], b[2])
             end
-            return ctx.f5_indices[a[1]].index < ctx.f5_indices[b[1]].index
+            return index(ctx, a[1]) < index(ctx, b[1])
         end
     elseif MORD == :TOP
         quote
             if a[2] == b[2]
-                return ctx.f5_indices[a[1]].index < ctx.f5_indices[b[1]].index
+                return index(ctx, a[1]) < index(ctx, b[1])
             end
             return lt(ctx.po.mo, a[2], b[2])
         end

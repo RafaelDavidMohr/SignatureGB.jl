@@ -93,15 +93,8 @@ end
     @test collect(keys(ctx.tbl)) == [sig1, sig2]
     @test R(ctx.po, ctx(sig1).pol) == f
     @test R(ctx.po, ctx(m1, sig1).pol) == x*f
-end
-
-@testset "f5 data" begin
-    R, (x, y) = Singular.PolynomialRing(Singular.Fp(101), ["x", "y"])
-    I = [x^2, y^2 + x*y]
-    order = SG.Grevlex(2)
-    dat = SG.f5data(I, order=order)
-    sig1, sig2 = dat.ctx(1, R(1)), dat.ctx(2, R(1))
-    @test SG.lt(dat.ctx, sig1, sig2)
+    @test SG.mod_order(ctx) == :POT
+    @test SG.lt(ctx, sig1, sig2)
 end
 
 @testset "pairs" begin
