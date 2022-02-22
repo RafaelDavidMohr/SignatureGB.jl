@@ -25,7 +25,7 @@ include("./polynomials.jl")
 include("./coefficients.jl")
 include("./monomialtable.jl")
 include("./sigtable.jl")
-include("./f5data.jl")
+# include("./f5data.jl")
 include("./pairs.jl")
 include("./symbolicpp.jl")
 include("./reduction.jl")
@@ -36,17 +36,15 @@ export f5, decompose
 
 # converting a vector of singular polynomials into our own data structures
 # TODO: rework constructors
-function f5setup(I::Vector{P};
-                 mod_order=:POT,
-                 mon_order=:GREVLEX,
-                 index_type=UInt32,
-                 mask_type=UInt32,
-                 pos_type=UInt32,
-                 trace_sig_tail_tags = Symbol[],
-                 max_remasks=3,
-                 kwargs...) where {P <: AA.MPolyElem}
+function setup(I::Vector{P};
+               mod_order=:POT,
+               mon_order=:GREVLEX,
+               modulus=32,
+               buffer=64,
+               kwargs...) where {P <: AA.MPolyElem}
 
     R = parent(first(I))
+    char = characteristic(R)
     if mon_order == :GREVLEX
         order = Grevlex(Singular.nvars(R))
     else
@@ -55,19 +53,24 @@ function f5setup(I::Vector{P};
     if mod_order != :POT
         error("only position over term order currently supported")
     end
-    dat = f5data(I, mod_order = mod_order, trace_sig_tail_tags = trace_sig_tail_tags,
-                 index_type = index_type, mask_type = mask_type,
-                 pos_type = pos_type, order = order,
-                 max_remasks = max_remasks)
+    if modulus != 32
+        error("only 32 bit modulus currently supported")
+    end
+    if !(buffer in [64, 128])
+        error("choose a buffer bitsize of either 64 or 128")
+    end
+    # TODO: register the polynomials
+    buffer == 64 ? coefficients = Nmod32Γ(char) : coefficients = Nmod32xΓ(char)
+    ctx = sigpolynomialctx(coefficients, length(I); mod_order = mod_order,
+                           order=order, kwargs...)
 end
 
 # build initial pairset, basis and syzygies
-function pairs_and_basis(dat::F5Data,
+function pairs_and_basis(ctx::SigPolynomialΓ,
                          basis_length;
-                         start_gen = 1)
+                         start_gen = 1,
+                         kwargs...)
 
-    R = dat.R
-    ctx = dat.ctx
     G = new_basis(ctx, basis_length)
     for i in 1:(start_gen - 1)
         lm = leadingmonomial(ctx, unitvector(ctx, i))
@@ -80,18 +83,18 @@ function pairs_and_basis(dat::F5Data,
 end
 
 # TODO: write this function
-# function nondegenerate_locus_core!(dat::F5Data{I, SΓ},
-#                                    G::Basis{I, M},
-#                                    H::Syz{I, M},
-#                                    pairs::PairSet{I, M, SΓ};
-#                                    select = :deg_and_pos,
-#                                    new_elems = new_elems_f5!,
-#                                    interreduction = true,
-#                                    select_both = true,
-#                                    verbose = 0) where {I, M, SΓ <: SigPolynomialΓ{I, M}}
-#     # dummy
-#     return
-# end
+function nondegenerate_locus_core!(dat::F5Data{I, SΓ},
+                                   G::Basis{I, M},
+                                   H::Syz{I, M},
+                                   pairs::PairSet{I, M, SΓ};
+                                   select = :deg_and_pos,
+                                   new_elems = new_elems_f5!,
+                                   interreduction = true,
+                                   select_both = true,
+                                   verbose = 0) where {I, M, SΓ <: SigPolynomialΓ{I, M}}
+    # dummy
+    return
+end
 
 function f5core!(dat::F5Data{I, SΓ},
                  G::Basis{I, M},
@@ -362,53 +365,25 @@ function f5core!(dat::F5Data{I, SΓ},
     G, total_num_arit_ops
 end
 
+# TODO: provide some defaults here
 function f5(I::Vector{P};
-            start_gen = 1,
-            trace_sig_tail_tags = Symbol[],
-            mod_order=:POT,
-            mon_order=:GREVLEX,
-            index_type=UInt32,
-            mask_type=UInt32,
-            pos_type=UInt32,
-            select = :deg_and_pos,
-            verbose = 0,
-            interreduction = true,
-            max_remasks = 3,
             kwargs...) where {P <: AA.MPolyElem}
 
     R = parent(first(I))
-    dat = f5setup(I, mod_order = mod_order,
-                  mon_order = mon_order, index_type = index_type,
-                  mask_type = mask_type, pos_type = pos_type,
-                  trace_sig_tail_tags = trace_sig_tail_tags,
-                  max_remasks = max_remasks, kwargs...)
-    G, H, pairs = pairs_and_basis(dat, length(I), start_gen = start_gen)
-    G, total_num_arit_ops = f5core!(dat, G, H, pairs, select = select, interreduction = interreduction, verbose = verbose)
+    ctx = setup(I,kwargs...)
+    G, H, pairs = pairs_and_basis(ctx, length(I), kwargs...)
+    G, total_num_arit_ops = f5core!(ctx, G, H, pairs, kwargs...)
     [R(dat.ctx, (i, g[1])) for i in keys(G) for g in G[i]]
 end
 
+# TODO: provide some defaults here
 function decompose(I::Vector{P};
-                   start_gen = 1,
-                   mod_order=:POT,
-                   mon_order=:GREVLEX,
-                   index_type=UInt32,
-                   mask_type=UInt32,
-                   pos_type=UInt32,
-                   select = :deg_and_pos,
-                   verbose = 0,
-                   interreduction = true,
-                   max_remasks = 3,
                    kwargs...) where {P <: AA.MPolyElem}
     
     R = parent(first(I))
-    dat = f5setup(I, mod_order = mod_order,
-                  mon_order = mon_order, index_type = index_type,
-                  mask_type = mask_type, pos_type = pos_type,
-                  trace_sig_tail_tags = [:f, :g_gen, :h],
-                  max_remasks = max_remasks, kwargs...)
+    ctx = setup(I, kwargs...)
     G, H, pairs = pairs_and_basis(dat, length(I), start_gen = start_gen)
-    G, total_num_arit_ops = f5core!(dat, G, H, pairs, select = select, verbose = verbose,
-                                    new_elems = new_elems_decomp!, select_both = false, interreduction = interreduction)
+    G, total_num_arit_ops = nondegenerate_part_core!(dat, G, H, pairs, kwargs...)
     [R(dat.ctx, (i, g[1])) for i in keys(G) for g in G[i]]
 end
 end

@@ -196,12 +196,12 @@ struct PolynomialΓ{M, T, MΓ<:Context{M}, TΓ<:Context{T}}<:Context{Polynomial{
     co::TΓ
 end
 
-
 function polynomialctx(coefficients; monomials=nothing, kwargs...)
     if isnothing(monomials)
         monomials = monomialctx(;kwargs...)
     end
-    return PolynomialΓ{eltype(monomials), eltype(coefficients), typeof(monomials),
+    return PolynomialΓ{eltype(monomials), eltype(coefficients),
+                       typeof(monomials),
                        typeof(coefficients)}(monomials, coefficients)
 end
 

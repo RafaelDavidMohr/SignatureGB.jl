@@ -102,32 +102,50 @@ end
 
 # TODO: rewrite this constructor
 # I dont understand the 'monomials' kwarg
-function idxsigpolynomialctx(coefficients,
-                             ngens;
-                             monomials=nothing,
-                             mon_index_type=UInt32,
-                             mask_type=UInt32,
-                             pos_type=UInt32,
-                             same_module_context=true,
-                             mod_rep_type=:highest_index,
-                             mod_order=:POT,
-                             deg_bound = 0,
-                             kwargs...)
+function sigpolynomialctx(coefficients,
+                          ngens;
+                          polynomials=nothing,
+                          mod_polynomials=nothing,
+                          pos_type=UInt32,
+                          mod_rep_type=nothing,
+                          mod_order=:POT,
+                          kwargs...)
     # TODO: what does 'deg_bound' do?
-    if isnothing(monomials)
-        moctx = ixmonomialctx(; indices=mon_index_type, mask_type=mask_type, deg_bound=deg_bound, kwargs...)
-    end
     # here we need to possibly build a seperate module_moctx
-    if !(same_module_context)
-        error("using a different type of monomials for the module is currently not supported.")
+    if isnothing(polynomials)
+        polynomials = polynomialctx(coefficients; kwargs...)
+        monomials = polynomials.mo
     end
-    po = polynomialctx(coefficients, monomials = moctx)
-    tbl = SigTable{pos_type, mon_index_type, mon_index_type, eltype(coefficients), mod_rep_type}()
-    f5_indices = Dict([(pos_type(i), F5Index(pos_type(i), :f)) for i in 1:ngens])
-    SigPolynomialΓ{pos_type, eltype(moctx), eltype(moctx), eltype(coefficients),
-                   mod_rep_type, typeof(moctx), typeof(coefficients), typeof(moctx),
-                   typeof(po), typeof(po), mod_order}(po, po, tbl, f5_indices)
+
+    if isnothing(mod_polynomials)
+        error("using a different type of monomials for the module is currently not supported.")
+    else
+        mod_polynomials = polynomials
+        mod_monomials = monomials
+    end
+
+    mon_type = eltype(monomials)
+    tbl = SigTable{pos_type, mon_type, mon_type, eltype(coefficients), mod_rep_type}()
+    f5_indices = Dict([(i, F5Index(i, :f)) for i in one(pos_type):pos_type(ngens)])
+    SigPolynomialΓ{pos_type, eltype(monomials),
+                   eltype(monomials), eltype(coefficients),
+                   mod_rep_type, typeof(monomials),
+                   typeof(coefficients), typeof(monomials),
+                   typeof(polynomials), typeof(mod_polynomials),
+                   mod_order}(po, po, tbl, f5_indices)
 end
+
+mutable struct SigPolynomialΓ{I, M, MM, T, MODT,
+                              MΓ<:Context{M}, TΓ<:Context{T},
+                              MMΓ<:Context{MM},
+                              PΓ<:PolynomialΓ{M, T, MΓ, TΓ},
+                              PPΓ<:PolynomialΓ{M, T, MMΓ, TΓ}, MORD}<:Context{SigHash{I, M}}
+    po::PΓ
+    mod_po::PPΓ
+    tbl::SigTable{I, M, MM, T, MODT}
+    f5_indices::Dict{I, F5Index{I}}
+end
+
 
 # registration functions
 
