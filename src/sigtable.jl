@@ -37,6 +37,10 @@ pos_type(::SigPolynomialΓ{I}) where {I} = I
 mon_type(::SigPolynomialΓ{I, M}) where {I, M} = M
 mod_mon_type(::SigPolynomialΓ{I, M, MM}) where {I, M, MM} = MM
 coeff_type(::SigPolynomialΓ{I, M, MM, T}) where {I, M, MM, T} = T
+function mod_rep_type(::SigPolynomialΓ{I, M, MM, T,
+                                       MODT}) where {I, M, MM, T, MODT}
+    MODT
+end
 function mod_order(::SigPolynomialΓ{I, M, MM, T,
                                     MODT, MΓ, TΓ,
                                     MMΓ, PΓ, PPΓ, MORD}) where {I, M, MM, T, MODT, MΓ, TΓ, MMΓ, PΓ, PPΓ, MORD}
@@ -117,7 +121,7 @@ function sigpolynomialctx(coefficients,
         monomials = polynomials.mo
     end
 
-    if isnothing(mod_polynomials)
+    if !(isnothing(mod_polynomials))
         error("using a different type of monomials for the module is currently not supported.")
     else
         mod_polynomials = polynomials
@@ -132,20 +136,8 @@ function sigpolynomialctx(coefficients,
                    mod_rep_type, typeof(monomials),
                    typeof(coefficients), typeof(monomials),
                    typeof(polynomials), typeof(mod_polynomials),
-                   mod_order}(po, po, tbl, f5_indices)
+                   mod_order}(polynomials, mod_polynomials, tbl, f5_indices)
 end
-
-mutable struct SigPolynomialΓ{I, M, MM, T, MODT,
-                              MΓ<:Context{M}, TΓ<:Context{T},
-                              MMΓ<:Context{MM},
-                              PΓ<:PolynomialΓ{M, T, MΓ, TΓ},
-                              PPΓ<:PolynomialΓ{M, T, MMΓ, TΓ}, MORD}<:Context{SigHash{I, M}}
-    po::PΓ
-    mod_po::PPΓ
-    tbl::SigTable{I, M, MM, T, MODT}
-    f5_indices::Dict{I, F5Index{I}}
-end
-
 
 # registration functions
 
@@ -215,7 +207,6 @@ end
                                a::SigHash{I, M},
                                b::SigHash{I, M}) where {I, M, MM, T, MODT, MΓ, MMΓ, TΓ, PΓ, PPΓ, MORD}
 
-    println(MORD)
     if MORD == :POT
         quote
             if a[1] == b[1]
@@ -242,4 +233,46 @@ function (R :: AA.MPolyRing)(ctx::SigPolynomialΓ{I, M},
                              sig::Tuple{I, M}) where {I, M}
 
     R(ctx.po, ctx(sig)[:poly])
+end
+
+# converting a vector of singular polynomials into our own data structures
+# TODO: rework constructors
+function setup(I::Vector{P};
+               mod_order=:POT,
+               mon_order=:GREVLEX,
+               modulus=32,
+               buffer=64,
+               kwargs...) where {P <: AA.MPolyElem}
+
+    R = parent(first(I))
+    char = characteristic(R)
+    if mon_order == :GREVLEX
+        order = Grevlex(Singular.nvars(R))
+    else
+        error("only grevlex order currently supported")
+    end
+    if mod_order != :POT
+        error("only position over term order currently supported")
+    end
+    if modulus != 32
+        error("only 32 bit modulus currently supported")
+    end
+    if !(buffer in [64, 128])
+        error("choose a buffer bitsize of either 64 or 128")
+    end
+    buffer == 64 ? coefficients = Nmod32Γ(char) : coefficients = Nmod32xΓ(char)
+    ctx = sigpolynomialctx(coefficients, length(I); mod_order = mod_order,
+                           order=order, kwargs...)
+    if mod_rep_type(ctx) in [nothing, :highest_index]
+        for (i, f) in enumerate(I)
+            ctx(unitvector(ctx, i), f)
+        end
+    elseif mod_rep_type(ctx) == :random_lin_comb
+        T = eltype(coefficients)
+        coeffs = rand(zero(T):T(char - 1), length(I))
+        for (i, f) in enumerate(I)
+            ctx(unitvector(ctx, i), f, ctx.mod_po(coeffs[i]))
+        end
+    end
+    ctx
 end
