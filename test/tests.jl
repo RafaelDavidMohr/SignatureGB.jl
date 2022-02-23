@@ -91,11 +91,26 @@ end
     sig1, sig2 = ctx(1, R(1)), ctx(2, R(1))
     ctx(sig1, f), ctx(sig2, g)
     m1 = ctx.po.mo(x)
-    @test collect(keys(ctx.tbl)) == [sig1, sig2]
+    @test Set(collect(keys(ctx.tbl))) == Set([sig1, sig2])
     @test R(ctx.po, ctx(sig1).pol) == f
     @test R(ctx.po, ctx(m1, sig1).pol) == x*f
     @test SG.mod_order(ctx) == :POT
     @test SG.lt(ctx, sig1, sig2)
+end
+
+@testset "setup" begin
+    R, (x, y) = Singular.PolynomialRing(Singular.Fp(101), ["x", "y"])
+    I = [x + y, x^2 + x*y + y^2]
+
+    ctx = SG.setup(I)
+    @test SG.mod_order(ctx) == :POT
+    @test SG.pos_type(ctx) == UInt16
+
+    ctx = SG.setup(I, indexed = false, exponents = Int32)
+    @test SG.exponenttype(ctx.po.mo) == Int32
+
+    ctx = SG.setup(I, buffer = 128)
+    @test typeof(ctx.po.co) <: SG.Nmod32xΓ
 end
 
 # @testset "pairs" begin

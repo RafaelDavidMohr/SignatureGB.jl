@@ -110,7 +110,7 @@ function sigpolynomialctx(coefficients,
                           ngens;
                           polynomials=nothing,
                           mod_polynomials=nothing,
-                          pos_type=UInt32,
+                          pos_type=UInt16,
                           mod_rep_type=nothing,
                           mod_order=:POT,
                           kwargs...)
