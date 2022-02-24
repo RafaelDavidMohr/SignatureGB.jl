@@ -14,6 +14,8 @@ end
 const SigHash{I, M} = Tuple{I, M}
 const SigTable{I, M, MM, T, MODT} = Dict{SigHash{I, M}, SigPolynomial{M, MM, T, MODT}}
 
+# TODO: Important!!!! swap T and MM in all the methods
+# TODO: Include additional field for which tags we want to track the module?
 mutable struct SigPolynomialΓ{I, M, MM, T, MODT,
                               MΓ<:Context{M}, TΓ<:Context{T},
                               MMΓ<:Context{MM},
@@ -23,6 +25,7 @@ mutable struct SigPolynomialΓ{I, M, MM, T, MODT,
     mod_po::PPΓ
     tbl::SigTable{I, M, MM, T, MODT}
     f5_indices::Dict{I, F5Index{I}}
+    track_module_tags::Vector{Symbol}
 end
 
 function SigPolynomial(ctx::SigPolynomialΓ{I, M, MM, T, MODT},
@@ -113,6 +116,7 @@ function sigpolynomialctx(coefficients,
                           pos_type=UInt16,
                           mod_rep_type=nothing,
                           mod_order=:POT,
+                          track_module_tags=[:f]
                           kwargs...)
     # TODO: what does 'deg_bound' do?
     # here we need to possibly build a seperate module_moctx
@@ -136,7 +140,8 @@ function sigpolynomialctx(coefficients,
                    mod_rep_type, typeof(monomials),
                    typeof(coefficients), typeof(monomials),
                    typeof(polynomials), typeof(mod_polynomials),
-                   mod_order}(polynomials, mod_polynomials, tbl, f5_indices)
+                   mod_order}(polynomials, mod_polynomials, tbl, f5_indices,
+                              track_module_tags)
 end
 
 # registration functions
@@ -167,6 +172,7 @@ Base.getindex(ctx::SigPolynomialΓ{I, M}, sig::SigHash{I, M}) where {I, M} = get
     ctx.tbl[sig]
 end
 
+# TODO: look at this
 function (ctx::SigPolynomialΓ{I, M})(m::M, sig::Tuple{I, M}; no_rewrite = false) where {I, M}
     
     key = mul(ctx, m, sig)
