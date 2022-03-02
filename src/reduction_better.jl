@@ -140,6 +140,7 @@ function sub_row!(buffer::Vector{Tbuf},
                   mult::T,
                   ctx::NmodLikeΓ{T, Tbuf}) where {J, T, Tbuf}
 
+    iszero(pivot) && return
     for (j, c) in enumerate(pivot)
         buffer[j] = submul(ctx, buffer[j], mult, c)
     end
@@ -165,6 +166,11 @@ mutable struct F5matrixPartialModule{I, M, J, T, O}
     max_index::I
 end
 
+function F5matrixHighestIndex(ctx)
+    #unfinished
+    return
+end
+
 @forward F5matrixPartialModule.matrix tbl, coeff_ctx, new_pivots, ignore
 rows(mat::F5matrixPartialModule) = (rows(mat.matrix), rows(mat.module_matrix))
 new_buffer(mat::F5matrixPartialModule) = (new_buffer(mat.matrix), new_buffer(mat.module_matrix))
@@ -184,10 +190,10 @@ end
 
 function unbuffer!(buffer::Tuple{Vector{Tbuf}, Vector{Tbuf}},
                    ctx::NmodLikeΓ{T, Tbuf},
-                   IND::Type{J}) where {J, T, Tbuf}
+                   ::Type{J}) where {J, T, Tbuf}
 
-    first_nz, row_main = unbuffer!(buffer[1], ctx, IND)
-    _, row_module = unbuffer!(buffer[2], ctx, IND)
+    first_nz, row_main = unbuffer!(buffer[1], ctx, J)
+    _, row_module = unbuffer!(buffer[2], ctx, J)
     first_nz, (row_main, row_module)
 end
 
@@ -198,5 +204,3 @@ function critical_loop!(buffer::Tuple{Vector{Tbuf}, Vector{Tbuf}},
     mult = critical_loop!(buffer[1], pivot[1], ctx)
     sub_row!(buffer[2], pivot[2], mult, ctx)
 end
-
-# first_non_zero, new_row = unbuffer!(buffer, coeff_ctx(mat))
