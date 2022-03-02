@@ -48,6 +48,37 @@ mutable struct F5matrix{I, M, J, T, O} <: MacaulayMatrix{MonSigPair{I, M}, J, T}
     interreduction_matrix::Bool
 end
 
+function index_pols(mons::Vector{M},
+                    sig_pols::Array{Tuple{MonSigPair{I, M}, Polynomial{M, T}}}) where {I, M, T}
+
+    tbl = easytable(mons)
+    sig_pols_indexed = [(sig, indexpolynomial(tbl, pol)) for (sig, pol) in sig_pols]
+    return tbl, sig_pols_indexed
+end
+        
+function F5matrix(ctx::SigPolynomialΓ{I, M, MM, T},
+                  mons::Vector{M},
+                  row_sigs::Vector{MonSigPair{I, M}};
+                  interreduction_matrix = false
+                  no_rewrite_criterion = p -> false) where {I, M, MM, T}
+
+    if interreduction_matrix
+        @assert no_rewrite_criterion == p -> true
+    end
+    sig_pols = [(sig, ctx(sig..., no_rewrite = no_rewrite_criterion(sig)).pol)
+                for sig in row_sigs]
+    tbl, sig_poly_indexed = index_pols(mons, sig_pols)
+    if interreduction_matrix
+        sigs_lms = Dict([(sig, leadingmonomial(pol)) for (sig, pol) in sig_poly_indexed])
+        row_order = interredorder(ctx, sigs_lms)
+    else
+        row_order = mpairordering(ctx)
+    end
+        
+    rows = SortedDict(sig_poly_indexed, row_order)
+    F5matrix(rows, tbl, ctx, interreduction_matrix)
+end
+
 tbl(mat::F5matrix) = mat.tbl
 rows(mat::F5matrix) = mat.rows
 coeff_ctx(mat::F5matrix) = mat.ctx.po.co
