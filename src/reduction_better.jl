@@ -59,7 +59,7 @@ end
 function F5matrix(ctx::SigPolynomialΓ{I, M, MM, T},
                   mons::Vector{M},
                   row_sigs::Vector{MonSigPair{I, M}};
-                  interreduction_matrix = false
+                  interreduction_matrix = false,
                   no_rewrite_criterion = p -> false) where {I, M, MM, T}
 
     if interreduction_matrix
@@ -176,7 +176,7 @@ rows(mat::F5matrixPartialModule) = (rows(mat.matrix), rows(mat.module_matrix))
 new_buffer(mat::F5matrixPartialModule) = (new_buffer(mat.matrix), new_buffer(mat.module_matrix))
 function set_row!(mat::F5matrix{I, M, J, T},
                   sig::MonSigPair{I, M},
-                  new_row::Tuple{Polynomial{J, T}, Polynomial{J, T}})
+                  new_row::Tuple{Polynomial{J, T}, Polynomial{J, T}}) where {I, M, J, T}
     set_row!(mat.matrix, sig, new_row[1])
     set_row!(mat.module_matrix, sig, new_row[2])
 end

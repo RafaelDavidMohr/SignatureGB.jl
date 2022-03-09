@@ -4,12 +4,31 @@ const MonSigPair{I, M} = Tuple{M, SigHash{I, M}}
 const Pair{I, M} = Tuple{MonSigPair{I, M}, MonSigPair{I, M}}
 const Basis{I, M} = Vector{Tuple{SigHash{I, M}, M}}
 const Syz{I, M} = Vector{SigHash{I, M}}
+
+struct MPairOrdering{SΓ <: SigPolynomialΓ}<:Base.Order.Ordering
+    ord::SigOrdering{SΓ}
+end
+
+struct PairOrdering{SΓ <: SigPolynomialΓ}<:Base.Order.Ordering
+    ord::MPairOrdering{SΓ}
+end
+
 const KoszulQueue{I, M, SΓ} = MutableBinaryHeap{SigHash{I, M}, SigOrdering{SΓ}}
 const PairSet{I, M, SΓ} = SortedSet{Pair{I, M}, PairOrdering{SΓ}}
 const MonSigSet{I, M, SΓ} = Set{MonSigPair{I, M}}
 
+new_basis(ctx::SigPolynomialΓ{I, M}) where {I, M} = Tuple{SigHash{I, M}, M}[]
+new_syz(ctx::SigPolynomialΓ{I, M}) where {I, M} = SigHash{I, M}[]
+
+function new_basis_elem!(ctx::SigPolynomialΓ{I, M},
+                         basis::Basis{I, M},
+                         sig::SigHash{I, M}) where {I, M}
+
+    push!(basis, (sig, leadingmonomial(ctx, sig)))
+end
+
 function Base.show(io::IO,
-                   a::ΓPair0{MonSigPair{I, M}, SX}) where {I, M, SX <: SigPolynomialΓ{I, M}}
+                   a::Γpair0{MonSigPair{I, M}, SX}) where {I, M, SX <: SigPolynomialΓ{I, M}}
     pair = a.dat
     Base.show(io, (gpair(ctx.po.mo, pair[1]), gpair(ctx, pair[2])))
 end
@@ -29,9 +48,6 @@ end
 
 isnull(p::MonSigPair) = iszero(p[2][1])
 
-struct MPairOrdering{SΓ <: SigPolynomialΓ}<:Base.Order.Ordering
-    ord::SigOrdering{SΓ}
-end
 mpairordering(ctx::SΓ) where SΓ = MPairOrdering{SΓ}(sigordering(ctx))
 
 function Base.Order.lt(porder::MPairOrdering{SΓ},
@@ -45,9 +61,6 @@ function Base.Order.lt(porder::MPairOrdering{SΓ},
     lt(porder.ord, amul, bmul)
 end
 
-struct PairOrdering{SΓ <: SigPolynomialΓ}<:Base.Order.Ordering
-    ord::MPairOrdering{SΓ}
-end
 pairordering(ctx::SΓ) where SΓ = PairOrdering{SΓ}(mpairordering(ctx))
 function Base.Order.lt(porder::PairOrdering{SΓ},
                        a::Pair{I, M},
@@ -81,7 +94,7 @@ function check!(K::KoszulQueue{I, M, SΓ},
     koszul_sig = first(K)
     pair_sig = mul(ctx, first(a)...)
     while !(isempty(K))
-        if lt(ordering, koszul_sig, pair_sig)
+        if Base.lt(ordering, koszul_sig, pair_sig)
             pop!(K)
             koszul_sig = first(K)
         elseif koszul_sig == pair_sig
@@ -111,6 +124,10 @@ function pairset(ctx::SigPolynomialΓ{I, M}) where {I, M}
     pairset(ctx, Pair{I, M}[])
 end
 
+function koszul_queue(ctx::SigPolynomialΓ{I, M}) where {I, M}
+    MutableBinaryHeap(sigordering(ctx), SigHash{I, M}[])
+end
+
 function pair!(ctx::SΓ,
                pairset::PairSet{I, M, SΓ},
                sig::SigHash{I, M}) where {I, M, SΓ <: SigPolynomialΓ{I, M}}
@@ -132,12 +149,12 @@ function pairs!(ctx::SΓ,
         m = lcm(ctx.po.mo, lm, lm_sig)
         m == mul(ctx.po.mo, lm, lm_sig) && continue
         a = div(ctx.po.mo, m, lm_sig)
-        rewriteable_syz(ctx, a, sig, G, H) && continue
+        rewriteable_syz(ctx, a, sig, H) && continue
         b = div(ctx.po.mo, m, lm)
         if enable_lower_index_rewrite || i == index_key
             rewriteable(ctx, b, g, j, G, H) && continue
         end
-        if lt(ctx, (posit_key, ctx(sig).sigratio), (i, ctx(g).sigratio))
+        if lt(ctx, (index_key, ctx(sig).sigratio), (g[1], ctx(g).sigratio))
             push!(pairset, ((b, g), (a, sig)))
         else
             push!(pairset, ((a, sig), (b, g)))
@@ -151,9 +168,9 @@ function rewriteable(ctx::SigPolynomialΓ{I, M},
                      indx,
                      G::Basis{I, M}) where {I, M}
 
-    msig = mul(ctx.po.mo, m, sig)
+    msig = mul(ctx, m, sig)
     for (g, lm) in G[indx + 1:end]
-        divides(ctx.po.mo, g, msig) && return true
+        divides(ctx, g, msig) && return true
     end
         
     return false
@@ -166,7 +183,7 @@ function rewriteable_syz(ctx::SigPolynomialΓ{I, M},
 
     msig = mul(ctx, m, sig)
     for h in H
-        if divides(ctx.po.mo, h, msig)
+        if divides(ctx, h, msig)
             return true
         end
     end

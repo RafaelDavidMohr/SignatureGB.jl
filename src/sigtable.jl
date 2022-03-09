@@ -35,7 +35,7 @@ function sigpolynomialctx(coefficients,
                           pos_type=UInt16,
                           mod_rep_type=nothing,
                           mod_order=:POT,
-                          track_module_tags=[:f]
+                          track_module_tags=[:f],
                           kwargs...)
     # TODO: what does 'deg_bound' do?
     # here we need to possibly build a seperate module_moctx
@@ -70,7 +70,7 @@ end
 function Base.Order.lt(order::SigOrdering{SΓ},
                        a::SigHash{I, M},
                        b::SigHash{I, M}) where {I, M, SΓ <: SigPolynomialΓ{I, M}}
-    lt(ctx, a, b)
+    lt(order.ctx, a, b)
 end
 sigordering(ctx::SΓ) where SΓ = SigOrdering{SΓ}(ctx)
 
@@ -220,9 +220,9 @@ function divides(ctx::SigPolynomialΓ{I, M}, s1::SigHash{I, M}, s2::SigHash{I, M
     s1[1] == s2[1] && divides(ctx.po.mo, s1[2], s2[2])
 end
 
-@inline leadingmonomial(ctx::SigPolynomialΓ{I, M}, sig::SigHash{I, M}) where {I, M} = leadingmonomial(ctx(sig)[:poly])
+@inline leadingmonomial(ctx::SigPolynomialΓ{I, M}, sig::SigHash{I, M}) where {I, M} = leadingmonomial(ctx(sig).pol)
 
-@inline leadingmonomial(ctx::SigPolynomialΓ{I, M}, m::M, sig::SigHash{I, M}) where {I, M} = leadingmonomial(ctx(m, sig)[:poly])
+@inline leadingmonomial(ctx::SigPolynomialΓ{I, M}, m::M, sig::SigHash{I, M}) where {I, M} = leadingmonomial(ctx(m, sig).pol)
 
 # sorting
 @inline @generated function lt(ctx::SigPolynomialΓ{I, M, MM, T, MODT, MΓ, MMΓ, TΓ, PΓ, PPΓ, MORD},

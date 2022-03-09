@@ -2,19 +2,17 @@ using StaticArrays
 using AbstractTrees
 using DataStructures
 
-# function small_example()
-#     R, (x, y) = Singular.PolynomialRing(Singular.Fp(101), ["x", "y"])
-#     I = [x^2, x*y + y^2]
-#     order = SG.Grevlex(2)
-#     dat = SG.f5data(I, order=order)
-#     ctx = dat.ctx
-#     basis = SG.new_basis(ctx, 2)
-#     syz = SG.new_syz(ctx, 2)
-#     for i in 1:2
-#         SG.new_basis_elem!(ctx, basis, (SG.pos_type(ctx)(i), ctx.po.mo(R(1))))
-#     end
-#     R, (x, y), ctx, basis, syz
-# end
+function small_example()
+    R, (x, y) = Singular.PolynomialRing(Singular.Fp(101), ["x", "y"])
+    I = [x^2, x*y + y^2]
+    ctx = SG.setup(I)
+    basis = SG.new_basis(ctx)
+    syz = SG.new_syz(ctx)
+    for i in 1:2
+        SG.new_basis_elem!(ctx, basis, (SG.pos_type(ctx)(i), ctx.po.mo(R(1))))
+    end
+    R, (x, y), ctx, basis, syz
+end
 
 # function contained_in(I1::sideal{MP},
 #                       I2::sideal{MP}) where {MP <: Singular.MPolyElem}
@@ -113,14 +111,18 @@ end
     @test typeof(ctx.po.co) <: SG.Nmod32xΓ
 end
 
-# @testset "pairs" begin
-#     R, (x, y), ctx, basis, syz = small_example()
-#     new_sig = ctx(2, x)
-#     ctx(new_sig, y^3)
-#     pairset = SG.pairset(ctx)
-#     SG.pairs!(ctx, pairset, new_sig, ctx.po.mo(y^3), basis, syz)
-#     @test isempty(pairset)
-# end
+@testset "pairs" begin
+    R, (x, y), ctx, basis, syz = small_example()
+    new_sig = ctx(2, x)
+    koszul_syz = ctx(2, x^2)
+    ctx(new_sig, y^3)
+    koszul_q = SG.koszul_queue(ctx)
+    push!(koszul_q, koszul_syz)
+    pairset = SG.pairset(ctx)
+    SG.pairs!(ctx, pairset, new_sig, ctx.po.mo(y^3), basis, syz)
+    @test length(pairset) == 1
+    @test SG.check!(koszul_q, first(pairset))
+end
 
 # @testset "symbolic-pp" begin
 #     R, (x, y), ctx, basis, syz = small_example()
