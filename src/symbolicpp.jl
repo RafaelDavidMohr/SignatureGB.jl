@@ -7,28 +7,25 @@ function find_reducer(ctx::SigPolynomialΓ{I, M},
                       H::Syz{I, M},
                       m::M;
                       use_max_sig = false,
-                      max_sig_pos = zero(pos_type(ctx)),
+                      max_sig_index = zero(pos_type(ctx)),
                       sig_degree = zero(exponenttype(ctx.po.mo)),
                       interreduction_step = false,
-                      enable_lower_pos_rewrite = true) where {I, M}
+                      enable_lower_index_rewrite = true) where {I, M}
 
     reducer = nothing
     mpairord = mpairordering(ctx)
-    for (i, Gi) in G
-        for (j, (g, lm)) in enumerate(Gi)
-            g_sig = (i, g)
-            if divides(ctx.po.mo, lm, m)
-                delta = div(ctx.po.mo, m, lm)
-                use_max_sig && ctx.ord_indices[i][:position] == max_sig_pos && degree(ctx, (delta, g_sig)) > sig_degree && continue
-                if !(interreduction_step) && (enable_lower_pos_rewrite || ctx.ord_indices[i][:position] == max_sig_pos)
-                    rewriteable(ctx, delta, g_sig, j, G, H) && continue
-                end
-                if !(interreduction_step) && (isnothing(reducer) || Base.Order.lt(mpairord, (delta, g_sig), reducer))
-                    reducer = (delta, g_sig)
-                end
-                if interreduction_step && delta != Base.one(ctx.po.mo)
-                    return (delta, g_sig)
-                end
+    for (j, (g, lm)) in enumerate(G)
+        if divides(ctx.po.mo, lm, m)
+            delta = div(ctx.po.mo, m, lm)
+            use_max_sig && index(ctx, g) == max_sig_index && degree(ctx, (delta, g)) > sig_degree && continue
+            if !(interreduction_step) && (enable_lower_index_rewrite || index(ctx, g) == max_sig_index)
+                rewriteable(ctx, delta, g, j, G, H) && continue
+            end
+            if !(interreduction_step) && (isnothing(reducer) || Base.Order.lt(mpairord, (delta, g), reducer))
+                reducer = (delta, g)
+            end
+            if interreduction_step && delta != Base.one(ctx.po.mo)
+                return (delta, g)
             end
         end
     end
@@ -41,15 +38,15 @@ function symbolic_pp!(ctx::SΓ,
                       H::Syz{I, M};
                       use_max_sig = false,
                       sig_degree = zero(exponenttype(ctx.po.mo)),
-                      max_sig_pos = zero(pos_type(ctx)),
-                      are_pairs= true,
+                      max_sig_index = zero(pos_type(ctx)),
+                      are_pairs = true,
                       interreduction_step = false,
-                      enable_lower_pos_rewrite = true) where {I, M <: Integer,
+                      enable_lower_index_rewrite = true) where {I, M <: Integer,
                                                               MS <: Union{MonSigSet{I, M}, Set{MonSigPair{I, M}}},
                                                               SΓ <: SigPolynomialΓ{I, M}}
 
     get_orig_elem = p -> interreduction_step || (!(enable_lower_pos_rewrite) && pos(ctx, p) < max_sig_pos)
-    todo = Set{M}(vcat([ctx(p..., orig_elem = get_orig_elem(p))[:poly].mo for p in pairs]...))
+    todo = Set{M}(vcat([ctx(p..., no_rewrite = get_orig_elem(p)).pol.mo for p in pairs]...))
     if are_pairs
         done = Set{M}([mul(ctx.po.mo, p[1], leadingmonomial(ctx, p[2])) for p in pairs])
     else
@@ -62,13 +59,13 @@ function symbolic_pp!(ctx::SΓ,
             push!(done, m)
             red = find_reducer(ctx, G, H, m,
                                use_max_sig = use_max_sig,
-                               max_sig_pos = max_sig_pos,
+                               max_sig_index = max_sig_index,
                                sig_degree = sig_degree,
                                interreduction_step = interreduction_step,
-                               enable_lower_pos_rewrite = enable_lower_pos_rewrite)
+                               enable_lower_index_rewrite = enable_lower_index_rewrite)
             isnothing(red) && continue
             push!(pairs, red)
-            union!(todo, ctx(red..., orig_elem = get_orig_elem(red))[:poly].mo)
+            union!(todo, ctx(red..., no_rewrite = get_orig_elem(red)).pol.mo)
         end
     end
     sort(collect(done), lt = (a, b) -> lt(ctx.po.mo, a, b), rev = true)
