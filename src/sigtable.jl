@@ -28,6 +28,59 @@ mutable struct SigPolynomialΓ{I, M, MM, T, MODT,
     track_module_tags::Vector{Symbol}
 end
 
+function sigpolynomialctx(coefficients,
+                          ngens;
+                          polynomials=nothing,
+                          mod_polynomials=nothing,
+                          pos_type=UInt16,
+                          mod_rep_type=nothing,
+                          mod_order=:POT,
+                          track_module_tags=[:f]
+                          kwargs...)
+    # TODO: what does 'deg_bound' do?
+    # here we need to possibly build a seperate module_moctx
+    if isnothing(polynomials)
+        polynomials = polynomialctx(coefficients; kwargs...)
+        monomials = polynomials.mo
+    end
+
+    if !(isnothing(mod_polynomials))
+        error("using a different type of monomials for the module is currently not supported.")
+    else
+        mod_polynomials = polynomials
+        mod_monomials = monomials
+    end
+
+    mon_type = eltype(monomials)
+    tbl = SigTable{pos_type, mon_type, mon_type, eltype(coefficients), mod_rep_type}()
+    f5_indices = Dict([(i, F5Index(i, :f)) for i in one(pos_type):pos_type(ngens)])
+    SigPolynomialΓ{pos_type, eltype(monomials),
+                   eltype(monomials), eltype(coefficients),
+                   mod_rep_type, typeof(monomials),
+                   typeof(coefficients), typeof(monomials),
+                   typeof(polynomials), typeof(mod_polynomials),
+                   mod_order}(polynomials, mod_polynomials, tbl, f5_indices,
+                              track_module_tags)
+end
+
+struct SigOrdering{SΓ <: SigPolynomialΓ}<:Base.Order.Ordering
+    ctx::SΓ
+end
+
+function Base.Order.lt(order::SigOrdering{SΓ},
+                       a::SigHash{I, M},
+                       b::SigHash{I, M}) where {I, M, SΓ <: SigPolynomialΓ{I, M}}
+    lt(ctx, a, b)
+end
+sigordering(ctx::SΓ) where SΓ = SigOrdering{SΓ}(ctx)
+
+function Base.show(io::IO,
+                   a::Γpair0{SigHash{I, M}, SX}) where {I, M, SX <: SigPolynomialΓ{I, M}}
+    ctx = a.ctx
+    sighash = a.dat
+    Base.show(io, (index(ctx, sighash), gpair(ctx.po.mo, sighash[2])))
+end
+
 function SigPolynomial(ctx::SigPolynomialΓ{I, M, MM, T, MODT},
                        pol::Polynomial{M, T},
                        module_rep::Polynomial{MM, T},
@@ -105,43 +158,6 @@ function orginal_gen_left(ctx::SigPolynomialΓ{I}, index::I) where I
         end
     end
     return result
-end
-
-# TODO: rewrite this constructor
-# I dont understand the 'monomials' kwarg
-function sigpolynomialctx(coefficients,
-                          ngens;
-                          polynomials=nothing,
-                          mod_polynomials=nothing,
-                          pos_type=UInt16,
-                          mod_rep_type=nothing,
-                          mod_order=:POT,
-                          track_module_tags=[:f]
-                          kwargs...)
-    # TODO: what does 'deg_bound' do?
-    # here we need to possibly build a seperate module_moctx
-    if isnothing(polynomials)
-        polynomials = polynomialctx(coefficients; kwargs...)
-        monomials = polynomials.mo
-    end
-
-    if !(isnothing(mod_polynomials))
-        error("using a different type of monomials for the module is currently not supported.")
-    else
-        mod_polynomials = polynomials
-        mod_monomials = monomials
-    end
-
-    mon_type = eltype(monomials)
-    tbl = SigTable{pos_type, mon_type, mon_type, eltype(coefficients), mod_rep_type}()
-    f5_indices = Dict([(i, F5Index(i, :f)) for i in one(pos_type):pos_type(ngens)])
-    SigPolynomialΓ{pos_type, eltype(monomials),
-                   eltype(monomials), eltype(coefficients),
-                   mod_rep_type, typeof(monomials),
-                   typeof(coefficients), typeof(monomials),
-                   typeof(polynomials), typeof(mod_polynomials),
-                   mod_order}(polynomials, mod_polynomials, tbl, f5_indices,
-                              track_module_tags)
 end
 
 # registration functions

@@ -174,6 +174,11 @@ mutable struct IxMonomialΓ{I<:Unsigned, N, E, B, MΓ<:MonomialContext{Monomial{
     table::MonomialHashTable{N, E, I, B}
 end
 
+function Base.show(io::IO,
+                   m::Γpair0{M, MX}) where {M, MX <: IxMonomialΓ{M}}
+    Base.show(io, ctx[m.dat])
+end
+
 # need to change this?
 const IxPolynomialΓ{I, T, moΓ <: IxMonomialΓ{I}, coΓ} = PolynomialΓ{I, T, moΓ, coΓ}
 
