@@ -16,22 +16,49 @@ include("./reduction_better.jl")
 
 # export f5, decompose
 
-# # build initial pairset, basis and syzygies
-# function pairs_and_basis(ctx::SigPolynomialΓ,
-#                          basis_length;
-#                          start_gen = 1,
-#                          kwargs...)
+# build initial pairset, basis and syzygies
+function pairs_and_basis(ctx::SigPolynomialΓ,
+                         basis_length;
+                         start_gen = 1,
+                         kwargs...)
 
-#     G = new_basis(ctx, basis_length)
-#     for i in 1:(start_gen - 1)
-#         lm = leadingmonomial(ctx, unitvector(ctx, i))
-#         push!(G[i], (one(ctx.po.mo), lm))
-#     end
-#     H = new_syz(ctx, basis_length)
-#     pairs = pairset(ctx)
-#     [pair!(ctx, pairs, unitvector(ctx, i)) for i in start_gen:basis_length]
-#     G, H, pairs
-# end
+    G = new_basis(ctx)
+    for i in 1:(start_gen - 1)
+        lm = leadingmonomial(ctx, unitvector(ctx, i))
+        push!(G, ((i, one(ctx.po.mo)), lm))
+    end
+    H = new_syz(ctx)
+    pairs = pairset(ctx)
+    [pair!(ctx, pairs, unitvector(ctx, i)) for i in start_gen:basis_length]
+    G, H, pairs
+end
+
+# TODO: logging
+function sgb(I::Vector{P};
+             kwargs...) where {P <: AA.MPolyElem}
+
+    ctx = setup(I, kwargs...)
+    G, H, pairs = pairs_and_basis(ctx, length(I))
+    sgb_core!(ctx, G, H, pairs, kwargs...)
+end
+
+function sgb_core!(ctx::SΓ,
+                   G::Basis{I, M},
+                   H::Syz{I, M},
+                   pairs::PairSet{I, M, SΓ},
+                   kwargs...) where {I, M, SΓ <: SigPolynomialΓ{I, M}}
+
+    if !(extends_degree(termorder(ctx.po.mo)))
+        error("I currently don't know how to deal with non-degree based monomial orderings...")
+    else
+        use_max_sig = true
+    end
+
+    while !(isempty(pairs))
+        # unfinished
+        break
+    end
+end
 
 # # TODO: write this function
 # function nondegenerate_locus_core!(dat::F5Data{I, SΓ},

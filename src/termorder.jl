@@ -74,10 +74,12 @@ struct Lex{N} <: MonomialOrder{N} end
 Lex(N) = Lex{N}()
 
 ordervector(::Lex{N}, e::SVector{N}) where N = e
+extends_degree(::Lex) = false
 
 #.. Graded reverse lexicographic order
 struct Grevlex{N} <: MonomialOrder{N} end
 Grevlex(N) = Grevlex{N}()
+extends_degree(::Grevlex) = true
 
 # should be compiled statically
 ordervector(::Grevlex{N}, e::SVector{N}) where N = insert(deleteat(reverse(-e), N), 1, sum(e))
@@ -87,6 +89,7 @@ struct WGrevlex{N} <: MonomialOrder{N}
     weights :: NTuple{N, Int}
 end
 
+extends_degree(::WGrevlex) = false
 ordervector(o::WGrevlex{N}, e::SVector{N}) where N = ordervector(Grevlex(N), o.weights .* e)
 
 #.. Block order
@@ -96,6 +99,8 @@ struct Block{N, O1 <: TermOrder, O2 <: TermOrder} <: TermOrder{N}
     o1 :: O1
     o2 :: O2
 end
+
+extends_degree(::Block) = false
 
 Block(o1, o2) = Block{nvars(o1)+nvars(o2), typeof(o1), typeof(o2)}(o1, o2)
 
