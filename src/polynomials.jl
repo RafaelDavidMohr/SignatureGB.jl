@@ -83,7 +83,7 @@ end
 Monomial(e) = Monomial{length(e), eltype(e)}(e, makehash(e))
 
 Base.hash(m::Monomial) = m.hash
-Base.show(io::IO, m::Monomial) = Base.show(io, convert(Vector{Int}, m.exponents))
+Base.show(io::IO, ::MIME"text/plain", m::Monomial) = Base.show(io, MIME"text/plain"(), convert(Vector{Int}, m.exponents))
 Base.isequal(x::Monomial, y::Monomial) = x.exponents == y.exponents
 
 # Compute a bitmask for the monomial M, TODO: make this generated
@@ -104,7 +104,7 @@ end
 
 
 # Int16 exponents allows for degree 32727, this leaves room for many applications
-function monomialctx(;exponents=Int16, order::TermOrder, vars=[], varprefix="x", indexed=false, kwargs...)
+function monomialctx(;exponents=Int16, order::TermOrder, vars=[], varprefix="x", indexed=true, kwargs...)
     if isempty(vars)
         vars = [varprefix*string(i) for i in 1:nvars(order)]
     end

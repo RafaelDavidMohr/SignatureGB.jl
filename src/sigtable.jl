@@ -75,10 +75,11 @@ end
 sigordering(ctx::SΓ) where SΓ = SigOrdering{SΓ}(ctx)
 
 function Base.show(io::IO,
+                   ::MIME"text/plain",
                    a::Γpair0{SigHash{I, M}, SX}) where {I, M, SX <: SigPolynomialΓ{I, M}}
     ctx = a.ctx
     sighash = a.dat
-    Base.show(io, (index(ctx, sighash), gpair(ctx.po.mo, sighash[2])))
+    Base.show(io, MIME"text/plain"(), (index(ctx, sighash), gpair(ctx.po.mo, sighash[2])))
 end
 
 function SigPolynomial(ctx::SigPolynomialΓ{I, M, MM, T, MODT},

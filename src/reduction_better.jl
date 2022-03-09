@@ -40,6 +40,16 @@ function reduction!(mat::MacaulayMatrix)
     end
 end
 
+function mat_show(mat::MacaulayMatrix)
+    mat_vis = zeros(Int, length(rows(mat)), length(tbl(mat)))
+    for (i, (sig, row)) in enumerate(rows(mat))
+        for (j, c) in row
+            mat_vis[i, j] = Int(c)
+        end
+    end
+    mat_vis
+end
+
 # base f5 matrix, no module representation
 mutable struct F5matrix{I, M, J, T, O} <: MacaulayMatrix{MonSigPair{I, M}, J, T}
     rows::SortedDict{MonSigPair{I, M}, Polynomial{J, T}, O}
@@ -85,7 +95,7 @@ coeff_ctx(mat::F5matrix) = mat.ctx.po.co
 function new_pivots(mat::F5matrix)
 
     n_cols = length(mat.tbl)
-    collect(Base.Iterators.repeated(nullmonsigpair(ctx), n_cols))
+    collect(Base.Iterators.repeated(nullmonsigpair(mat.ctx), n_cols))
 end
 function new_buffer(mat::F5matrix)
 
@@ -141,7 +151,7 @@ function sub_row!(buffer::Vector{Tbuf},
                   ctx::NmodLikeΓ{T, Tbuf}) where {J, T, Tbuf}
 
     iszero(pivot) && return
-    for (j, c) in enumerate(pivot)
+    for (j, c) in pivot
         buffer[j] = submul(ctx, buffer[j], mult, c)
     end
 end
@@ -150,10 +160,9 @@ function critical_loop!(buffer::Vector{Tbuf},
                         pivot::Polynomial{J, T},
                         ctx::NmodLikeΓ{T, Tbuf}) where {J, T, Tbuf}
     
-    mult1 = deflate(ctx, normal(ctx, buffer[monomial(pivot, 1)]))
+    mult1 = deflate(ctx, normal(ctx, buffer[leadingmonomial(pivot)]))
     mult2 = inv(ctx, coefficient(pivot, 1))
     mult = mul(ctx, mult1, mult2)
-    buffer[monomial(pivot, 1)] = zero(Tbuf)
     sub_row!(buffer, pivot, mult, ctx)
     return mult
 end

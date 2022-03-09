@@ -28,9 +28,10 @@ function new_basis_elem!(ctx::SigPolynomialΓ{I, M},
 end
 
 function Base.show(io::IO,
+                   ::MIME"text/plain",
                    a::Γpair0{MonSigPair{I, M}, SX}) where {I, M, SX <: SigPolynomialΓ{I, M}}
     pair = a.dat
-    Base.show(io, (gpair(ctx.po.mo, pair[1]), gpair(ctx, pair[2])))
+    Base.show(io, MIME"text/plain"(), (gpair(ctx.po.mo, pair[1]), gpair(ctx, pair[2])))
 end
 
 
@@ -53,12 +54,12 @@ mpairordering(ctx::SΓ) where SΓ = MPairOrdering{SΓ}(sigordering(ctx))
 function Base.Order.lt(porder::MPairOrdering{SΓ},
                        a::MonSigPair{I, M},
                        b::MonSigPair{I, M}) where {I, M, SΓ <: SigPolynomialΓ{I, M}}
-    amul, bmul = mul(porder.ctx, a...), mul(porder.ctx, b...)
+    amul, bmul = mul(porder.ord.ctx, a...), mul(porder.ord.ctx, b...)
     if amul == bmul
         # TODO: this might break stuff
         return b[2][2] < a[2][2]
     end
-    lt(porder.ord, amul, bmul)
+    Base.Order.lt(porder.ord, amul, bmul)
 end
 
 pairordering(ctx::SΓ) where SΓ = PairOrdering{SΓ}(mpairordering(ctx))

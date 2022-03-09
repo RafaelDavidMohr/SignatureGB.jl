@@ -175,8 +175,9 @@ mutable struct IxMonomialΓ{I<:Unsigned, N, E, B, MΓ<:MonomialContext{Monomial{
 end
 
 function Base.show(io::IO,
+                   ::MIME"text/plain",
                    m::Γpair0{M, MX}) where {M, MX <: IxMonomialΓ{M}}
-    Base.show(io, ctx[m.dat])
+    Base.show(io, MIME"text/plain"(), ctx[m.dat])
 end
 
 # need to change this?
