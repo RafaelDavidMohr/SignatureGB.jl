@@ -177,7 +177,7 @@ end
 function Base.show(io::IO,
                    ::MIME"text/plain",
                    m::Γpair0{M, MX}) where {M, MX <: IxMonomialΓ{M}}
-    Base.show(io, MIME"text/plain"(), ctx[m.dat])
+    print(io, convert(Vector{Int}, exponents(ctx, dat)))
 end
 
 # need to change this?

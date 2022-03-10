@@ -37,11 +37,11 @@ end
 function sgb(I::Vector{P};
              kwargs...) where {P <: AA.MPolyElem}
 
-    ctx = setup(I, kwargs...)
+    ctx = setup(I; kwargs...)
     G, H, koszul_q, pairs = pairs_and_basis(ctx, length(I))
-    sgb_core!(ctx, G, H, koszul_q, pairs, kwargs...)
-    R = base_ring(first(I))
-    [R(ctx, g) for g in G]
+    sgb_core!(ctx, G, H, koszul_q, pairs; kwargs...)
+    R = parent(first(I))
+    [R(ctx, g[1]) for g in G]
 end
 
 function sgb_core!(ctx::SΓ,
@@ -62,10 +62,8 @@ function sgb_core!(ctx::SΓ,
     if isnothing(select)
         if mod_order(ctx) == :POT
             select = :deg_and_pos
-        elseif mod_order(ctx) == :TOP || mod_order(ctx) == :SCHREY
+        elseif mod_order(ctx) == :SCHREY
             select = :deg
-        else
-            error("Unsupported module order. Pick one of :POT, :TOP or :SCHREY")
         end
     end
         
@@ -76,6 +74,7 @@ function sgb_core!(ctx::SΓ,
             remask!(ctx.po.mo.table)
         end
         to_reduce, are_pairs = select!(ctx, koszul_q, pairs, Val(select))
+        isempty(to_reduce) && continue
         done = symbolic_pp!(ctx, to_reduce, G, H, use_max_sig = use_max_sig,
                             are_pairs = are_pairs)
         mat = F5matrix(ctx, done, collect(to_reduce))
@@ -85,14 +84,17 @@ function sgb_core!(ctx::SΓ,
             for (sig, row) in rows(mat)
                 new_sig = mul(ctx, sig...)
                 if isempty(row)
-                    push!(H, sig)
+                    println("zero reduction in signature")
+                    println(gpair(ctx, new_sig))
+                    push!(H, new_sig)
                     new_rewriter!(ctx, pairs, new_sig)
                 else
                     p = unindexpolynomial(tbl(mat), row)
                     lm = leadingmonomial(p)
-                    if lt(ctx.po.mo, lm, leadingmonomial(ctx, sig..., no_rewrite = true))
+                    if isunitvector(ctx, new_sig) || lt(ctx.po.mo, lm, leadingmonomial(ctx, sig..., no_rewrite = true))
                         new_rewriter!(ctx, pairs, new_sig)
-                        push!(G, new_sig)
+                        ctx(new_sig, p)
+                        push!(G, (new_sig, lm))
                         pairs!(ctx, pairs, new_sig, lm, G, H)
                     end
                 end

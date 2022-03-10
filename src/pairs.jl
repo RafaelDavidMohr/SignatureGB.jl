@@ -28,12 +28,12 @@ function new_basis_elem!(ctx::SigPolynomialΓ{I, M},
 end
 
 function Base.show(io::IO,
-                   ::MIME"text/plain",
-                   a::Γpair0{MonSigPair{I, M}, SX}) where {I, M, SX <: SigPolynomialΓ{I, M}}
-    pair = a.dat
-    Base.show(io, MIME"text/plain"(), (gpair(ctx.po.mo, pair[1]), gpair(ctx, pair[2])))
+                   a::Tuple{MonSigPair{I, M}, SX}) where {I, M, SX <: SigPolynomialΓ{I, M}}
+    pair = a[1]
+    ctx = a[2]
+    print(io, (convert(Vector{Int}, exponents(ctx.po.mo, pair[1])),
+               (Int(pair[2][1]), convert(Vector{Int}, exponents(ctx.po.mo, pair[2][2])))))
 end
-
 
 function degree(ctx::SigPolynomialΓ{I, M}, p::MonSigPair{I, M}) where {I, M}
     degree(ctx.po.mo, p[1]) + degree(ctx.po.mo, p[2][2])
@@ -92,18 +92,19 @@ function check!(K::KoszulQueue{I, M, SΓ},
 
     ordering = K.ordering
     ctx = ordering.ctx
-    koszul_sig = first(K)
     pair_sig = mul(ctx, first(a)...)
-    while !(isempty(K))
-        if Base.lt(ordering, koszul_sig, pair_sig)
-            pop!(K)
+    while true
+        if !(isempty(K))
             koszul_sig = first(K)
-        elseif koszul_sig == pair_sig
-            return true
-        else
-            !(isnull(a[2])) && push!(K, koszul_syz(ctx, a[1][2], a[2][2]))
-            return false
+            if Base.lt(ordering, koszul_sig, pair_sig)
+                pop!(K)
+                koszul_sig = first(K)
+            elseif koszul_sig == pair_sig
+                return true
+            end
         end
+        !(isnull(a[2])) && push!(K, koszul_syz(ctx, a[1][2], a[2][2]))
+        return false
     end
 end
 
@@ -220,15 +221,11 @@ function select!(ctx::SΓ,
                  cond::Val{S};
                  select_both = true) where {I, M, SΓ <: SigPolynomialΓ{I, M}, S}
 
-    pair = pop!(pairs)
+    pair = first(pairs)
     indx = index(ctx, pair[1])
     sig_degree = degree(ctx, pair[1])
     are_pairs = false
-    selected = mpairset(ctx, [pair[1]])
-    if select_both && !(isnull(pair[2]))
-        push!(selected, pair[2])
-        are_pairs = true
-    end
+    selected = mpairset(ctx)
     
     if S == :one
         cond = p -> false
@@ -251,7 +248,11 @@ function select!(ctx::SΓ,
             continue
         end
         push!(selected, first(p))
-        select_both && push!(selected, p[2])
+        if select_both && !(isnull(p[2]))
+            are_pairs = true
+            push!(selected, p[2])
+        end
     end
+    
     selected, are_pairs
 end

@@ -125,6 +125,9 @@ end
 
     ctx = SG.setup(I, buffer = 128)
     @test typeof(ctx.po.co) <: SG.Nmod32xΓ
+
+    ctx = SG.setup(I, mod_order = :SCHREY)
+    @test SG.mod_order(ctx) == :SCHREY
 end
 
 @testset "pairs" begin
@@ -170,6 +173,14 @@ end
     R, (x, y) = Singular.PolynomialRing(Singular.Fp(101), ["x", "y"])
     I = [x^2, x*y + y^2]
     gb_2 = SG.sgb(I)
+    gb = vcat(I, [-y^3])
+    @test all(p -> p in gb, gb_2)
+end
+
+@testset "small groebner schreyer" begin
+    R, (x, y) = Singular.PolynomialRing(Singular.Fp(101), ["x", "y"])
+    I = [x^2, x*y + y^2]
+    gb_2 = SG.sgb(I, mod_order = :SCHREY)
     gb = vcat(I, [-y^3])
     @test all(p -> p in gb, gb_2)
 end

@@ -26,6 +26,11 @@ mutable struct SigPolynomialΓ{I, M, MM, T, MODT,
     tbl::SigTable{I, M, MM, T, MODT}
     f5_indices::Dict{I, F5Index{I}}
     track_module_tags::Vector{Symbol}
+    lms::Dict{I, M}
+end
+
+struct SigOrdering{SΓ <: SigPolynomialΓ}<:Base.Order.Ordering
+    ctx::SΓ
 end
 
 function sigpolynomialctx(coefficients,
@@ -60,11 +65,7 @@ function sigpolynomialctx(coefficients,
                    typeof(coefficients), typeof(monomials),
                    typeof(polynomials), typeof(mod_polynomials),
                    mod_order}(polynomials, mod_polynomials, tbl, f5_indices,
-                              track_module_tags)
-end
-
-struct SigOrdering{SΓ <: SigPolynomialΓ}<:Base.Order.Ordering
-    ctx::SΓ
+                              track_module_tags, Dict{pos_type, mon_type}())
 end
 
 function Base.Order.lt(order::SigOrdering{SΓ},
@@ -75,11 +76,10 @@ end
 sigordering(ctx::SΓ) where SΓ = SigOrdering{SΓ}(ctx)
 
 function Base.show(io::IO,
-                   ::MIME"text/plain",
                    a::Γpair0{SigHash{I, M}, SX}) where {I, M, SX <: SigPolynomialΓ{I, M}}
     ctx = a.ctx
     sighash = a.dat
-    Base.show(io, MIME"text/plain"(), (index(ctx, sighash), gpair(ctx.po.mo, sighash[2])))
+    print(io, (index(ctx, sighash), exponents(ctx.po.mo, sighash[2])))
 end
 
 function SigPolynomial(ctx::SigPolynomialΓ{I, M, MM, T, MODT},
@@ -98,9 +98,9 @@ function mod_rep_type(::SigPolynomialΓ{I, M, MM, T,
                                        MODT}) where {I, M, MM, T, MODT}
     MODT
 end
-function mod_order(::SigPolynomialΓ{I, M, MM, T,
-                                    MODT, MΓ, TΓ,
-                                    MMΓ, PΓ, PPΓ, MORD}) where {I, M, MM, T, MODT, MΓ, TΓ, MMΓ, PΓ, PPΓ, MORD}
+function mod_order(ctx::SigPolynomialΓ{I, M, MM, T,
+                                       MODT, MΓ, TΓ,
+                                       MMΓ, PΓ, PPΓ, MORD}) where {I, M, MM, T, MODT, MΓ, TΓ, MMΓ, PΓ, PPΓ, MORD}
     MORD
 end
 unitvector(ctx::SigPolynomialΓ, i) = (pos_type(ctx)(i), one(ctx.po.mo))
@@ -245,6 +245,15 @@ end
             end
             return lt(ctx.po.mo, a[2], b[2])
         end
+    elseif MORD == :SCHREY
+        quote
+            c1 = mul(ctx.po.mo, a[2], ctx.lms[a[1]])
+            c2 = mul(ctx.po.mo, b[2], ctx.lms[b[1]])
+            if c1 == c2
+                return index(ctx, a[1]) < index(ctx, b[1])
+            end
+            return lt(ctx.po.mo, c1, c2)
+        end
     end
 end
 
@@ -256,7 +265,7 @@ end
 function (R :: AA.MPolyRing)(ctx::SigPolynomialΓ{I, M},
                              sig::Tuple{I, M}) where {I, M}
 
-    R(ctx.po, ctx(sig)[:poly])
+    R(ctx.po, ctx(sig).pol)
 end
 
 # converting a vector of singular polynomials into our own data structures
@@ -275,8 +284,8 @@ function setup(I::Vector{P};
     else
         error("only grevlex order currently supported")
     end
-    if mod_order != :POT
-        error("only position over term order currently supported")
+    if mod_order != :POT && mod_order != :SCHREY
+        error("only position over term or schreyer order currently supported")
     end
     if modulus != 32
         error("only 32 bit modulus currently supported")
@@ -297,6 +306,10 @@ function setup(I::Vector{P};
         for (i, f) in enumerate(I)
             ctx(unitvector(ctx, i), f, ctx.mod_po(coeffs[i]))
         end
+    end
+    if mod_order == :SCHREY
+        ctx.lms = Dict([(pos_type(ctx)(i), leadingmonomial(ctx, unitvector(ctx, i)))
+                        for i in 1:length(I)])
     end
     ctx
 end

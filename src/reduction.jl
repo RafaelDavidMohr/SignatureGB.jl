@@ -95,7 +95,7 @@ function mat_show(mat)
     mat_vis
 end
 
-Base.show(io::IO, mat::F5matrix) = Base.show(io, mat_show(mat))
+Base.show(io::IO, mat::F5matrix) = print(io, mat_show(mat))
 
 function reduction!(mat::F5matrix{I, M, T, J};
                     interreduction_step = false) where {I, M, T, J, Tbuf}
