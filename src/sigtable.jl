@@ -224,7 +224,7 @@ end
 
 @inline leadingmonomial(ctx::SigPolynomialΓ{I, M}, sig::SigHash{I, M}) where {I, M} = leadingmonomial(ctx(sig).pol)
 
-@inline leadingmonomial(ctx::SigPolynomialΓ{I, M}, m::M, sig::SigHash{I, M}; kwargs...) where {I, M} = leadingmonomial(ctx(m, sig, kwargs...).pol)
+@inline leadingmonomial(ctx::SigPolynomialΓ{I, M}, m::M, sig::SigHash{I, M}; no_rewrite = false) where {I, M} = leadingmonomial(ctx(m, sig, no_rewrite = no_rewrite).pol)
 
 # sorting
 @inline @generated function lt(ctx::SigPolynomialΓ{I, M, MM, T, MODT, MΓ, MMΓ, TΓ, PΓ, PPΓ, MORD},

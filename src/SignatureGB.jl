@@ -39,7 +39,7 @@ function sgb(I::Vector{P};
 
     ctx = setup(I, kwargs...)
     G, H, koszul_q, pairs = pairs_and_basis(ctx, length(I))
-    sgb_core!(ctx, G, H, pairs, koszul_q, kwargs...)
+    sgb_core!(ctx, G, H, koszul_q, pairs, kwargs...)
     R = base_ring(first(I))
     [R(ctx, g) for g in G]
 end
@@ -75,10 +75,10 @@ function sgb_core!(ctx::SΓ,
             max_remasks -= 1
             remask!(ctx.po.mo.table)
         end
-        to_reduce, are_pairs = select!(ctx, koszul_q, pairs, Val(select), select_both = select_both)
+        to_reduce, are_pairs = select!(ctx, koszul_q, pairs, Val(select))
         done = symbolic_pp!(ctx, to_reduce, G, H, use_max_sig = use_max_sig,
                             are_pairs = are_pairs)
-        mat = F5matrix(ctx, done, to_reduce)
+        mat = F5matrix(ctx, done, collect(to_reduce))
         reduction!(mat)
 
         @inbounds begin

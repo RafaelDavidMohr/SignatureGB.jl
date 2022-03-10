@@ -66,7 +66,7 @@ pairordering(ctx::SΓ) where SΓ = PairOrdering{SΓ}(mpairordering(ctx))
 function Base.Order.lt(porder::PairOrdering{SΓ},
                        a::Pair{I, M},
                        b::Pair{I, M}) where {I, M, SΓ <: SigPolynomialΓ{I, M}}
-    if mul(porder.ord.ctx, first(a)...) == mul(porder.ord.ctx, first(b)...)
+    if mul(porder.ord.ord.ctx, first(a)...) == mul(porder.ord.ord.ctx, first(b)...)
         if !(isnull(a[2])) && !(isnull(b[2]))
             return Base.Order.lt(porder.ord, a[2], b[2])
         end
@@ -221,7 +221,7 @@ function select!(ctx::SΓ,
                  select_both = true) where {I, M, SΓ <: SigPolynomialΓ{I, M}, S}
 
     pair = pop!(pairs)
-    indx = pos(ctx, pair[1])
+    indx = index(ctx, pair[1])
     sig_degree = degree(ctx, pair[1])
     are_pairs = false
     selected = mpairset(ctx, [pair[1]])
@@ -233,9 +233,9 @@ function select!(ctx::SΓ,
     if S == :one
         cond = p -> false
     elseif S == :deg_and_pos
-        cond = p -> pos(ctx, p[1]) == indx && degree(ctx, p[1]) == sig_degree
+        cond = p -> index(ctx, p[1]) == indx && degree(ctx, p[1]) == sig_degree
     elseif S == :pos
-        cond = p -> pos(ctx, p[1]) == indx
+        cond = p -> index(ctx, p[1]) == indx
     elseif S == :deg
         cond = p -> degree(ctx, p[1]) == sig_degree
     else
