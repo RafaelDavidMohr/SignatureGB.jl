@@ -236,6 +236,8 @@ function select!(ctx::SΓ,
         cond = p -> pos(ctx, p[1]) == indx && degree(ctx, p[1]) == sig_degree
     elseif S == :pos
         cond = p -> pos(ctx, p[1]) == indx
+    elseif S == :deg
+        cond = p -> degree(ctx, p[1]) == sig_degree
     else
         error("Select method must be one of :one, :deg_and_pos or :pos")
     end
@@ -251,5 +253,5 @@ function select!(ctx::SΓ,
         push!(selected, first(p))
         select_both && push!(selected, p[2])
     end
-    selected, are_pairs, nselected, sig_degree
+    selected, are_pairs
 end

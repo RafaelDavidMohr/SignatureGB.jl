@@ -104,6 +104,7 @@ function mod_order(::SigPolynomialΓ{I, M, MM, T,
     MORD
 end
 unitvector(ctx::SigPolynomialΓ, i) = (pos_type(ctx)(i), one(ctx.po.mo))
+isunitvector(ctx::SigPolynomialΓ{I, M}, a::SigHash{I, M}) where {I, M} = isone(a[2])
 
 function index(ctx::SigPolynomialΓ{I},
                i::I) where {I}
@@ -223,7 +224,7 @@ end
 
 @inline leadingmonomial(ctx::SigPolynomialΓ{I, M}, sig::SigHash{I, M}) where {I, M} = leadingmonomial(ctx(sig).pol)
 
-@inline leadingmonomial(ctx::SigPolynomialΓ{I, M}, m::M, sig::SigHash{I, M}) where {I, M} = leadingmonomial(ctx(m, sig).pol)
+@inline leadingmonomial(ctx::SigPolynomialΓ{I, M}, m::M, sig::SigHash{I, M}; kwargs...) where {I, M} = leadingmonomial(ctx(m, sig, kwargs...).pol)
 
 # sorting
 @inline @generated function lt(ctx::SigPolynomialΓ{I, M, MM, T, MODT, MΓ, MMΓ, TΓ, PΓ, PPΓ, MORD},

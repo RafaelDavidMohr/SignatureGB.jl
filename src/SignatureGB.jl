@@ -30,7 +30,7 @@ function pairs_and_basis(ctx::SigPolynomialΓ,
     H = new_syz(ctx)
     pairs = pairset(ctx)
     [pair!(ctx, pairs, unitvector(ctx, i)) for i in start_gen:basis_length]
-    G, H, pairs
+    G, H, koszul_queue(ctx), pairs
 end
 
 # TODO: logging
@@ -38,14 +38,19 @@ function sgb(I::Vector{P};
              kwargs...) where {P <: AA.MPolyElem}
 
     ctx = setup(I, kwargs...)
-    G, H, pairs = pairs_and_basis(ctx, length(I))
-    sgb_core!(ctx, G, H, pairs, kwargs...)
+    G, H, koszul_q, pairs = pairs_and_basis(ctx, length(I))
+    sgb_core!(ctx, G, H, pairs, koszul_q, kwargs...)
+    R = base_ring(first(I))
+    [R(ctx, g) for g in G]
 end
 
 function sgb_core!(ctx::SΓ,
                    G::Basis{I, M},
                    H::Syz{I, M},
-                   pairs::PairSet{I, M, SΓ},
+                   koszul_q::KoszulQueue{I, M, SΓ},
+                   pairs::PairSet{I, M, SΓ};
+                   select = nothing,
+                   max_remasks = 3,
                    kwargs...) where {I, M, SΓ <: SigPolynomialΓ{I, M}}
 
     if !(extends_degree(termorder(ctx.po.mo)))
@@ -54,9 +59,45 @@ function sgb_core!(ctx::SΓ,
         use_max_sig = true
     end
 
+    if isnothing(select)
+        if mod_order(ctx) == :POT
+            select = :deg_and_pos
+        elseif mod_order(ctx) == :TOP || mod_order(ctx) == :SCHREY
+            select = :deg
+        else
+            error("Unsupported module order. Pick one of :POT, :TOP or :SCHREY")
+        end
+    end
+        
     while !(isempty(pairs))
-        # unfinished
-        break
+        # TODO: is this a good idea
+        if max_remasks > 0 && rand() < max(1/max_remasks, 1/3)
+            max_remasks -= 1
+            remask!(ctx.po.mo.table)
+        end
+        to_reduce, are_pairs = select!(ctx, koszul_q, pairs, Val(select), select_both = select_both)
+        done = symbolic_pp!(ctx, to_reduce, G, H, use_max_sig = use_max_sig,
+                            are_pairs = are_pairs)
+        mat = F5matrix(ctx, done, to_reduce)
+        reduction!(mat)
+
+        @inbounds begin
+            for (sig, row) in rows(mat)
+                new_sig = mul(ctx, sig...)
+                if isempty(row)
+                    push!(H, sig)
+                    new_rewriter!(ctx, pairs, new_sig)
+                else
+                    p = unindexpolynomial(tbl(mat), row)
+                    lm = leadingmonomial(p)
+                    if lt(ctx.po.mo, lm, leadingmonomial(ctx, sig..., no_rewrite = true))
+                        new_rewriter!(ctx, pairs, new_sig)
+                        push!(G, new_sig)
+                        pairs!(ctx, pairs, new_sig, lm, G, H)
+                    end
+                end
+            end
+        end 
     end
 end
 
