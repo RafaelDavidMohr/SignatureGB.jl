@@ -221,6 +221,8 @@ function select!(ctx::SΓ,
                  cond::Val{S};
                  select_both = true) where {I, M, SΓ <: SigPolynomialΓ{I, M}, S}
 
+    nselected = 0
+    npairs = length(pairs)
     pair = first(pairs)
     indx = index(ctx, pair[1])
     sig_degree = degree(ctx, pair[1])
@@ -248,11 +250,13 @@ function select!(ctx::SΓ,
             continue
         end
         push!(selected, first(p))
+        nselected += 1
         if select_both && !(isnull(p[2]))
             are_pairs = true
             push!(selected, p[2])
         end
     end
-    
+
+    @logmsg Verbose2 "" sig_degree nselected npairs
     selected, are_pairs
 end
