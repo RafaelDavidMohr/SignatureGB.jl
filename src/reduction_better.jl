@@ -84,7 +84,7 @@ function F5matrix(ctx::SigPolynomialΓ{I, M, MM, T},
     else
         row_order = mpairordering(ctx)
     end
-        
+    
     rows = SortedDict(sig_poly_indexed, row_order)
     F5matrix(rows, tbl, ctx, interreduction_matrix)
 end

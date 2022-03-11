@@ -98,7 +98,7 @@ function check!(K::KoszulQueue{I, M, SΓ},
             koszul_sig = first(K)
             if Base.lt(ordering, koszul_sig, pair_sig)
                 pop!(K)
-                koszul_sig = first(K)
+                continue         
             elseif koszul_sig == pair_sig
                 return true
             end

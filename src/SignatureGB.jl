@@ -1,5 +1,7 @@
 module SignatureGB
 
+using Combinatorics
+
 include("./useful.jl")
 include("./context.jl")
 include("./termorder.jl")
@@ -87,9 +89,15 @@ function sgb_core!(ctx::SΓ,
         isempty(to_reduce) && continue
         done = symbolic_pp!(ctx, to_reduce, G, H, use_max_sig = use_max_sig,
                             are_pairs = are_pairs)
+        koszul_syzygies = [koszul_syz(ctx, a[1], b[1]) for (a, b) in combinations(G, 2)]
         mat = F5matrix(ctx, done, collect(to_reduce))
         @logmsg Verbose2 "" nz_entries = sum([length(rw) for rw in values(rows(mat))]) mat_size = (length(rows(mat)), length(tbl(mat)))
         reduction!(mat)
+        for k in koszul_syzygies
+            for a in to_reduce
+                divides(ctx, k, mul(ctx, a...)) && error("$((a, ctx)) is koszul!")
+            end
+        end
 
         @inbounds begin
             for (sig, row) in rows(mat)
@@ -101,7 +109,7 @@ function sgb_core!(ctx::SΓ,
                 else
                     p = unindexpolynomial(tbl(mat), row)
                     lm = leadingmonomial(p)
-                    if isunitvector(ctx, new_sig) || lt(ctx.po.mo, lm, leadingmonomial(ctx, sig..., no_rewrite = true))
+                    if (isunitvector(ctx, new_sig) && !(new_sig in G)) || lt(ctx.po.mo, lm, leadingmonomial(ctx, sig..., no_rewrite = true))
                         @logmsg Verbose2 "" new_basis = true
                         new_rewriter!(ctx, pairs, new_sig)
                         ctx(new_sig, p)
