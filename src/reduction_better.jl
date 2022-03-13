@@ -31,7 +31,7 @@ function reduction!(mat::MacaulayMatrix)
         end
 
         first_non_zero, new_row = unbuffer!(buffer, coeff_ctx(mat), ind_type(tbl(mat)))
-
+        
         if !(iszero(first_non_zero))
             pivots[first_non_zero] = key
         end

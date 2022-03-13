@@ -223,11 +223,38 @@ function select!(ctx::SΓ,
 
     nselected = 0
     npairs = length(pairs)
-    pair = first(pairs)
+    pair = pop!(pairs)
     indx = index(ctx, pair[1])
     sig_degree = degree(ctx, pair[1])
     are_pairs = false
     selected = mpairset(ctx)
+
+    while true
+        if check!(K, pair)
+            if !(isempty(pairs))
+                pair = pop!(pairs)
+            else
+                break
+            end
+        else
+            indx = index(ctx, pair[1])
+            sig_degree = degree(ctx, pair[1])
+            nselected += 1
+            push!(selected, pair[1])
+            if select_both && !(isnull(pair[2]))
+                are_pairs = true
+                push!(selected, pair[2])
+            end
+            break
+        end
+    end
+                 
+    selected = mpairset(ctx, [pair[1]])
+    if select_both && !(isnull(pair[2]))
+        push!(selected, pair[2])
+        are_pairs = true
+    end
+
     
     if S == :one
         cond = p -> false
