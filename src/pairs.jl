@@ -57,7 +57,7 @@ function Base.Order.lt(porder::MPairOrdering{SΓ},
     amul, bmul = mul(porder.ord.ctx, a...), mul(porder.ord.ctx, b...)
     if amul == bmul
         # TODO: this might break stuff
-        return b[2][2] < a[2][2]
+        return a[2][2] < b[2][2]
     end
     Base.Order.lt(porder.ord, amul, bmul)
 end
