@@ -228,36 +228,10 @@ function select!(ctx::SΓ,
     sig_degree = degree(ctx, pair[1])
     are_pairs = false
     selected = mpairset(ctx)
-
-    # while true
-    #     if check!(K, pair)
-    #         if !(isempty(pairs))
-    #             pair = pop!(pairs)
-    #         else
-    #             break
-    #         end
-    #     else
-    #         indx = index(ctx, pair[1])
-    #         sig_degree = degree(ctx, pair[1])
-    #         nselected += 1
-    #         push!(selected, pair[1])
-    #         if select_both && !(isnull(pair[2]))
-    #             are_pairs = true
-    #             push!(selected, pair[2])
-    #         end
-    #         break
-    #     end
-    # end
-                 
-    # selected = mpairset(ctx, [pair[1]])
-    # if select_both && !(isnull(pair[2]))
-    #     push!(selected, pair[2])
-    #     are_pairs = true
-    # end
-
     
     if S == :one
-        cond = p -> nselected == 0
+        # cond = p -> nselected == 0
+        error("selecting one pair at a time is currently not supported. Select must be one of :deg_and_pos or :pos")
     elseif S == :deg_and_pos
         cond = p -> index(ctx, p[1]) == indx && degree(ctx, p[1]) == sig_degree
     elseif S == :pos
@@ -265,7 +239,7 @@ function select!(ctx::SΓ,
     elseif S == :deg
         cond = p -> degree(ctx, p[1]) == sig_degree
     else
-        error("Select method must be one of :one, :deg_and_pos or :pos")
+        error("Select method must be one of :deg_and_pos or :pos")
     end
     
     while !(isempty(pairs))

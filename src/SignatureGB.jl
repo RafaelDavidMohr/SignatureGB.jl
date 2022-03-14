@@ -84,20 +84,8 @@ function sgb_core!(ctx::SΓ,
             remask!(ctx.po.mo.table)
         end
         @logmsg Verbose2 "" start_time_core = time()
-        println("---")
-        for p in pairs
-            if isnull(p[2])
-                println("$((p[1], ctx))")
-            else
-                println("$((p[1], ctx)), $((p[2], ctx))")
-            end
-        end
         
         to_reduce, sig_degree, are_pairs = select!(ctx, koszul_q, pairs, Val(select))
-        for p in to_reduce
-            println("selected $((p, ctx))")
-        end
-        println("---")
         isempty(to_reduce) && continue
         done = symbolic_pp!(ctx, to_reduce, G, H, use_max_sig = use_max_sig,
                             are_pairs = are_pairs)
@@ -115,10 +103,6 @@ function sgb_core!(ctx::SΓ,
                 p = unindexpolynomial(tbl(mat), row)
                 lm = leadingmonomial(p)
                 if (isunitvector(ctx, new_sig) && !((new_sig, lm) in G)) || lt(ctx.po.mo, lm, leadingmonomial(ctx, sig..., no_rewrite = true))
-                    println("adding $((sig, ctx))")
-                    if isone(ctx.po.mo[sig[1]]) && !(isunitvector(ctx, new_sig))
-                        error("degree fall in signature")
-                    end
                     @logmsg Verbose2 "" new_basis = true
                     new_rewriter!(ctx, pairs, new_sig)
                     ctx(new_sig, p)

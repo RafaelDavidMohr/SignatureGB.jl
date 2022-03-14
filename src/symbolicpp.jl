@@ -19,9 +19,9 @@ function find_reducer(ctx::SigPolynomialΓ{I, M},
         if divides(ctx.po.mo, lm, m)
             delta = div(ctx.po.mo, m, lm)
             use_max_sig && index(ctx, g) == max_sig_index && degree(ctx, (delta, g)) > sig_degree && continue
-            # if !(interreduction_step) && (enable_lower_index_rewrite || index(ctx, g) == max_sig_index)
-            #     rewriteable(ctx, delta, g, j, G, H) && continue
-            # end
+            if !(interreduction_step) && (enable_lower_index_rewrite || index(ctx, g) == max_sig_index)
+                rewriteable(ctx, delta, g, j, G, H) && continue
+            end
             if !(interreduction_step) && (isnothing(reducer) || Base.Order.lt(mpairord, (delta, g), reducer))
                 reducer = (delta, g)
             end
