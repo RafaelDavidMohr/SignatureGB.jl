@@ -223,41 +223,41 @@ function select!(ctx::SΓ,
 
     nselected = 0
     npairs = length(pairs)
-    pair = pop!(pairs)
+    pair = first(pairs)
     indx = index(ctx, pair[1])
     sig_degree = degree(ctx, pair[1])
     are_pairs = false
     selected = mpairset(ctx)
 
-    while true
-        if check!(K, pair)
-            if !(isempty(pairs))
-                pair = pop!(pairs)
-            else
-                break
-            end
-        else
-            indx = index(ctx, pair[1])
-            sig_degree = degree(ctx, pair[1])
-            nselected += 1
-            push!(selected, pair[1])
-            if select_both && !(isnull(pair[2]))
-                are_pairs = true
-                push!(selected, pair[2])
-            end
-            break
-        end
-    end
+    # while true
+    #     if check!(K, pair)
+    #         if !(isempty(pairs))
+    #             pair = pop!(pairs)
+    #         else
+    #             break
+    #         end
+    #     else
+    #         indx = index(ctx, pair[1])
+    #         sig_degree = degree(ctx, pair[1])
+    #         nselected += 1
+    #         push!(selected, pair[1])
+    #         if select_both && !(isnull(pair[2]))
+    #             are_pairs = true
+    #             push!(selected, pair[2])
+    #         end
+    #         break
+    #     end
+    # end
                  
-    selected = mpairset(ctx, [pair[1]])
-    if select_both && !(isnull(pair[2]))
-        push!(selected, pair[2])
-        are_pairs = true
-    end
+    # selected = mpairset(ctx, [pair[1]])
+    # if select_both && !(isnull(pair[2]))
+    #     push!(selected, pair[2])
+    #     are_pairs = true
+    # end
 
     
     if S == :one
-        cond = p -> false
+        cond = p -> nselected == 0
     elseif S == :deg_and_pos
         cond = p -> index(ctx, p[1]) == indx && degree(ctx, p[1]) == sig_degree
     elseif S == :pos
@@ -285,5 +285,5 @@ function select!(ctx::SΓ,
     end
 
     @logmsg Verbose2 "" sig_degree nselected npairs
-    selected, are_pairs
+    selected, sig_degree, are_pairs
 end

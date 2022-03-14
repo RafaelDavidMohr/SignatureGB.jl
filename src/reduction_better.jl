@@ -17,12 +17,17 @@ function reduction!(mat::MacaulayMatrix)
     buffer = new_buffer(mat)
     
     for (key, row) in rows(mat)
+        prntcnt = 0
         l = leadingmonomial(row)
         if ignore(mat, key, row, pivots)
             pivots[l] = key
             continue
         end
 
+        if prntcnt == 0
+            println("top reducing $((key, mat.ctx)) with $((pivots[l], mat.ctx))")
+            prntcnt += 1
+        end
         buffer!(row, buffer)
         for (k, c) in enumerate(buffer)
             (iszero(c) || isnull(pivots[k])) && continue
