@@ -39,6 +39,10 @@ function degree(ctx::SigPolynomialΓ{I, M}, p::MonSigPair{I, M}) where {I, M}
     degree(ctx.po.mo, p[1]) + degree(ctx.po.mo, p[2][2])
 end
 
+function schrey_degree(ctx::SigPolynomialΓ{I, M}, p::MonSigPair{I, M}) where {I, M}
+    degree(ctx.po.mo, p[1]) + degree(ctx.po.mo, p[2][2]) + degree(ctx.po.mo, ctx.lms[p[2][1]])
+end
+
 index(ctx::SigPolynomialΓ{I, M}, p::MonSigPair{I, M}) where {I, M} = index(ctx, p[2])
 
 tag(ctx::SigPolynomialΓ{I, M}, p::MonSigPair{I, M}) where {I, M} = tag(ctx, p[2])
@@ -233,13 +237,15 @@ function select!(ctx::SΓ,
         # cond = p -> nselected == 0
         error("selecting one pair at a time is currently not supported. Select must be one of :deg_and_pos or :pos")
     elseif S == :deg_and_pos
-        cond = p -> index(ctx, p[1]) == indx && degree(ctx, p[1]) == sig_degree
+        cond = p -> index(ctx, p[1]) == indx && relevant_degree(ctx, p[1]) == sig_degree
     elseif S == :pos
         cond = p -> index(ctx, p[1]) == indx
     elseif S == :deg
         cond = p -> degree(ctx, p[1]) == sig_degree
+    elseif S == :schrey_deg
+        cond = p -> schrey_degree(ctx, p[1]) == schrey_degree(ctx, pair[1])
     else
-        error("Select method must be one of :deg_and_pos or :pos")
+        error("Select method must be one of :deg_and_pos, :schrey_deg or :pos")
     end
     
     while !(isempty(pairs))

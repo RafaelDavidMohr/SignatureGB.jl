@@ -13,12 +13,20 @@ function find_reducer(ctx::SigPolynomialΓ{I, M},
                       interreduction_step = false,
                       enable_lower_index_rewrite = true) where {I, M}
 
+    if mod_order(ctx) == :SCHREY
+        cond = p -> schrey_degree(ctx, p) <= sig_degree
+    elseif mod_order(ctx) == :POT
+        cond = p -> index(ctx, p) < max_sig_index || schrey_degree(ctx, p) <= sig_degree
+    else
+        cond = p -> degree(ctx, p) <= sig_degree
+    end
+    
     reducer = nothing
     mpairord = mpairordering(ctx)
     for (j, (g, lm)) in enumerate(G)
         if divides(ctx.po.mo, lm, m)
             delta = div(ctx.po.mo, m, lm)
-            use_max_sig && index(ctx, g) == max_sig_index && degree(ctx, (delta, g)) > sig_degree && continue
+            use_max_sig && !(cond((delta, g))) && continue
             if !(interreduction_step) && (enable_lower_index_rewrite || index(ctx, g) == max_sig_index)
                 rewriteable(ctx, delta, g, j, G, H) && continue
             end
@@ -46,7 +54,13 @@ function symbolic_pp!(ctx::SΓ,
 
     max_sig_index = maximum(p -> index(ctx, p), pairs)
     get_orig_elem = p -> interreduction_step || (!(enable_lower_index_rewrite) && index(ctx, p) < max_sig_index)
-    sig_degree = maximum(p -> degree(ctx, p), filter(p -> index(ctx, p) == max_sig_index, pairs))
+    if mod_order(ctx) == :SCHREY
+        sig_degree = maximum(p -> schrey_degree(ctx, p), pairs)
+    elseif mod_order(ctx) == :POT
+        sig_degree = maximum(p -> degree(ctx, p), filter(p -> index(ctx, p) == max_sig_index, pairs))
+    else
+        sig_degree = maximum(p -> degree(ctx, p), pairs)
+    end
     todo = Set{M}(vcat([ctx(p..., no_rewrite = get_orig_elem(p)).pol.mo for p in pairs]...))
     if are_pairs
         done = Set{M}([mul(ctx.po.mo, p[1], leadingmonomial(ctx, p[2])) for p in pairs])

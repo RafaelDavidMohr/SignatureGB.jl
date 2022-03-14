@@ -84,7 +84,6 @@ function sgb_core!(ctx::SΓ,
             remask!(ctx.po.mo.table)
         end
         @logmsg Verbose2 "" start_time_core = time()
-        
         to_reduce, sig_degree, are_pairs = select!(ctx, koszul_q, pairs, Val(select))
         isempty(to_reduce) && continue
         done = symbolic_pp!(ctx, to_reduce, G, H, use_max_sig = use_max_sig,
