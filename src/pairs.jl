@@ -237,7 +237,7 @@ function select!(ctx::SΓ,
         # cond = p -> nselected == 0
         error("selecting one pair at a time is currently not supported. Select must be one of :deg_and_pos or :pos")
     elseif S == :deg_and_pos
-        cond = p -> index(ctx, p[1]) == indx && relevant_degree(ctx, p[1]) == sig_degree
+        cond = p -> index(ctx, p[1]) == indx && degree(ctx, p[1]) == sig_degree
     elseif S == :pos
         cond = p -> index(ctx, p[1]) == indx
     elseif S == :deg
