@@ -146,19 +146,21 @@ function pairs!(ctx::SΓ,
                 sig::SigHash{I, M},
                 lm_sig::M,
                 G::Basis{I, M},
-                H::Syz{I, M};
+                H::Syz{I, M},
+                all_koszul;
                 enable_lower_index_rewrite = true) where {I, M, SΓ <: SigPolynomialΓ{I, M}}
 
+    println(all_koszul)
     index_key = sig[1]
     for (j, (g, lm)) in enumerate(G)
         index_key == g[1] && ctx(sig).sigratio == ctx(g).sigratio && continue
         m = lcm(ctx.po.mo, lm, lm_sig)
         m == mul(ctx.po.mo, lm, lm_sig) && continue
         a = div(ctx.po.mo, m, lm_sig)
-        rewriteable_syz(ctx, a, sig, H) && continue
+        rewriteable_syz(ctx, a, sig, G, H, all_koszul) && continue
         b = div(ctx.po.mo, m, lm)
         if enable_lower_index_rewrite || i == index_key
-            rewriteable(ctx, b, g, j, G, H) && continue
+            rewriteable(ctx, b, g, j, G, H, all_koszul) && continue
         end
         if lt(ctx, (index_key, ctx(sig).sigratio), (g[1], ctx(g).sigratio))
             push!(pairset, ((b, g), (a, sig)))
@@ -185,12 +187,22 @@ end
 function rewriteable_syz(ctx::SigPolynomialΓ{I, M},
                          m::M,
                          sig::SigHash{I, M},
-                         H::Syz{I, M}) where {I, M}
+                         G::Basis{I, M},
+                         H::Syz{I, M},
+                         all_koszul) where {I, M}
 
     msig = mul(ctx, m, sig)
     for h in H
         if divides(ctx, h, msig)
             return true
+        end
+    end
+
+    if all_koszul
+        for (g, lm) in G
+            if index(ctx, g) < index(ctx, sig)
+                divides(ctx.po.mo, lm, mul(ctx, m, sig)[2]) && return true
+            end
         end
     end
 
@@ -202,9 +214,10 @@ function rewriteable(ctx::SigPolynomialΓ{I, M},
                      sig::SigHash{I, M},
                      indx,
                      G::Basis{I, M},
-                     H::Syz{I, M}) where {I, M}
+                     H::Syz{I, M},
+                     all_koszul) where {I, M}
 
-    rewriteable_syz(ctx, m, sig, H) || rewriteable(ctx, m, sig, indx, G)
+    rewriteable_syz(ctx, m, sig, G, H, all_koszul) || rewriteable(ctx, m, sig, indx, G)
 end
 
 function new_rewriter!(ctx::SΓ,
@@ -222,7 +235,8 @@ end
 function select!(ctx::SΓ,
                  K::KoszulQueue{I, M, SΓ},
                  pairs::PairSet{I, M, SΓ},
-                 cond::Val{S};
+                 cond::Val{S},
+                 all_koszul;
                  select_both = true) where {I, M, SΓ <: SigPolynomialΓ{I, M}, S}
 
     nselected = 0
@@ -253,8 +267,10 @@ function select!(ctx::SΓ,
             break
         end
         p = pop!(pairs)
-        if check!(K, p)
-            continue
+        if !(all_koszul)
+            if check!(K, p)
+                continue
+            end
         end
         push!(selected, first(p))
         nselected += 1

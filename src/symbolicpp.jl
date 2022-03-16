@@ -6,7 +6,8 @@ minmonomialset(ctx::MonomialContext{M}) where M = SortedSet(M[], order(ctx))
 function find_reducer(ctx::SigPolynomialΓ{I, M},
                       G::Basis{I, M},
                       H::Syz{I, M},
-                      m::M;
+                      m::M,
+                      all_koszul;
                       use_max_sig = false,
                       max_sig_index = zero(pos_type(ctx)),
                       sig_degree = zero(exponenttype(ctx.po.mo)),
@@ -28,7 +29,7 @@ function find_reducer(ctx::SigPolynomialΓ{I, M},
             delta = div(ctx.po.mo, m, lm)
             use_max_sig && !(cond((delta, g))) && continue
             if !(interreduction_step) && (enable_lower_index_rewrite || index(ctx, g) == max_sig_index)
-                rewriteable(ctx, delta, g, j, G, H) && continue
+                rewriteable(ctx, delta, g, j, G, H, all_koszul) && continue
             end
             if !(interreduction_step) && (isnothing(reducer) || Base.Order.lt(mpairord, (delta, g), reducer))
                 reducer = (delta, g)
@@ -44,7 +45,8 @@ end
 function symbolic_pp!(ctx::SΓ,
                       pairs::MS,
                       G::Basis{I, M},
-                      H::Syz{I, M};
+                      H::Syz{I, M},
+                      all_koszul;
                       use_max_sig = false,
                       are_pairs = true,
                       interreduction_step = false,
@@ -72,7 +74,7 @@ function symbolic_pp!(ctx::SΓ,
         for m in todo
             m in done && continue
             push!(done, m)
-            red = find_reducer(ctx, G, H, m,
+            red = find_reducer(ctx, G, H, m, all_koszul,
                                use_max_sig = use_max_sig,
                                max_sig_index = max_sig_index,
                                sig_degree = sig_degree,

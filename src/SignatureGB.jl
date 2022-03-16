@@ -60,6 +60,7 @@ function sgb_core!(ctx::SΓ,
                    koszul_q::KoszulQueue{I, M, SΓ},
                    pairs::PairSet{I, M, SΓ};
                    select = nothing,
+                   all_koszul = false,
                    max_remasks = 3,
                    kwargs...) where {I, M, SΓ <: SigPolynomialΓ{I, M}}
 
@@ -85,9 +86,9 @@ function sgb_core!(ctx::SΓ,
         end
         @logmsg Verbose2 "" start_time_core = time()
         @logmsg Verbose1 "" curr_index = index(ctx, first(pairs)[1]) sig_degree = degree(ctx, first(pairs)[1])
-        to_reduce, sig_degree, are_pairs = select!(ctx, koszul_q, pairs, Val(select))
+        to_reduce, sig_degree, are_pairs = select!(ctx, koszul_q, pairs, Val(select), all_koszul)
         isempty(to_reduce) && continue
-        done = symbolic_pp!(ctx, to_reduce, G, H, use_max_sig = use_max_sig,
+        done = symbolic_pp!(ctx, to_reduce, G, H, all_koszul, use_max_sig = use_max_sig,
                             are_pairs = are_pairs)
         mat = F5matrix(ctx, done, collect(to_reduce))
         @logmsg Verbose2 "" nz_entries = sum([length(rw) for rw in values(rows(mat))]) mat_size = (length(rows(mat)), length(tbl(mat)))
@@ -107,7 +108,7 @@ function sgb_core!(ctx::SΓ,
                     new_rewriter!(ctx, pairs, new_sig)
                     ctx(new_sig, p)
                     push!(G, (new_sig, lm))
-                    pairs!(ctx, pairs, new_sig, lm, G, H)
+                    pairs!(ctx, pairs, new_sig, lm, G, H, all_koszul)
                 end
             end
         end
