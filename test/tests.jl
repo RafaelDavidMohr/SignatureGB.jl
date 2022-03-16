@@ -2,11 +2,11 @@ using StaticArrays
 using AbstractTrees
 using DataStructures
 
-function small_example()
+function small_example(;kwargs...)
     R, (x, y) = Singular.PolynomialRing(Singular.Fp(101), ["x", "y"])
     I = [x^2, x*y + y^2]
 
-    ctx = SG.setup(I)
+    ctx = SG.setup(I; kwargs...)
     basis = SG.new_basis(ctx)
     syz = SG.new_syz(ctx)
     for i in 1:2
@@ -138,7 +138,7 @@ end
     koszul_q = SG.koszul_queue(ctx)
     push!(koszul_q, koszul_syz)
     pairset = SG.pairset(ctx)
-    SG.pairs!(ctx, pairset, new_sig, ctx.po.mo(y^3), basis, syz)
+    SG.pairs!(ctx, pairset, new_sig, ctx.po.mo(y^3), basis, syz, false)
     @test length(pairset) == 1
     @test SG.check!(koszul_q, first(pairset))
 end
@@ -148,7 +148,7 @@ end
     pair_sig = (ctx.po.mo(x), ctx(2, R(1)))
     pair_sig_2 = (ctx.po.mo(y), ctx(1, R(1)))
     pairset = SG.mpairset(ctx, [pair_sig, pair_sig_2])
-    SG.symbolic_pp!(ctx, pairset, basis, syz)
+    SG.symbolic_pp!(ctx, pairset, basis, syz, false)
     test_sig_1 = (ctx.po.mo(y), ctx(1, R(1)))
     test_sig_2 = (ctx.po.mo(y), ctx(2, R(1)))
     test_pairset = SG.mpairset(ctx, [pair_sig, test_sig_1, test_sig_2])
@@ -161,7 +161,7 @@ end
     pairset = SG.mpairset(ctx)
     push!(pairset, pair_sig)
     two = SG.pos_type(ctx)(2)
-    mons = SG.symbolic_pp!(ctx, pairset, basis, syz, are_pairs = false)
+    mons = SG.symbolic_pp!(ctx, pairset, basis, syz, false, are_pairs = false)
     rows = sort(collect(pairset), lt = (a, b) -> Base.Order.lt(SG.mpairordering(ctx), a, b))
     mat = SG.F5matrix(ctx, mons, rows)
     @test SG.mat_show(mat) == [1 0 0; 0 1 1; 1 1 0]
@@ -183,6 +183,10 @@ end
     gb_2 = SG.sgb(I, mod_order = :SCHREY)
     gb = vcat(I, [-y^3])
     @test all(p -> p in gb, gb_2)
+end
+
+@testset "module rep" begin
+    R, (x, y), ctx, basis, syz = small_example(mod_rep_type = :highest_index)    
 end
 
 # @testset "small groebner 2" begin

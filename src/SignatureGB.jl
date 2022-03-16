@@ -16,7 +16,7 @@ include("./reduction_better.jl")
 # include("./interreduction.jl")
 # include("./gen_example_file.jl")
 
-# export f5, decompose
+export sgb
 
 # build initial pairset, basis and syzygies
 function pairs_and_basis(ctx::SigPolynomialΓ,
@@ -35,7 +35,6 @@ function pairs_and_basis(ctx::SigPolynomialΓ,
     G, H, koszul_queue(ctx), pairs
 end
 
-# TODO: logging
 function sgb(I::Vector{P};
              verbose = 0,
              kwargs...) where {P <: AA.MPolyElem}
