@@ -151,6 +151,7 @@ function sub_row!(buffer::Vector{Tbuf},
                   ctx::NmodLikeΓ{T, Tbuf}) where {J, T, Tbuf}
 
     iszero(pivot) && return
+    @logmsg Verbose2 "" arit_ops = length(pivot)
     for (j, c) in pivot
         buffer[j] = submul(ctx, buffer[j], mult, c)
     end

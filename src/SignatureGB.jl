@@ -85,6 +85,9 @@ function sgb_core!(ctx::SΓ,
         end
         @logmsg Verbose2 "" start_time_core = time()
         to_reduce, sig_degree, are_pairs = select!(ctx, koszul_q, pairs, Val(select))
+        for p in to_reduce
+            println("selected $((p, ctx))")
+        end
         isempty(to_reduce) && continue
         done = symbolic_pp!(ctx, to_reduce, G, H, use_max_sig = use_max_sig,
                             are_pairs = are_pairs)

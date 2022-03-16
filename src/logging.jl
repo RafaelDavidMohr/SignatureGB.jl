@@ -5,24 +5,26 @@ const Verbose1 = Logging.LogLevel(-1250)
 const Verbose2 = Logging.LogLevel(-1750)
 
 mutable struct Timings
-    time_core_loop::Float64
-    time_intermed_clean::Float64
-    time_final_clean::Float64
+    time_pair_gen::Float64
+    time_symbolic_pp::Float64
+    time_reduction::Float64
 end
 
 new_timings() = Timings(0.0, 0.0, 0.0)
 
-mutable struct Info
-    arit_ops_groebner::Int
-    arit_ops_module::Int
-    arit_ops_interred::Int
-    interred_mat_size_rows::Int
-    interred_mat_size_columns::Int
-    num_zero_red::Int
-    max_deg_reached::Int
-    gb_size_bef_interred::Int
-    gb_size_after_interred::Int
-end
+# mutable struct Info
+#     pairs_eliminated_koszul::Int
+#     pairs_eliminated_syz::Int
+#     arit_ops_groebner::Int
+#     arit_ops_module::Int
+#     arit_ops_interred::Int
+#     interred_mat_size_rows::Int
+#     interred_mat_size_columns::Int
+#     num_zero_red::Int
+#     max_deg_reached::Int
+#     gb_size_bef_interred::Int
+#     gb_size_after_interred::Int
+# end
 
 new_info() = Info([0 for _ in 1:9]...)
 
@@ -33,7 +35,6 @@ mutable struct SGBLogger{I, L <: AbstractLogger} <: AbstractLogger
     core_info::DataFrame
     stop_watch_start::Float64
     timings::Timings
-    info_per_index::Dict{I, Info}
 end
 
 # TODO: put in initial data, based on sigpolynomialctx
@@ -41,24 +42,26 @@ function SGBLogger(ctx::SigPolynomialΓ{I}; verbose = 0) where I
     # probably shouldnt do this
     Logging.disable_logging(Logging.LogLevel(-1751))
     verbose_table = [Logging.LogLevel(0), Verbose1, Verbose2]
-    info_per_index = Dict{I, Info}([(i, new_info()) for i in keys(ctx.f5_indices)])
+    # info_per_index = Dict{I, Info}([(i, new_info()) for i in keys(ctx.f5_indices)])
     timings = new_timings()
-    try
-        return SGBLogger(global_logger(), verbose_table[verbose + 1],
-                         DataFrame(sig_deg = Int64[], sel = Int64[],
-                                   pairs = Int64[], mat = Tuple{Int64, Int64}[],
-                                   density = Float32[], syz = Int64[],
-                                   new_elems = Int64[], time = Float64[]),
-                         zero(Float64), timings, info_per_index)
-    catch KeyError
-        error("choose a verbose level among 0, 1 or 2")
-    end
+    # try
+    return SGBLogger{I, typeof(global_logger())}(global_logger(), verbose_table[verbose + 1],
+                                                 DataFrame(sig_deg = Int64[], sel = Int64[],
+                                                           pairs = Int64[], mat = Tuple{Int64, Int64}[],
+                                                           density = Float32[], arit_ops = Int64[], syz = Int64[],
+                                                           new_elems = Int64[], time = Float64[]),
+                                                 zero(Float64), timings)
+    # catch KeyError
+    #    error("choose a verbose level among 0, 1 or 2")
+    # end
 end
 
-function add_info_row!(logger::SGBLogger,
-                       tuples...)
-    
-    push!(logger.core_info, Dict(collect(tuples)), cols = :subset)
+function add_info_row!(logger::SGBLogger)
+
+    tuples = Dict([(:sig_deg, 0), (:sel, 0), (:pairs, 0), (:mat, (0,0)),
+                   (:density, zero(Float32)), (:arit_ops, 0),
+                   (:syz, 0), (:new_elems, 0), (:time, zero(Float64))])
+    push!(logger.core_info, tuples, cols = :subset)
 end
 
 function set_info_row!(logger::SGBLogger,
@@ -87,6 +90,7 @@ function Logging.handle_message(logger::SGBLogger, level, message, _module, grou
                                 npairs = 0,
                                 nz_entries = 0,
                                 mat_size = (0, 0),
+                                arit_ops = 0,
                                 new_syz = false,
                                 new_basis = false,
                                 start_time_core = 0.0,
@@ -95,16 +99,22 @@ function Logging.handle_message(logger::SGBLogger, level, message, _module, grou
 
     if level == Verbose1
         # TODO: record data
+        nothing
     elseif level == Verbose2
         # TODO: record data, format message
         if sig_degree >= 0 && nselected > 0
-            add_info_row!(logger, (:sig_deg, sig_degree), (:sel, nselected), (:pairs, npairs),
+            add_info_row!(logger)
+            set_info_row!(logger, (:sig_deg, sig_degree),
+                          (:sel, nselected), (:pairs, npairs),
                           (:syz, 0), (:new_elems, 0))
             return
         end
         if mat_size != (0, 0)
             set_info_row!(logger, (:mat, mat_size),
                           (:density, round(nz_entries / *(mat_size...), digits = 2)))
+        end
+        if arit_ops > 0
+            inc_row!(logger, :arit_ops, arit_ops)
         end
         if new_syz
             inc_row!(logger, :syz)
