@@ -85,6 +85,7 @@ end
 
 function Logging.handle_message(logger::SGBLogger, level, message, _module, group, id, file, line;
                                 # TODO: put relevant key value pairs
+                                curr_index = 0,
                                 sig_degree = -1,
                                 nselected = 0,
                                 npairs = 0,
@@ -98,8 +99,9 @@ function Logging.handle_message(logger::SGBLogger, level, message, _module, grou
                                 kwargs...)
 
     if level == Verbose1
-        # TODO: record data
-        nothing
+        if curr_index != 0
+            println("index $(curr_index), sig degree $(sig_degree)")
+        end
     elseif level == Verbose2
         # TODO: record data, format message
         if sig_degree >= 0 && nselected > 0
