@@ -164,7 +164,7 @@ function orginal_gen_left(ctx::SigPolynomialΓ{I}, index::I) where I
 end
 
 # registration functions
-
+# TODO: generalize type signature
 function (ctx::SigPolynomialΓ{I, M, MM, T})(sig::SigHash{I, M},
                                             pol::Polynomial{M, T},
                                             module_rep::Polynomial{MM, T}) where {I, M, MM, T}
@@ -210,9 +210,25 @@ end
 function project(ctx::SigPolynomialΓ{I, M, M, T, :highest_index},
                  sig::SigHash{I, M}) where {I, M, T}
 
-    Polynomial{M, T}(vcat(sig[2], ctx[sig].module_rep.mo), vcat(one(T), ctx[sig].module_rep.co))
+    Polynomial{M, T}(vcat(sig[2], ctx[sig].module_rep.mo),
+                     vcat(one(T), ctx[sig].module_rep.co))
 end
 
+function project(ctx::SigPolynomialΓ{I, M, M, T, :highest_index},
+                 m::M,
+                 sig::SigHash{I, M};
+                 kwargs...) where {I, M, T}
+    val = ctx(m, sig; kwargs...)
+    msig = mul(ctx, m, sig)
+    Polynomial{M, T}(vcat(msig[2], val.module_rep.mo),
+                     vcat(one(T), val.module_rep.co))
+end
+
+function project(ctx::SigPolynomialΓ{I, M, M, T, :highest_index},
+                 sig::SigHash{I, M}) where {I, M, T}
+    project(ctx, one(ctx.po.mo), sig)
+end
+    
 # forwarding of functions on polynomials/monomials
 
 function mul(ctx::SigPolynomialΓ{I, M}, m::M, sig::SigHash{I, M}) where {I, M}

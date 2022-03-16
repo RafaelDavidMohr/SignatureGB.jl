@@ -30,6 +30,8 @@ gpair(ctx::Γ, dat) where {T, Γ<:Context{T}} = Γpair{Γ, T}(ctx, dat)
 # Default conversion, but some conversion may require more information about the context.
 (ctx::Context{T})(x...) where {T} = eltype(ctx)(x...)
 
+Base.zero(ctx::Context) = zero(eltype(ctx))
+
 #.. Sorting interface
 
 # To make it possible to sort arrays of type T, define lt(::Context{T}, ::T, ::T)

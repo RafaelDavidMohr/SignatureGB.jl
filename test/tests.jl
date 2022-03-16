@@ -160,10 +160,8 @@ end
     pair_sig = (ctx.po.mo(x), ctx(2, R(1)))
     pairset = SG.mpairset(ctx)
     push!(pairset, pair_sig)
-    two = SG.pos_type(ctx)(2)
     mons = SG.symbolic_pp!(ctx, pairset, basis, syz, false, are_pairs = false)
-    rows = sort(collect(pairset), lt = (a, b) -> Base.Order.lt(SG.mpairordering(ctx), a, b))
-    mat = SG.F5matrix(ctx, mons, rows)
+    mat = SG.F5matrix(ctx, mons, collect(pairset))
     @test SG.mat_show(mat) == [1 0 0; 0 1 1; 1 1 0]
     SG.reduction!(mat)
     @test SG.mat_show(mat) == [1 0 0; 0 1 1; 0 0 100]
@@ -186,7 +184,14 @@ end
 end
 
 @testset "module rep" begin
-    R, (x, y), ctx, basis, syz = small_example(mod_rep_type = :highest_index)    
+    R, (x, y), ctx, basis, syz = small_example(mod_rep_type = :highest_index)
+    pair_sig = (ctx.po.mo(x), ctx(2, R(1)))
+    pairset = SG.mpairset(ctx)
+    push!(pairset, pair_sig)
+    mons = SG.symbolic_pp!(ctx, pairset, basis, syz, false, are_pairs = false)
+    mat = SG.F5matrixHighestIndex(ctx, mons, collect(pairset))
+    SG.reduction!(mat)
+    println(SG.mat_show(mat.module_matrix))
 end
 
 # @testset "small groebner 2" begin

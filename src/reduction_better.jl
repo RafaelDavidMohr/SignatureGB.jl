@@ -2,32 +2,26 @@
 using Combinatorics
 using Lazy
 
-# Must implement
-#  - rows
-#  - new_pivots
-#  - new_buffer
-#  - ignore
-#  - coeff_ctx
-#  - set_row!
 abstract type MacaulayMatrix{K, J, T} end
 
 function reduction!(mat::MacaulayMatrix)
 
     pivots = new_pivots(mat)
     buffer = new_buffer(mat)
+
+    rws = rows(mat)
     
-    for (key, row) in rows(mat)
-        l = leadingmonomial(row)
-        if ignore(mat, key, row, pivots)
+    for (key, row) in rws
+        l = leadingmonomial(pol(mat, row))
+        if ignore(mat, key, pol(mat, row), pivots)
             pivots[l] = key
             continue
         end
 
         buffer!(row, buffer)
-        for (k, c) in enumerate(buffer)
+        for (k, c) in enumerate(pol(mat, buffer))
             (iszero(c) || isnull(pivots[k])) && continue
-            # TODO: record arit ops
-            critical_loop!(buffer, rows(mat)[pivots[k]], coeff_ctx(mat))
+            critical_loop!(buffer, rws[pivots[k]], coeff_ctx(mat))
         end
 
         first_non_zero, new_row = unbuffer!(buffer, coeff_ctx(mat), ind_type(tbl(mat)))
@@ -36,6 +30,7 @@ function reduction!(mat::MacaulayMatrix)
             pivots[first_non_zero] = key
         end
 
+        rws[key] = new_row
         set_row!(mat, key, new_row)
     end
 end
@@ -70,13 +65,28 @@ function F5matrix(ctx::SigPolynomialΓ{I, M, MM, T},
                   mons::Vector{M},
                   row_sigs::Vector{MonSigPair{I, M}};
                   interreduction_matrix = false,
-                  no_rewrite_criterion = p -> false) where {I, M, MM, T}
+                  # used if an interreduction occured: in this case signatures are still hashes
+                  no_rewrite_criterion = p -> false,
+                  # used for matrix in which we track the projections to the largest index
+                  # in this case we ignore the projections of elements in lower index
+                  used_for = :pols) where {I, M, MM, T}
 
+    if used_for == :pols
+        get_pol = p -> ctx(p..., no_rewrite = no_rewrite_criterion(p)).pol
+    elseif used_for == :highest_index
+        largest_index = maximum(p -> index(ctx, p), row_sigs)
+        get_pol = p -> index(ctx, p) < largest_index ? zero(ctx.po) : project(ctx, p...)
+    end
+        
     if interreduction_matrix
         @assert no_rewrite_criterion == p -> true
     end
-    sig_pols = [(sig, ctx(sig..., no_rewrite = no_rewrite_criterion(sig)).pol)
-                for sig in row_sigs]
+    pols = [get_pol(sig) for sig in row_sigs]
+    sig_pols = collect(zip(row_sigs, pols))
+    # TODO: this might be unstable
+    if isempty(mons)
+        mons = vcat([monomials(p) for p in pols]...)
+    end
     tbl, sig_poly_indexed = index_pols(mons, sig_pols)
     if interreduction_matrix
         sigs_lms = Dict([(sig, leadingmonomial(pol)) for (sig, pol) in sig_poly_indexed])
@@ -92,6 +102,7 @@ end
 tbl(mat::F5matrix) = mat.tbl
 rows(mat::F5matrix) = mat.rows
 coeff_ctx(mat::F5matrix) = mat.ctx.po.co
+pol(mat::F5matrix, row) = row
 function new_pivots(mat::F5matrix)
 
     n_cols = length(mat.tbl)
@@ -170,21 +181,30 @@ end
 
 # f5 matrices with tracking of module representation
 # TODO: assert pot module order in constructor
-mutable struct F5matrixPartialModule{I, M, J, T, O}
+mutable struct F5matrixPartialModule{I, M, J, T, O} <: MacaulayMatrix{MonSigPair{I, M}, J, T}
     matrix::F5matrix{I, M, J, T, O}
     module_matrix::F5matrix{I, M, J, T, O}
-    max_index::I
 end
 
-function F5matrixHighestIndex(ctx)
-    #unfinished
-    return
+function F5matrixHighestIndex(ctx::SigPolynomialΓ{I, M, MM, T},
+                              mons::Vector{M},
+                              row_sigs::Vector{MonSigPair{I, M}}) where {I, M, MM, T}
+    
+    matrix = F5matrix(ctx, mons, row_sigs)
+    module_matrix = F5matrix(ctx, M[], row_sigs, used_for = :highest_index)    
+    return F5matrixPartialModule(matrix, module_matrix)
 end
 
 @forward F5matrixPartialModule.matrix tbl, coeff_ctx, new_pivots, ignore
-rows(mat::F5matrixPartialModule) = (rows(mat.matrix), rows(mat.module_matrix))
+pol(mat::F5matrixPartialModule, row) = row[1]
+function rows(mat::F5matrixPartialModule)
+    row_order = mpairordering(mat.matrix.ctx)
+    SortedDict(zip(keys(rows(mat.matrix)),
+                   zip(values(rows(mat.matrix)), values(rows(mat.module_matrix)))), row_order)
+end
+
 new_buffer(mat::F5matrixPartialModule) = (new_buffer(mat.matrix), new_buffer(mat.module_matrix))
-function set_row!(mat::F5matrix{I, M, J, T},
+function set_row!(mat::F5matrixPartialModule{I, M, J, T},
                   sig::MonSigPair{I, M},
                   new_row::Tuple{Polynomial{J, T}, Polynomial{J, T}}) where {I, M, J, T}
     set_row!(mat.matrix, sig, new_row[1])
