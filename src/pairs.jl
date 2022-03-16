@@ -150,7 +150,6 @@ function pairs!(ctx::SΓ,
                 all_koszul;
                 enable_lower_index_rewrite = true) where {I, M, SΓ <: SigPolynomialΓ{I, M}}
 
-    println(all_koszul)
     index_key = sig[1]
     for (j, (g, lm)) in enumerate(G)
         index_key == g[1] && ctx(sig).sigratio == ctx(g).sigratio && continue

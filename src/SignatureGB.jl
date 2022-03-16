@@ -70,6 +70,12 @@ function sgb_core!(ctx::SΓ,
         use_max_sig = true
     end
 
+    if all_koszul
+        if mod_order(ctx) != :POT
+            error("checking against all Koszul syzygies currently only supported for position over term.")
+        end
+    end
+    
     if isnothing(select)
         if mod_order(ctx) == :POT
             select = :deg_and_pos
