@@ -40,7 +40,7 @@ function sigpolynomialctx(coefficients,
                           pos_type=UInt16,
                           mod_rep_type=nothing,
                           mod_order=:POT,
-                          track_module_tags=[:f],
+                          track_module_tags=Symbol[],
                           kwargs...)
     # TODO: what does 'deg_bound' do?
     # here we need to possibly build a seperate module_moctx
@@ -120,27 +120,27 @@ tag(ctx::SigPolynomialΓ{I, M}, p::SigHash{I, M}) where {I, M} = tag(ctx, p[1])
 
 function new_index!(ctx::SigPolynomialΓ{I},
                     index_key::I,
-                    index::I,
+                    ind::I,
                     tag = :f) where I
 
     for i in keys(ctx.f5_indices)
-        if index(ctx, i) >= index
+        if index(ctx, i) >= ind
             ctx.f5_indices[i].index += one(I)
         end
     end
-    ctx.f5_indices[index_key] = F5Index(index, tag)
+    ctx.f5_indices[index_key] = F5Index(ind, tag)
 end
 
 function new_generator!(ctx::SigPolynomialΓ{I, M, MM, T},
                         index::I,
-                        pol::Polynomial{M, T},
-                        module_rep::Polynomial{MM, T},
+                        pol,
                         tag = :f) where {I, M, MM, T}
 
     new_index_key = maximum(keys(ctx.f5_indices)) + one(I)
     new_index!(ctx, new_index_key, index, tag)
     sighash = unitvector(ctx, new_index_key)
-    ctx(sighash, pol, module_rep)
+    ctx(sighash, pol)
+    return new_index_key
 end
 
 # find maximal index

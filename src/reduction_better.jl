@@ -75,7 +75,7 @@ function F5matrix(ctx::SigPolynomialΓ{I, M, MM, T},
         get_pol = p -> ctx(p..., no_rewrite = no_rewrite_criterion(p)).pol
     elseif used_for == :highest_index
         largest_index = maximum(p -> index(ctx, p), row_sigs)
-        get_pol = p -> index(ctx, p) < largest_index ? zero(ctx.po) : project(ctx, p...)
+        get_pol = p -> index(ctx, p) < largest_index || !(tag(ctx, p) in ctx.track_module_tags) ? zero(ctx.po) : project(ctx, p...)
     end
         
     if interreduction_matrix
@@ -197,6 +197,7 @@ end
 
 @forward F5matrixPartialModule.matrix tbl, coeff_ctx, new_pivots, ignore
 pol(mat::F5matrixPartialModule, row) = row[1]
+module_pol(mat::F5matrixPartialModule, sig) = rows(mat.module_matrix)[sig]
 function rows(mat::F5matrixPartialModule)
     row_order = mpairordering(mat.matrix.ctx)
     SortedDict(zip(keys(rows(mat.matrix)),

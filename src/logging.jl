@@ -44,16 +44,21 @@ function SGBLogger(ctx::SigPolynomialΓ{I}; verbose = 0) where I
     verbose_table = [Logging.LogLevel(0), Verbose1, Verbose2]
     # info_per_index = Dict{I, Info}([(i, new_info()) for i in keys(ctx.f5_indices)])
     timings = new_timings()
-    # try
-    return SGBLogger{I, typeof(global_logger())}(global_logger(), verbose_table[verbose + 1],
-                                                 DataFrame(sig_deg = Int64[], sel = Int64[],
-                                                           pairs = Int64[], mat = Tuple{Int64, Int64}[],
-                                                           density = Float32[], arit_ops = Int64[], syz = Int64[],
-                                                           new_elems = Int64[], time = Float64[]),
-                                                 zero(Float64), timings)
-    # catch KeyError
-    #    error("choose a verbose level among 0, 1 or 2")
-    # end
+    if ctx.track_module_tags == [:to_sat]
+        return SGBLogger{I, typeof(global_logger())}(global_logger(), verbose_table[verbose + 1],
+                                                     DataFrame(sig_deg = Int64[], indx = Int64[], tag = Symbol[], sel = Int64[],
+                                                               pairs = Int64[], mat = Tuple{Int64, Int64}[],
+                                                               density = Float32[], arit_ops = Int64[], syz = Int64[],
+                                                               new_elems = Int64[], time = Float64[]),
+                                                     zero(Float64), timings)
+    else
+        return SGBLogger{I, typeof(global_logger())}(global_logger(), verbose_table[verbose + 1],
+                                                     DataFrame(sig_deg = Int64[], sel = Int64[],
+                                                               pairs = Int64[], mat = Tuple{Int64, Int64}[],
+                                                               density = Float32[], arit_ops = Int64[], syz = Int64[],
+                                                               new_elems = Int64[], time = Float64[]),
+                                                     zero(Float64), timings)
+    end
 end
 
 function add_info_row!(logger::SGBLogger)
@@ -85,12 +90,15 @@ end
 
 function Logging.handle_message(logger::SGBLogger, level, message, _module, group, id, file, line;
                                 # TODO: put relevant key value pairs
+                                add_row = false,
                                 curr_index = 0,
                                 sig_degree = -1,
                                 nselected = 0,
                                 npairs = 0,
                                 nz_entries = 0,
                                 mat_size = (0, 0),
+                                indx = 0,
+                                tag = nothing,
                                 arit_ops = 0,
                                 new_syz = false,
                                 new_basis = false,
@@ -104,16 +112,33 @@ function Logging.handle_message(logger::SGBLogger, level, message, _module, grou
         end
     elseif level == Verbose2
         # TODO: record data, format message
-        if sig_degree >= 0 && nselected > 0
+        if add_row
             add_info_row!(logger)
-            set_info_row!(logger, (:sig_deg, sig_degree),
-                          (:sel, nselected), (:pairs, npairs),
-                          (:syz, 0), (:new_elems, 0))
-            return
+            set_info_row!(logger, (:syz, 0), (:new_elems, 0))
+        end
+        if sig_degree >= 0
+            set_info_row!(logger, (:sig_deg, sig_degree))
+        end
+        if nselected > 0
+            set_info_row!(logger, (:sel, nselected))
+        end
+        if npairs != 0
+            set_info_row!(logger, (:pairs, npairs))
         end
         if mat_size != (0, 0)
             set_info_row!(logger, (:mat, mat_size),
                           (:density, round(nz_entries / *(mat_size...), digits = 2)))
+        end
+        if nz_entries != 0
+            mat_size = logger.core_info[nrow(logger.core_info), :][:mat]
+            set_info_row!(logger, (:mat, mat_size),
+                          (:density, round(nz_entries / *(mat_size...), digits = 2)))
+        end
+        if indx != 0
+            set_info_row!(logger, (:indx, indx))
+        end
+        if tag != nothing
+            set_info_row!(logger, (:tag, tag))
         end
         if arit_ops > 0
             inc_row!(logger, :arit_ops, arit_ops)

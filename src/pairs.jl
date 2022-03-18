@@ -279,6 +279,6 @@ function select!(ctx::SΓ,
         end
     end
 
-    @logmsg Verbose2 "" sig_degree nselected npairs
+    @logmsg Verbose2 "" add_row = true sig_degree nselected npairs
     selected, sig_degree, are_pairs
 end
