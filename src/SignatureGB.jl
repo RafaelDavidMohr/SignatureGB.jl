@@ -62,7 +62,7 @@ function f5sat(I::Vector{P},
                 mod_order = :POT,
                 track_module_tags = [:to_sat],
                 kwargs...)
-    new_generator!(ctx, pos_type(ctx)(length(I) + 1), to_sat, :to_sat)
+    new_generator!(ctx, pos_type(ctx)(2), to_sat, :to_sat)
     G, H, koszul_q, pairs = pairs_and_basis(ctx, length(I) + 1)
     logger = SGBLogger(ctx, verbose = verbose)
     with_logger(logger) do
@@ -139,6 +139,8 @@ function f5sat_core!(ctx::SΓ,
     select = :deg_and_pos
     all_koszul = true
     curr_tag = tag(ctx, first(pairs)[1])
+    curr_indx = index(ctx, first(pairs)[1])
+    curr_index_key = first(pairs)[1][2][1]
     
     while !(isempty(pairs))
         # TODO: is this a good idea
@@ -147,11 +149,18 @@ function f5sat_core!(ctx::SΓ,
             remask!(ctx.po.mo.table)
         end
         
-        next_tag = tag(ctx, first(pairs)[1])
-        if curr_tag == :to_sat && next_tag != :to_sat
-            filter(g -> tag(ctx, g[1]) != :to_sat, G)
+        next_index = index(ctx, first(pairs)[1])
+        if next_index != curr_indx
+            next_tag = tag(ctx, first(pairs)[1])
+            if curr_tag == :to_sat && next_tag != :to_sat
+                filter(g -> tag(ctx, g[1]) != :to_sat, G)
+                new_index!(ctx, curr_index_key, I(curr_indx + 2), :to_sat)
+                pair!(ctx, pairs, unitvector(ctx, curr_index_key))
+            end
+            curr_tag = next_tag
+            curr_indx = next_index
+            curr_index_key = first(pairs)[1][2][1]
         end
-        curr_tag = next_tag
         
         to_reduce, done = core_loop!(ctx, G, H, koszul_q, pairs, select, all_koszul, use_max_sig)
         isempty(done) && continue
@@ -170,17 +179,15 @@ function f5sat_core!(ctx::SΓ,
                 pols_to_insert = [unindexpolynomial(tbl(mat.module_matrix),
                                                     module_pol(mat, sig))
                                   for sig in keys(zero_red)]
-                curr_index_key = max_sig[2][1]
-                curr_index = index(ctx, max_sig)
                 for p in pols_to_insert
-                    new_generator!(ctx, curr_index, p, :zd)
+                    new_generator!(ctx, curr_indx, p, :zd)
                 end
                 # syz_signatures = [g[2] for g in filter(g -> g[1] == curr_index_key, G)]
                 pairs = pairset(ctx)
-                filter!(g -> index(ctx, g[1]) < curr_index, G)
+                filter!(g -> index(ctx, g[1]) < curr_indx, G)
                 for index_key in keys(ctx.f5_indices)
                     sig = unitvector(ctx, index_key)
-                    if index(ctx, sig) >= curr_index
+                    if index(ctx, sig) >= curr_indx
                         pair!(ctx, pairs, sig)
                     end
                 end
