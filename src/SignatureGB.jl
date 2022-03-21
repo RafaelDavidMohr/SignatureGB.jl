@@ -70,6 +70,11 @@ function f5sat(I::Vector{P},
         if verbose == 2
             show(logger.core_info, show_row_number = false, allrows = true)
             print("\n")
+            arit_ops = 0
+            for row in eachrow(logger.core_info)
+                arit_ops += row[:arit_ops]
+            end
+            println("arithmetic operations: $(arit_ops)")
         end
     end
     R = parent(first(I))
@@ -113,6 +118,7 @@ function sgb_core!(ctx::SΓ,
             remask!(ctx.po.mo.table)
         end
         to_reduce, done = core_loop!(ctx, G, H, koszul_q, pairs, select, all_koszul, use_max_sig)
+        isempty(to_reduce) && continue
         mat = F5matrix(ctx, done, collect(to_reduce))
         @logmsg Verbose2 "" nz_entries = sum([length(rw) for rw in values(rows(mat))]) mat_size = (length(rows(mat)), length(tbl(mat)))
         reduction!(mat)
@@ -153,7 +159,8 @@ function f5sat_core!(ctx::SΓ,
         if next_index != curr_indx
             next_tag = tag(ctx, first(pairs)[1])
             if curr_tag == :to_sat && next_tag != :to_sat
-                filter(g -> tag(ctx, g[1]) != :to_sat, G)
+                @debug "removing some stuff"
+                filter!(g -> tag(ctx, g[1]) != :to_sat, G)
                 new_index!(ctx, curr_index_key, I(curr_indx + 2), :to_sat)
                 pair!(ctx, pairs, unitvector(ctx, curr_index_key))
             end
@@ -162,7 +169,7 @@ function f5sat_core!(ctx::SΓ,
             curr_index_key = first(pairs)[1][2][1]
         end
         
-        to_reduce, done = core_loop!(ctx, G, H, koszul_q, pairs, select, all_koszul, use_max_sig)
+        to_reduce, done = core_loop!(ctx, G, H, koszul_q, pairs, select, all_koszul, use_max_sig, select_both = false)
         isempty(done) && continue
         mat = F5matrixHighestIndex(ctx, done, collect(to_reduce))
         reduction!(mat)
@@ -179,7 +186,11 @@ function f5sat_core!(ctx::SΓ,
                 pols_to_insert = [unindexpolynomial(tbl(mat.module_matrix),
                                                     module_pol(mat, sig))
                                   for sig in keys(zero_red)]
+                for g in G
+                    index(ctx, g[1]) == curr_indx && push!(ctx.cashed_sigs, g[1])
+                end
                 for p in pols_to_insert
+                    @logmsg Verbose2 "" new_syz = true
                     new_generator!(ctx, curr_indx, p, :zd)
                 end
                 # syz_signatures = [g[2] for g in filter(g -> g[1] == curr_index_key, G)]
@@ -206,12 +217,22 @@ function core_loop!(ctx::SΓ,
                     pairs::PairSet{I, M, SΓ},
                     select,
                     all_koszul,
-                    use_max_sig) where {I, M, SΓ <: SigPolynomialΓ{I, M}}
+                    use_max_sig;
+                    kwargs...) where {I, M, SΓ <: SigPolynomialΓ{I, M}}
     
     @logmsg Verbose2 "" start_time_core = time()
     @logmsg Verbose1 "" curr_index = index(ctx, first(pairs)[1]) sig_degree = degree(ctx, first(pairs)[1])
-    to_reduce, sig_degree, are_pairs = select!(ctx, koszul_q, pairs, Val(select), all_koszul)
-    isempty(to_reduce) && return to_reduce, M[]
+    @debug for p in pairs
+        if isnull(p[2])
+            println("$((p[1], ctx))")
+        else
+            println("$((p[1], ctx)), $((p[2], ctx))")
+        end
+    end
+    to_reduce, sig_degree, are_pairs = select!(ctx, koszul_q, pairs, Val(select), all_koszul; kwargs...)
+    if isempty(to_reduce)
+        return to_reduce, M[]
+    end
     done = symbolic_pp!(ctx, to_reduce, G, H, all_koszul, use_max_sig = use_max_sig,
                         are_pairs = are_pairs)
     return to_reduce, done
@@ -227,14 +248,20 @@ function new_elems!(ctx::SΓ,
     rws = rows(mat)
     for (sig, row) in rws
         new_sig = mul(ctx, sig...)
+        @debug "considering $((sig, ctx))"
         if isempty(pol(mat, row))
+            @debug "syzygy" (sig, ctx)
             @logmsg Verbose2 "" new_syz = true
             push!(H, new_sig)
             new_rewriter!(ctx, pairs, new_sig)
         else
             p = unindexpolynomial(tbl(mat), pol(mat, row))
             lm = leadingmonomial(p)
+            @debug "old leading monomial" gpair(ctx.po.mo, leadingmonomial(ctx, sig..., no_rewrite = true))
+            @debug "new leading monomial" (gpair(ctx.po.mo, lm))
             if (isunitvector(ctx, new_sig) && !((new_sig, lm) in G)) || lt(ctx.po.mo, lm, leadingmonomial(ctx, sig..., no_rewrite = true))
+                @debug "adding" (sig, ctx)
+                new_info = true
                 @logmsg Verbose2 "" new_basis = true
                 new_rewriter!(ctx, pairs, new_sig)
                 if mod_rep_type(ctx) != nothing

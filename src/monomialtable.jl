@@ -175,9 +175,8 @@ mutable struct IxMonomialΓ{I<:Unsigned, N, E, B, MΓ<:MonomialContext{Monomial{
 end
 
 function Base.show(io::IO,
-                   ::MIME"text/plain",
                    m::Γpair0{M, MX}) where {M, MX <: IxMonomialΓ{M}}
-    print(io, convert(Vector{Int}, exponents(ctx, dat)))
+    print(io, convert(Vector{Int}, exponents(m.ctx, m.dat)))
 end
 
 # need to change this?

@@ -18,6 +18,8 @@ function reduction!(mat::MacaulayMatrix)
             continue
         end
 
+        @debug "top reducing row with signature $((key, mat.matrix.ctx))"
+        @debug "old leading monomial $(gpair(mat.matrix.ctx.po.mo, mat.matrix.tbl[l]))"
         buffer!(row, buffer)
         for (k, c) in enumerate(pol(mat, buffer))
             (iszero(c) || isnull(pivots[k])) && continue
@@ -86,6 +88,7 @@ function F5matrix(ctx::SigPolynomialΓ{I, M, MM, T},
     # TODO: this might be unstable
     if isempty(mons)
         mons = vcat([monomials(p) for p in pols]...)
+        sort!(mons, lt = (a, b) -> lt(ctx.mod_po.mo, a, b), rev = true)
     end
     tbl, sig_poly_indexed = index_pols(mons, sig_pols)
     if interreduction_matrix

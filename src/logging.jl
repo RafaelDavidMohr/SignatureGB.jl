@@ -1,8 +1,8 @@
 using Logging
 using DataFrames
 
-const Verbose1 = Logging.LogLevel(-1250)
-const Verbose2 = Logging.LogLevel(-1750)
+const Verbose1 = Logging.LogLevel(-250)
+const Verbose2 = Logging.LogLevel(-750)
 
 mutable struct Timings
     time_pair_gen::Float64
@@ -40,12 +40,12 @@ end
 # TODO: put in initial data, based on sigpolynomialctx
 function SGBLogger(ctx::SigPolynomialΓ{I}; verbose = 0) where I
     # probably shouldnt do this
-    Logging.disable_logging(Logging.LogLevel(-1751))
+    to_disable = min(Logging.LogLevel(-751), LogLevel(Logging.min_enabled_level(current_logger()).level - 1))
+    Logging.disable_logging(to_disable)
     verbose_table = [Logging.LogLevel(0), Verbose1, Verbose2]
-    # info_per_index = Dict{I, Info}([(i, new_info()) for i in keys(ctx.f5_indices)])
     timings = new_timings()
     if ctx.track_module_tags == [:to_sat]
-        return SGBLogger{I, typeof(global_logger())}(global_logger(), verbose_table[verbose + 1],
+        return SGBLogger{I, typeof(current_logger())}(current_logger(), verbose_table[verbose + 1],
                                                      DataFrame(sig_deg = Int64[], indx = Int64[], tag = Symbol[], sel = Int64[],
                                                                pairs = Int64[], mat = Tuple{Int64, Int64}[],
                                                                density = Float32[], arit_ops = Int64[], syz = Int64[],
@@ -158,7 +158,7 @@ function Logging.handle_message(logger::SGBLogger, level, message, _module, grou
         end
     end
     # fallback to global logger
-    if level >= Logging.min_enabled_level(logger.logger)
+    if level >= Logging.min_enabled_level(logger.logger) && !(level in [Verbose1, Verbose2])
         Logging.handle_message(logger.logger, level, message, _module, group, id, file, line; kwargs...)
     end
 end

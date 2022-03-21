@@ -25,6 +25,7 @@ mutable struct SigPolynomialΓ{I, M, MM, T, MODT,
     mod_po::PPΓ
     tbl::SigTable{I, M, MM, T, MODT}
     f5_indices::Dict{I, F5Index{I}}
+    cashed_sigs::Vector{SigHash{I, M}}
     track_module_tags::Vector{Symbol}
     lms::Dict{I, M}
 end
@@ -56,6 +57,7 @@ function sigpolynomialctx(coefficients,
         mod_monomials = monomials
     end
 
+    eltpe = SigHash{pos_type, eltype(monomials)}
     mon_type = eltype(monomials)
     tbl = SigTable{pos_type, mon_type, mon_type, eltype(coefficients), mod_rep_type}()
     f5_indices = Dict([(i, F5Index(i, :f)) for i in one(pos_type):pos_type(ngens)])
@@ -65,7 +67,7 @@ function sigpolynomialctx(coefficients,
                    typeof(coefficients), typeof(monomials),
                    typeof(polynomials), typeof(mod_polynomials),
                    mod_order}(polynomials, mod_polynomials, tbl, f5_indices,
-                              track_module_tags, Dict{pos_type, mon_type}())
+                              eltpe[], track_module_tags, Dict{pos_type, mon_type}())
 end
 
 function Base.Order.lt(order::SigOrdering{SΓ},
@@ -197,22 +199,26 @@ function (ctx::SigPolynomialΓ{I, M})(m::M, sig::Tuple{I, M}; no_rewrite = false
     key = mul(ctx, m, sig)
     if !(no_rewrite)
         get(ctx.tbl, key) do
-            val = ctx.tbl[sig]
-            SigPolynomial(ctx, mul(ctx.po, val.pol, m), mul(ctx.mod_po, val.module_rep, m), val.sigratio)
+            cashed_rewriters = filter(p -> lt(ctx, sig, p) && divides(ctx, p, key), ctx.cashed_sigs)
+            if isempty(cashed_rewriters)
+                val = ctx.tbl[sig]
+                return SigPolynomial(ctx, mul(ctx.po, val.pol, m), mul(ctx.mod_po, val.module_rep, m), val.sigratio)
+            else
+                # TODO: no need to sort here
+                sort!(cashed_rewriters, lt = (p1, p2) -> lt(ctx, p1, p2), rev = true)
+                rewr = first(cashed_rewriters)
+                @debug "cached rewriter $(gpair(ctx, rewr)) for $(((m, sig), ctx))"
+                n = div(ctx.po.mo, key[2], rewr[2])
+                val = ctx.tbl[rewr]
+                return SigPolynomial(ctx, mul(ctx.po, val.pol, n), mul(ctx.mod_po, val.module_rep, n), val.sigratio)
+            end
         end
     end
     val = ctx.tbl[sig]
-    SigPolynomial(ctx, mul(ctx.po, val.pol, m), mul(ctx.mod_po, val.module_rep, m), val.sigratio)
+    return SigPolynomial(ctx, mul(ctx.po, val.pol, m), mul(ctx.mod_po, val.module_rep, m), val.sigratio)
 end
 
 # get projection to highest index
-
-function project(ctx::SigPolynomialΓ{I, M, M, T, :highest_index},
-                 sig::SigHash{I, M}) where {I, M, T}
-
-    Polynomial{M, T}(vcat(sig[2], ctx[sig].module_rep.mo),
-                     vcat(one(T), ctx[sig].module_rep.co))
-end
 
 function project(ctx::SigPolynomialΓ{I, M, M, T, :highest_index},
                  m::M,
