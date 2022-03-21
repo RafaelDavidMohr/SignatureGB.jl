@@ -158,7 +158,7 @@ function f5sat_core!(ctx::SΓ,
         next_index = index(ctx, first(pairs)[1])
         if next_index != curr_indx
             next_tag = tag(ctx, first(pairs)[1])
-            if curr_tag == :to_sat && next_tag != :to_sat
+            if curr_tag == :to_sat && next_tag == :f
                 @debug "removing some stuff"
                 filter!(g -> tag(ctx, g[1]) != :to_sat, G)
                 new_index!(ctx, curr_index_key, I(curr_indx + 2), :to_sat)
@@ -183,6 +183,7 @@ function f5sat_core!(ctx::SΓ,
             if isempty(zero_red)
                 new_elems!(ctx, G, H, pairs, mat, all_koszul)
             else
+                @debug string("inserting pols coming from signatures\n", ["$((s, ctx))\n" for s in keys(zero_red)]...)
                 pols_to_insert = [unindexpolynomial(tbl(mat.module_matrix),
                                                     module_pol(mat, sig))
                                   for sig in keys(zero_red)]
@@ -221,7 +222,7 @@ function core_loop!(ctx::SΓ,
                     kwargs...) where {I, M, SΓ <: SigPolynomialΓ{I, M}}
     
     @logmsg Verbose2 "" start_time_core = time()
-    @logmsg Verbose1 "" curr_index = index(ctx, first(pairs)[1]) sig_degree = degree(ctx, first(pairs)[1])
+    @logmsg Verbose1 "" curr_index = index(ctx, first(pairs)[1]) sig_degree = degree(ctx, first(pairs)[1]) tag = tag(ctx, first(pairs)[1])
     @debug string("pairset:\n", [isnull(p[2]) ? "$((p[1], ctx))\n" : "$((p[1], ctx)), $((p[2], ctx))\n" for p in pairs]...)
     to_reduce, sig_degree, are_pairs = select!(ctx, koszul_q, pairs, Val(select), all_koszul; kwargs...)
     if isempty(to_reduce)
@@ -254,6 +255,9 @@ function new_elems!(ctx::SΓ,
             @debug "old leading monomial $(gpair(ctx.po.mo, leadingmonomial(ctx, sig..., no_rewrite = true)))"
             @debug "new leading monomial $(gpair(ctx.po.mo, lm))"
             if (isunitvector(ctx, new_sig) && !((new_sig, lm) in G)) || lt(ctx.po.mo, lm, leadingmonomial(ctx, sig..., no_rewrite = true))
+                if p.mo == [one(ctx.po.mo)]
+                    @debug "unit in basis!"
+                end
                 @debug "adding $((sig, ctx))"
                 new_info = true
                 @logmsg Verbose2 "" new_basis = true
@@ -272,9 +276,9 @@ function new_elems!(ctx::SΓ,
     end
 end
 
-function debug_sgb!()
+function debug_sgb!(;io = stdout)
     no_fmt(args...) = :normal, "", ""
-    logger = ConsoleLogger(Logging.LogLevel(-1000), meta_formatter = no_fmt)
+    logger = ConsoleLogger(io, Logging.LogLevel(-1000), meta_formatter = no_fmt)
     global_logger(logger)
     global_logger(logger)
 end
