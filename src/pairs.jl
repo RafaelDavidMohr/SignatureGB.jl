@@ -238,6 +238,7 @@ function select!(ctx::SΓ,
                  all_koszul;
                  select_both = true) where {I, M, SΓ <: SigPolynomialΓ{I, M}, S}
 
+    @debug "selecting pairs..."
     nselected = 0
     npairs = length(pairs)
     pair = first(pairs)
@@ -280,5 +281,6 @@ function select!(ctx::SΓ,
     end
 
     @logmsg Verbose2 "" add_row = true sig_degree nselected npairs
+    @debug string("selected:\n", ["$((p, ctx))\n" for p in selected]...)
     selected, sig_degree, are_pairs
 end

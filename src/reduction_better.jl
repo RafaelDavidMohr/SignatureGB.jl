@@ -6,6 +6,7 @@ abstract type MacaulayMatrix{K, J, T} end
 
 function reduction!(mat::MacaulayMatrix)
 
+    @debug "reducing matrix..."
     pivots = new_pivots(mat)
     buffer = new_buffer(mat)
 
@@ -19,7 +20,6 @@ function reduction!(mat::MacaulayMatrix)
         end
 
         @debug "top reducing row with signature $((key, mat.matrix.ctx))"
-        @debug "old leading monomial $(gpair(mat.matrix.ctx.po.mo, mat.matrix.tbl[l]))"
         buffer!(row, buffer)
         for (k, c) in enumerate(pol(mat, buffer))
             (iszero(c) || isnull(pivots[k])) && continue
