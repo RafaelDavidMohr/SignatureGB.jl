@@ -222,13 +222,7 @@ function core_loop!(ctx::SΓ,
     
     @logmsg Verbose2 "" start_time_core = time()
     @logmsg Verbose1 "" curr_index = index(ctx, first(pairs)[1]) sig_degree = degree(ctx, first(pairs)[1])
-    @debug for p in pairs
-        if isnull(p[2])
-            println("$((p[1], ctx))")
-        else
-            println("$((p[1], ctx)), $((p[2], ctx))")
-        end
-    end
+    @debug string([isnull(p[2]) ? "$((p[1], ctx))\n" : "$((p[1], ctx)), $((p[2], ctx))\n" for p in pairs]...)
     to_reduce, sig_degree, are_pairs = select!(ctx, koszul_q, pairs, Val(select), all_koszul; kwargs...)
     if isempty(to_reduce)
         return to_reduce, M[]
@@ -250,17 +244,17 @@ function new_elems!(ctx::SΓ,
         new_sig = mul(ctx, sig...)
         @debug "considering $((sig, ctx))"
         if isempty(pol(mat, row))
-            @debug "syzygy" (sig, ctx)
+            @debug "syzygy $((sig, ctx))"
             @logmsg Verbose2 "" new_syz = true
             push!(H, new_sig)
             new_rewriter!(ctx, pairs, new_sig)
         else
             p = unindexpolynomial(tbl(mat), pol(mat, row))
             lm = leadingmonomial(p)
-            @debug "old leading monomial" gpair(ctx.po.mo, leadingmonomial(ctx, sig..., no_rewrite = true))
-            @debug "new leading monomial" (gpair(ctx.po.mo, lm))
+            @debug "old leading monomial $(gpair(ctx.po.mo, leadingmonomial(ctx, sig..., no_rewrite = true)))"
+            @debug "new leading monomial $(gpair(ctx.po.mo, lm))"
             if (isunitvector(ctx, new_sig) && !((new_sig, lm) in G)) || lt(ctx.po.mo, lm, leadingmonomial(ctx, sig..., no_rewrite = true))
-                @debug "adding" (sig, ctx)
+                @debug "adding $((sig, ctx))"
                 new_info = true
                 @logmsg Verbose2 "" new_basis = true
                 new_rewriter!(ctx, pairs, new_sig)
@@ -277,4 +271,12 @@ function new_elems!(ctx::SΓ,
         end
     end
 end
+
+function debug_sgb!()
+    no_fmt(args...) = :normal, "", ""
+    logger = ConsoleLogger(Logging.LogLevel(-1000), meta_formatter = no_fmt)
+    global_logger(logger)
+    global_logger(logger)
+end
+
 end
