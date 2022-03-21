@@ -83,7 +83,7 @@ function symbolic_pp!(ctx::SΓ,
                                enable_lower_index_rewrite = enable_lower_index_rewrite)
             isnothing(red) && continue
             push!(pairs, red)
-            @debug "found reducer $((red, ctx)) for $(gpair(ctx.po.mo, m))"
+            # @debug "found reducer $((red, ctx)) for $(gpair(ctx.po.mo, m))"
             union!(todo, ctx(red..., no_rewrite = get_orig_elem(red)).pol.mo)
         end
     end

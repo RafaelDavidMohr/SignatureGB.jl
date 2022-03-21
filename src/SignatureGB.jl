@@ -252,8 +252,8 @@ function new_elems!(ctx::SΓ,
         else
             p = unindexpolynomial(tbl(mat), pol(mat, row))
             lm = leadingmonomial(p)
-            @debug "old leading monomial $(gpair(ctx.po.mo, leadingmonomial(ctx, sig..., no_rewrite = true)))"
-            @debug "new leading monomial $(gpair(ctx.po.mo, lm))"
+            # @debug "old leading monomial $(gpair(ctx.po.mo, leadingmonomial(ctx, sig..., no_rewrite = true)))"
+            # @debug "new leading monomial $(gpair(ctx.po.mo, lm))"
             if (isunitvector(ctx, new_sig) && !((new_sig, lm) in G)) || lt(ctx.po.mo, lm, leadingmonomial(ctx, sig..., no_rewrite = true))
                 if p.mo == [one(ctx.po.mo)]
                     @debug "unit in basis!"
