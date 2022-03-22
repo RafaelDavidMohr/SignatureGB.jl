@@ -183,18 +183,37 @@ function f5sat_core!(ctx::SΓ,
             if isempty(zero_red)
                 new_elems!(ctx, G, H, pairs, mat, all_koszul)
             else
+                # zero divisors to insert
                 @debug string("inserting pols coming from signatures\n", ["$((s, ctx))\n" for s in keys(zero_red)]...)
                 pols_to_insert = [unindexpolynomial(tbl(mat.module_matrix),
                                                     module_pol(mat, sig))
                                   for sig in keys(zero_red)]
+                
+                # cache some reduction results for future use
                 for g in G
                     index(ctx, g[1]) == curr_indx && push!(ctx.cashed_sigs, g[1])
                 end
+                for (sig, row) in rws
+                    isempty(pol(mat, row)) && continue
+                    p = unindexpolynomial(tbl(mat), pol(mat, row))
+                    lm = leadingmonomial(p)
+                    if index(ctx, sig) == curr_indx && lt(ctx.po.mo, lm, leadingmonomial(ctx, sig..., no_rewrite = true))
+                        @logmsg Verbose2 "" new_basis = true
+                        q = unindexpolynomial(tbl(mat.module_matrix),
+                                          tail(module_pol(mat, sig)))
+                        ctx(mul(ctx, sig...), p, q)
+                        push!(ctx.cashed_sigs, mul(ctx, sig...))
+                    end
+                end
+
+                # insert the zero divisors
                 for p in pols_to_insert
                     @logmsg Verbose2 "" new_syz = true
                     new_generator!(ctx, curr_indx, p, :zd)
                 end
                 # syz_signatures = [g[2] for g in filter(g -> g[1] == curr_index_key, G)]
+
+                # rebuild pairset
                 pairs = pairset(ctx)
                 filter!(g -> index(ctx, g[1]) < curr_indx, G)
                 for index_key in keys(ctx.f5_indices)

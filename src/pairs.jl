@@ -32,7 +32,7 @@ function Base.show(io::IO,
     pair = a[1]
     ctx = a[2]
     print(io, (convert(Vector{Int}, exponents(ctx.po.mo, pair[1])),
-               (Int(pair[2][1]), convert(Vector{Int}, exponents(ctx.po.mo, pair[2][2])))))
+               (Int(index(ctx, pair)), convert(Vector{Int}, exponents(ctx.po.mo, pair[2][2])))))
 end
 
 function degree(ctx::SigPolynomialΓ{I, M}, p::MonSigPair{I, M}) where {I, M}
