@@ -44,10 +44,7 @@ function sgb(I::Vector{P};
     logger = SGBLogger(ctx, verbose = verbose)
     with_logger(logger) do
         sgb_core!(ctx, G, H, koszul_q, pairs; kwargs...)
-        if verbose == 2
-            show(logger.core_info, show_row_number = false, allrows = true)
-            print("\n")
-        end
+        verbose == 2 && printout(logger)
     end
     R = parent(first(I))
     [R(ctx, g[1]) for g in G]
@@ -62,20 +59,12 @@ function f5sat(I::Vector{P},
                 mod_order = :POT,
                 track_module_tags = [:to_sat],
                 kwargs...)
-    new_generator!(ctx, pos_type(ctx)(2), to_sat, :to_sat)
+    new_generator!(ctx, pos_type(ctx)(length(I) + 1) , to_sat, :to_sat)
     G, H, koszul_q, pairs = pairs_and_basis(ctx, length(I) + 1)
     logger = SGBLogger(ctx, verbose = verbose)
     with_logger(logger) do
 	f5sat_core!(ctx, G, H, koszul_q, pairs)
-        if verbose == 2
-            show(logger.core_info, show_row_number = false, allrows = true)
-            print("\n")
-            arit_ops = 0
-            for row in eachrow(logger.core_info)
-                arit_ops += row[:arit_ops]
-            end
-            println("arithmetic operations: $(arit_ops)")
-        end
+        verbose == 2 && printout(logger)
     end
     R = parent(first(I))
     [R(ctx, g[1]) for g in filter(g -> tag(ctx, g[1]) != :to_sat, G)]
@@ -93,8 +82,6 @@ function sgb_core!(ctx::SΓ,
 
     if !(extends_degree(termorder(ctx.po.mo)))
         error("I currently don't know how to deal with non-degree based monomial orderings...")
-    else
-        use_max_sig = true
     end
 
     if all_koszul
@@ -112,12 +99,12 @@ function sgb_core!(ctx::SΓ,
     end
         
     while !(isempty(pairs))
-        # TODO: is this a good idea
+        # TODO: is this a good idea?
         if max_remasks > 0 && rand() < max(1/max_remasks, 1/3)
             max_remasks -= 1
             remask!(ctx.po.mo.table)
         end
-        to_reduce, done = core_loop!(ctx, G, H, koszul_q, pairs, select, all_koszul, use_max_sig)
+        to_reduce, done = core_loop!(ctx, G, H, koszul_q, pairs, select, all_koszul)
         isempty(to_reduce) && continue
         mat = F5matrix(ctx, done, collect(to_reduce))
         @logmsg Verbose2 "" nz_entries = sum([length(rw) for rw in values(rows(mat))]) mat_size = (length(rows(mat)), length(tbl(mat)))
@@ -138,15 +125,11 @@ function f5sat_core!(ctx::SΓ,
 
     if !(extends_degree(termorder(ctx.po.mo)))
         error("I currently don't know how to deal with non-degree based monomial orderings...")
-    else
-        use_max_sig = true
     end
     
     select = :deg_and_pos
     all_koszul = true
-    curr_tag = tag(ctx, first(pairs)[1])
     curr_indx = index(ctx, first(pairs)[1])
-    curr_index_key = first(pairs)[1][2][1]
     
     while !(isempty(pairs))
         # TODO: is this a good idea
@@ -157,19 +140,10 @@ function f5sat_core!(ctx::SΓ,
         
         next_index = index(ctx, first(pairs)[1])
         if next_index != curr_indx
-            next_tag = tag(ctx, first(pairs)[1])
-            if curr_tag == :to_sat && next_tag == :f
-                @debug "removing some stuff"
-                filter!(g -> tag(ctx, g[1]) != :to_sat, G)
-                new_index!(ctx, curr_index_key, I(curr_indx + 2), :to_sat)
-                pair!(ctx, pairs, unitvector(ctx, curr_index_key))
-            end
-            curr_tag = next_tag
             curr_indx = next_index
-            curr_index_key = first(pairs)[1][2][1]
         end
         
-        to_reduce, done = core_loop!(ctx, G, H, koszul_q, pairs, select, all_koszul, use_max_sig, select_both = false)
+        to_reduce, done = core_loop!(ctx, G, H, koszul_q, pairs, select, all_koszul, select_both = false)
         isempty(done) && continue
         mat = F5matrixHighestIndex(ctx, done, collect(to_reduce))
         reduction!(mat)
@@ -226,6 +200,7 @@ function f5sat_core!(ctx::SΓ,
         else
             new_elems!(ctx, G, H, pairs, mat, all_koszul)
         end
+        @logmsg Verbose2 "" end_time_core = time()
     end
 end
     
@@ -236,8 +211,7 @@ function core_loop!(ctx::SΓ,
                     koszul_q::KoszulQueue{I, M, SΓ},
                     pairs::PairSet{I, M, SΓ},
                     select,
-                    all_koszul,
-                    use_max_sig;
+                    all_koszul;
                     kwargs...) where {I, M, SΓ <: SigPolynomialΓ{I, M}}
     
     @logmsg Verbose2 "" start_time_core = time()
@@ -247,7 +221,7 @@ function core_loop!(ctx::SΓ,
     if isempty(to_reduce)
         return to_reduce, M[]
     end
-    done = symbolic_pp!(ctx, to_reduce, G, H, all_koszul, use_max_sig = use_max_sig,
+    done = symbolic_pp!(ctx, to_reduce, G, H, all_koszul,
                         are_pairs = are_pairs)
     return to_reduce, done
 end
@@ -274,9 +248,6 @@ function new_elems!(ctx::SΓ,
             # @debug "old leading monomial $(gpair(ctx.po.mo, leadingmonomial(ctx, sig..., no_rewrite = true)))"
             # @debug "new leading monomial $(gpair(ctx.po.mo, lm))"
             if (isunitvector(ctx, new_sig) && !((new_sig, lm) in G)) || lt(ctx.po.mo, lm, leadingmonomial(ctx, sig..., no_rewrite = true))
-                if p.mo == [one(ctx.po.mo)]
-                    @debug "unit in basis!"
-                end
                 @debug "adding $((sig, ctx))"
                 new_info = true
                 @logmsg Verbose2 "" new_basis = true

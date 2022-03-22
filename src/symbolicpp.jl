@@ -7,12 +7,11 @@ function find_reducer(ctx::SigPolynomialΓ{I, M},
                       G::Basis{I, M},
                       H::Syz{I, M},
                       m::M,
-                      all_koszul;
-                      use_max_sig = false,
-                      max_sig_index = zero(pos_type(ctx)),
-                      sig_degree = zero(exponenttype(ctx.po.mo)),
+                      all_koszul,
+                      max_sig_index::I,
+                      sig_degree::E;
                       interreduction_step = false,
-                      enable_lower_index_rewrite = true) where {I, M}
+                      f5c = false) where {I, M, E}
 
     if mod_order(ctx) == :SCHREY
         cond = p -> schrey_degree(ctx, p) <= sig_degree
@@ -27,8 +26,8 @@ function find_reducer(ctx::SigPolynomialΓ{I, M},
     for (j, (g, lm)) in enumerate(G)
         if divides(ctx.po.mo, lm, m)
             delta = div(ctx.po.mo, m, lm)
-            use_max_sig && !(cond((delta, g))) && continue
-            if !(interreduction_step) && (enable_lower_index_rewrite || index(ctx, g) == max_sig_index)
+            !(cond((delta, g))) && continue
+            if !(interreduction_step) && (!(f5c) || index(ctx, g) == max_sig_index)
                 rewriteable(ctx, delta, g, j, G, H, all_koszul) && continue
             end
             if !(interreduction_step) && (isnothing(reducer) || Base.Order.lt(mpairord, (delta, g), reducer))
@@ -47,16 +46,15 @@ function symbolic_pp!(ctx::SΓ,
                       G::Basis{I, M},
                       H::Syz{I, M},
                       all_koszul;
-                      use_max_sig = false,
                       are_pairs = true,
                       interreduction_step = false,
-                      enable_lower_index_rewrite = true) where {I, M,
-                                                                MS <: Union{MonSigSet{I, M}, Set{MonSigPair{I, M}}},
-                                                                SΓ <: SigPolynomialΓ{I, M}}
+                      f5c = false) where {I, M,
+                                          MS <: Union{MonSigSet{I, M}, Set{MonSigPair{I, M}}},
+                                          SΓ <: SigPolynomialΓ{I, M}}
 
     @debug "symbolic preprocessing..."
     max_sig_index = maximum(p -> index(ctx, p), pairs)
-    get_orig_elem = p -> interreduction_step || (!(enable_lower_index_rewrite) && index(ctx, p) < max_sig_index)
+    get_orig_elem = p -> interreduction_step || (f5c && index(ctx, p) < max_sig_index)
     if mod_order(ctx) == :SCHREY
         sig_degree = maximum(p -> schrey_degree(ctx, p), pairs)
     elseif mod_order(ctx) == :POT
@@ -75,15 +73,12 @@ function symbolic_pp!(ctx::SΓ,
         for m in todo
             m in done && continue
             push!(done, m)
-            red = find_reducer(ctx, G, H, m, all_koszul,
-                               use_max_sig = use_max_sig,
-                               max_sig_index = max_sig_index,
-                               sig_degree = sig_degree,
+            red = find_reducer(ctx, G, H, m, all_koszul, max_sig_index, sig_degree,
                                interreduction_step = interreduction_step,
-                               enable_lower_index_rewrite = enable_lower_index_rewrite)
+                               f5c = f5c)
             isnothing(red) && continue
             push!(pairs, red)
-            # @debug "found reducer $((red, ctx)) for $(gpair(ctx.po.mo, m))"
+            @debug "found reducer $((red, ctx)) for $(gpair(ctx.po.mo, m))"
             union!(todo, ctx(red..., no_rewrite = get_orig_elem(red)).pol.mo)
         end
     end

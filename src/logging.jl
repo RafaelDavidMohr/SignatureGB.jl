@@ -12,20 +12,6 @@ end
 
 new_timings() = Timings(0.0, 0.0, 0.0)
 
-# mutable struct Info
-#     pairs_eliminated_koszul::Int
-#     pairs_eliminated_syz::Int
-#     arit_ops_groebner::Int
-#     arit_ops_module::Int
-#     arit_ops_interred::Int
-#     interred_mat_size_rows::Int
-#     interred_mat_size_columns::Int
-#     num_zero_red::Int
-#     max_deg_reached::Int
-#     gb_size_bef_interred::Int
-#     gb_size_after_interred::Int
-# end
-
 new_info() = Info([0 for _ in 1:9]...)
 
 mutable struct SGBLogger{I, L <: AbstractLogger} <: AbstractLogger
@@ -35,6 +21,17 @@ mutable struct SGBLogger{I, L <: AbstractLogger} <: AbstractLogger
     core_info::DataFrame
     stop_watch_start::Float64
     timings::Timings
+end
+
+function printout(logger::SGBLogger)
+
+    show(logger.core_info, show_row_number = false, allrows = true)
+    print("\n")
+    arit_ops = 0
+    for row in eachrow(logger.core_info)
+        arit_ops += row[:arit_ops]
+    end
+    println("arithmetic operations: $(arit_ops)")
 end
 
 # TODO: put in initial data, based on sigpolynomialctx
@@ -153,7 +150,7 @@ function Logging.handle_message(logger::SGBLogger, level, message, _module, grou
             logger.stop_watch_start = start_time_core
         end
         if end_time_core != 0.0
-            set_info_row!(logger, (:time, round(end_time_core - logger.stop_watch_start, digits = 2)))
+            set_info_row!(logger, (:time, round(end_time_core - logger.stop_watch_start, digits = 4)))
             logger.stop_watch_start = 0.0
         end
     end
