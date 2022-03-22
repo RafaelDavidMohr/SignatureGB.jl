@@ -68,13 +68,14 @@ function F5matrix(ctx::SigPolynomialΓ{I, M, MM, T},
                   row_sigs::Vector{MonSigPair{I, M}};
                   interreduction_matrix = false,
                   # used if an interreduction occured: in this case signatures are still hashes
-                  no_rewrite_criterion = p -> false,
+                  f5c = false,
                   # used for matrix in which we track the projections to the largest index
                   # in this case we ignore the projections of elements in lower index
                   used_for = :pols) where {I, M, MM, T}
 
     if used_for == :pols
-        get_pol = p -> ctx(p..., no_rewrite = no_rewrite_criterion(p)).pol
+        max_index = maximum(p -> index(ctx, p), row_sigs)
+        get_pol = p -> ctx(p..., no_rewrite = index(ctx, p) < max_index).pol
     elseif used_for == :highest_index
         largest_index = maximum(p -> index(ctx, p), row_sigs)
         get_pol = p -> index(ctx, p) < largest_index || !(tag(ctx, p) in ctx.track_module_tags) ? zero(ctx.po) : project(ctx, p...)
@@ -87,7 +88,7 @@ function F5matrix(ctx::SigPolynomialΓ{I, M, MM, T},
     sig_pols = collect(zip(row_sigs, pols))
     # TODO: this might be unstable
     if isempty(mons)
-        mons = vcat([monomials(p) for p in pols]...)
+        mons = unique(vcat([monomials(p) for p in pols]...))
         sort!(mons, lt = (a, b) -> lt(ctx.mod_po.mo, a, b), rev = true)
     end
     tbl, sig_poly_indexed = index_pols(mons, sig_pols)
