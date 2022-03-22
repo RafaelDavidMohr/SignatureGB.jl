@@ -213,9 +213,10 @@ function (ctx::SigPolynomialΓ{I, M})(m::M, sig::Tuple{I, M}; no_rewrite = false
                 return SigPolynomial(ctx, mul(ctx.po, val.pol, n), mul(ctx.mod_po, val.module_rep, n), val.sigratio)
             end
         end
+    else
+        val = ctx.tbl[sig]
+        return SigPolynomial(ctx, mul(ctx.po, val.pol, m), mul(ctx.mod_po, val.module_rep, m), val.sigratio)
     end
-    val = ctx.tbl[sig]
-    return SigPolynomial(ctx, mul(ctx.po, val.pol, m), mul(ctx.mod_po, val.module_rep, m), val.sigratio)
 end
 
 # get projection to highest index
