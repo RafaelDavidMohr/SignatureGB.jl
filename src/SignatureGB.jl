@@ -9,14 +9,13 @@ include("./coefficients.jl")
 include("./monomialtable.jl")
 include("./sigtable.jl")
 include("./logging.jl")
-# include("./f5data.jl")
 include("./pairs.jl")
 include("./symbolicpp.jl")
 include("./reduction_better.jl")
 # include("./interreduction.jl")
 # include("./gen_example_file.jl")
 
-export sgb, f5sat
+export sgb, f5sat, nondegen_part
 
 # build initial pairset, basis and syzygies
 function pairs_and_basis(ctx::SigPolynomialΓ,
@@ -51,24 +50,45 @@ function sgb(I::Vector{P};
 end
 
 function f5sat(I::Vector{P},
-               to_sat::P;
-               verbose = 0,
-               kwargs...) where {P <: AA.MPolyElem}
+    to_sat::P;
+    verbose = 0,
+    kwargs...) where {P<:AA.MPolyElem}
 
     ctx = setup(I; mod_rep_type = :highest_index,
-                mod_order = :POT,
-                track_module_tags = [:to_sat],
-                kwargs...)
-    new_generator!(ctx, pos_type(ctx)(length(I) + 1) , to_sat, :to_sat)
+        mod_order = :POT,
+        track_module_tags = [:to_sat],
+        kwargs...)
+    new_generator!(ctx, pos_type(ctx)(length(I) + 1), to_sat, :to_sat)
     G, H, koszul_q, pairs = pairs_and_basis(ctx, length(I) + 1)
     logger = SGBLogger(ctx, verbose = verbose)
     with_logger(logger) do
-	f5sat_core!(ctx, G, H, koszul_q, pairs)
+        f5sat_core!(ctx, G, H, koszul_q, pairs; kwargs...)
         verbose == 2 && printout(logger)
     end
     R = parent(first(I))
     [R(ctx, g[1]) for g in filter(g -> tag(ctx, g[1]) != :to_sat, G)]
 end    
+
+function nondegen_part(I::Vector{P};
+                       verbose = 0,
+                       kwargs...) where {P <: AA.MPolyElem}
+
+    if length(I) > Singular.nvars(parent(first(I)))
+        error("Put in a number of polynomials less than or equal to the number of variables")
+    end
+    ctx = setup(I; mod_rep_type = :highest_index,
+                mod_order = :POT,
+                track_module_tags = [:to_sat],
+                kwargs...)
+    G, H, koszul_q, pairs = pairs_and_basis(ctx, 1, start_gen = 2)
+    logger = SGBLogger(ctx, verbose = verbose)
+    with_logger(logger) do
+	nondegen_part_core!(ctx, G, H, koszul_q, pairs; kwargs...)
+        verbose == 2 && printout(logger)
+    end
+    R = parent(first(I))
+    [R(ctx, g[1]) for g in G]
+end
 
 function sgb_core!(ctx::SΓ,
                    G::Basis{I, M},
@@ -132,6 +152,12 @@ function f5sat_core!(ctx::SΓ,
     curr_indx = index(ctx, first(pairs)[1])
     
     while !(isempty(pairs))
+        for p in pairs
+            if tag(ctx, p[1]) == :f
+                println("$((p[1], ctx)), $((p[2], ctx))")
+                error("no")
+            end
+        end
         # TODO: is this a good idea
         if max_remasks > 0 && rand() < max(1/max_remasks, 1/3)
             max_remasks -= 1
@@ -151,6 +177,7 @@ function f5sat_core!(ctx::SΓ,
         @logmsg Verbose2 "" nz_entries = sum([length(pol(mat, rw)) for rw in values(rws)]) mat_size = (length(rws), length(tbl(mat)))
         
         max_sig = last(collect(keys(rws)))
+        curr_indx_key = max_sig[2][1]
         @logmsg Verbose2 "" indx = index(ctx, max_sig) tag = tag(ctx, max_sig)
         if tag(ctx, max_sig) == :to_sat
             zero_red = filter(kv -> iszero(pol(mat, kv[2])), rws)
@@ -183,16 +210,22 @@ function f5sat_core!(ctx::SΓ,
                 # insert the zero divisors
                 for p in pols_to_insert
                     @logmsg Verbose2 "" new_syz = true
-                    new_generator!(ctx, curr_indx, p, :zd)
+                    new_index_key = new_generator!(ctx, curr_indx, p, :zd)
+                    # TODO: make this a function
+                    if isunit(ctx.po, p)
+                        push!(G, (unitvector(ctx, new_index_key), one(ctx.po.mo)))
+                        return
+                    end
                 end
                 # syz_signatures = [g[2] for g in filter(g -> g[1] == curr_index_key, G)]
 
                 # rebuild pairset
                 pairs = pairset(ctx)
                 filter!(g -> index(ctx, g[1]) < curr_indx, G)
+                pair!(ctx, pairs, unitvector(ctx, curr_indx_key))
                 for index_key in keys(ctx.f5_indices)
                     sig = unitvector(ctx, index_key)
-                    if index(ctx, sig) >= curr_indx
+                    if index(ctx, sig) >= curr_indx && tag(ctx, sig) == :zd
                         pair!(ctx, pairs, sig)
                     end
                 end
@@ -203,7 +236,27 @@ function f5sat_core!(ctx::SΓ,
         @logmsg Verbose2 "" end_time_core = time()
     end
 end
+
+function nondegen_part_core!(ctx::SΓ,
+                             G::Basis{I, M},
+                             H::Syz{I, M},
+                             koszul_q::KoszulQueue{I, M, SΓ},
+                             pairs::PairSet{I, M, SΓ};
+                             max_remasks = 3,
+                             kwargs...) where {I, M, SΓ <: SigPolynomialΓ{I, M}}
+
+    ngens = length(ctx.f5_indices)
     
+    for i in pos_type(ctx)(2):pos_type(ctx)(ngens)
+        indx = index(ctx, i)
+        ctx.f5_indices[i] = F5Index(indx, :to_sat)
+        pair!(ctx, pairs, unitvector(ctx, i))
+        f5sat_core!(ctx, G, H, koszul_q, pairs, max_remasks = max_remasks; kwargs...)
+        pairs = pairset(ctx)
+        indx = index(ctx, i)
+        ctx.f5_indices[i] = F5Index(indx, :f)
+    end
+end
     
 function core_loop!(ctx::SΓ,
                     G::Basis{I, M},
