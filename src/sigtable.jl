@@ -120,31 +120,32 @@ tag(ctx::SigPolynomialΓ{I}, i::I) where {I} = ctx.f5_indices[i].tag
 index(ctx::SigPolynomialΓ{I, M}, p::SigHash{I, M}) where {I, M} = index(ctx, p[1])
 tag(ctx::SigPolynomialΓ{I, M}, p::SigHash{I, M}) where {I, M} = tag(ctx, p[1])
 
-function new_index!(ctx::SigPolynomialΓ{I},
-                    index_key::I,
-                    ind::I,
-                    tag = :f) where I
+function new_index!(ctx::SigPolynomialΓ,
+                    index_key,
+                    ind,
+                    tag = :f)
 
     for i in keys(ctx.f5_indices)
         if index(ctx, i) >= ind
-            ctx.f5_indices[i].index += one(I)
+            ctx.f5_indices[i].index += 1
         end
     end
     ctx.f5_indices[index_key] = F5Index(ind, tag)
 end
 
 function new_generator!(ctx::SigPolynomialΓ{I, M, MM, T},
-                        index::I,
-                        pol,
+                        index,
+                        pol::Polynomial{M, T},
                         tag = :f) where {I, M, MM, T}
 
     if !(isempty(keys(ctx.f5_indices)))
-        new_index_key = maximum(keys(ctx.f5_indices)) + one(I)
+        new_index_key = maximum(keys(ctx.f5_indices)) + 1
     else
-        new_index_key = one(I)
+        new_index_key = 1
     end
     new_index!(ctx, new_index_key, index, tag)
     sighash = unitvector(ctx, new_index_key)
+    # TODO: take care of other module reps
     ctx(sighash, pol)
     return new_index_key
 end

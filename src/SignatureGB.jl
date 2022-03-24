@@ -58,7 +58,7 @@ function f5sat(I::Vector{P},
         mod_order = :POT,
         track_module_tags = [:to_sat],
         kwargs...)
-    new_generator!(ctx, pos_type(ctx)(length(I) + 1), to_sat, :to_sat)
+    new_generator!(ctx, length(I) + 1, to_sat, :to_sat)
     G, H, koszul_q, pairs = pairs_and_basis(ctx, length(I) + 1)
     logger = SGBLogger(ctx, verbose = verbose)
     with_logger(logger) do
@@ -103,7 +103,7 @@ function decomp(I::Vector{P};
                 kwargs...)
     G, H, koszul_q, _ = pairs_and_basis(ctx, 1, start_gen = 2)
     for i in 2:length(I)
-        ctx.f5_indices[pos_type(ctx)(i)].tag = :to_sat
+        ctx.f5_indices[i].tag = :to_sat
     end
     logger = SGBLogger(ctx, verbose = verbose)
     with_logger(logger) do
@@ -265,7 +265,7 @@ function nondegen_part_core!(ctx::SΓ,
 
     ngens = length(ctx.f5_indices)
     
-    for i in pos_type(ctx)(2):pos_type(ctx)(ngens)
+    for i in 2:ngens
         ctx.f5_indices[i].tag = :to_sat
         pair!(ctx, pairs, unitvector(ctx, i))
         f5sat_core!(ctx, G, H, koszul_q, pairs, max_remasks = max_remasks; kwargs...)
@@ -283,7 +283,7 @@ function decomp_core!(ctx::SΓ,
     ngens = length(ctx.f5_indices)
     components = [(ctx, G, H)]
     
-    for i in pos_type(ctx)(2):pos_type(ctx)(ngens)
+    for i in 2:ngens
         for (ctx, G, H) in copy(components)
             pairs = pairset(ctx)
             remaining = [k for (k, v) in ctx.f5_indices if v.tag == :to_sat]
@@ -317,12 +317,12 @@ function decomp_core!(ctx::SΓ,
                 G_new = new_basis(ctx_new)
                 H_new = new_syz(ctx_new)
                 for (l, p) in enumerate(new_comp_pols)
-                    new_generator!(ctx_new, I(l), p, :f)
+                    new_generator!(ctx_new, l, p, :f)
                     new_basis_elem!(ctx_new, G_new, unitvector(ctx_new, l))
                 end
                 if i < ngens
                     next_eqn = ctx(unitvector(ctx, i + 1)).pol
-                    new_generator!(ctx_new, I(length(new_comp_pols) + 1), next_eqn, :to_sat)
+                    new_generator!(ctx_new, length(new_comp_pols) + 1, next_eqn, :to_sat)
                 end
                 push!(components, (ctx_new, G_new, H_new))
             end
