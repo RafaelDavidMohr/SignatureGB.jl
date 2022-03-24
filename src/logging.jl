@@ -34,14 +34,14 @@ function printout(logger::SGBLogger)
     println("arithmetic operations: $(arit_ops)")
 end
 
-# TODO: put in initial data, based on sigpolynomialctx
+# TODO: change dataframe based on a task variable
 function SGBLogger(ctx::SigPolynomialΓ{I}; verbose = 0) where I
     # probably shouldnt do this
     to_disable = min(Logging.LogLevel(-751), LogLevel(Logging.min_enabled_level(current_logger()).level - 1))
     Logging.disable_logging(to_disable)
     verbose_table = [Logging.LogLevel(0), Verbose1, Verbose2]
     timings = new_timings()
-    if ctx.track_module_tags == [:to_sat]
+    if :to_sat in ctx.track_module_tags
         return SGBLogger{I, typeof(current_logger())}(current_logger(), verbose_table[verbose + 1],
                                                      DataFrame(sig_deg = Int64[], indx = Int64[], tag = Symbol[], sel = Int64[],
                                                                pairs = Int64[], mat = Tuple{Int64, Int64}[],

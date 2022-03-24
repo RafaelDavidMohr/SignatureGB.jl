@@ -27,6 +27,13 @@ function new_basis_elem!(ctx::SigPolynomialΓ{I, M},
     push!(basis, (sig, leadingmonomial(ctx, sig)))
 end
 
+function new_basis_elem!(basis::Basis{I, M},
+                         sig::SigHash{I, M},
+                         lm::M) where {I, M}
+
+    push!(basis, (sig, lm))
+end
+
 function Base.show(io::IO,
                    a::Tuple{MonSigPair{I, M}, SX}) where {I, M, SX <: SigPolynomialΓ{I, M}}
     pair = a[1]

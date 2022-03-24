@@ -47,9 +47,9 @@ function sigpolynomialctx(coefficients,
     # here we need to possibly build a seperate module_moctx
     if isnothing(polynomials)
         polynomials = polynomialctx(coefficients; kwargs...)
-        monomials = polynomials.mo
     end
-
+    monomials = polynomials.mo
+    
     if !(isnothing(mod_polynomials))
         error("using a different type of monomials for the module is currently not supported.")
     else
@@ -138,7 +138,11 @@ function new_generator!(ctx::SigPolynomialΓ{I, M, MM, T},
                         pol,
                         tag = :f) where {I, M, MM, T}
 
-    new_index_key = maximum(keys(ctx.f5_indices)) + one(I)
+    if !(isempty(keys(ctx.f5_indices)))
+        new_index_key = maximum(keys(ctx.f5_indices)) + one(I)
+    else
+        new_index_key = one(I)
+    end
     new_index!(ctx, new_index_key, index, tag)
     sighash = unitvector(ctx, new_index_key)
     ctx(sighash, pol)
