@@ -130,7 +130,7 @@ function new_index!(ctx::SigPolynomialΓ,
             ctx.f5_indices[i].index += 1
         end
     end
-    ctx.f5_indices[index_key] = F5Index(ind, tag)
+    ctx.f5_indices[index_key] = F5Index(pos_type(ctx)(ind), tag)
 end
 
 function new_generator!(ctx::SigPolynomialΓ{I, M, MM, T},
