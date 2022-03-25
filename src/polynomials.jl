@@ -355,4 +355,3 @@ function (R :: AA.MPolyRing)(ctx, p :: Polynomial)
                  [convert(Vector{Int}, exponents(ctx.mo, monomial(p, i))) for i in 1:length(p)])
     end
 end
-

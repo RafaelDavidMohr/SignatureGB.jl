@@ -97,17 +97,15 @@ function decomp(I::Vector{P};
     if length(I) > Singular.nvars(parent(first(I)))
         error("Put in a number of polynomials less than or equal to the number of variables")
     end
-    ctx = setup(I; mod_rep_type = :highest_index,
+    ctx = setup([I[1]]; mod_rep_type = :highest_index,
                 mod_order = :POT,
                 track_module_tags = [:to_sat, :zd],
                 kwargs...)
     G, H, koszul_q, _ = pairs_and_basis(ctx, 1, start_gen = 2)
-    for i in 2:length(I)
-        ctx.f5_indices[i].tag = :to_sat
-    end
+    remaining = [ctx.po(f) for f in I[2:end]]
     logger = SGBLogger(ctx, verbose = verbose)
     with_logger(logger) do
-	components = decomp_core!(ctx, G, H, koszul_q; kwargs...)
+	components = decomp_core!(ctx, G, H, koszul_q, remaining; kwargs...)
         verbose == 2 && printout(logger)
         R = parent(first(I))
         return [[R(ctx, g[1]) for g in G] for (ctx, G) in components]
@@ -277,23 +275,25 @@ function decomp_core!(ctx::SΓ,
                       G::Basis{I, M},
                       H::Syz{I, M},
                       koszul_q::KoszulQueue{I, M, SΓ},
+                      remaining::Vector{P},
                       max_remasks = 3,
-                      kwargs...) where {I, M, SΓ <: SigPolynomialΓ{I, M}}
+                      kwargs...) where {I, M, SΓ <: SigPolynomialΓ{I, M},
+                                        P <: Polynomial{M}}
 
     ngens = length(ctx.f5_indices)
     components = [(ctx, G, H)]
     
-    for i in 2:ngens
+    for f in remaining
         for (ctx, G, H) in copy(components)
+            indx_key = new_generator!(ctx, f, :to_sat)
             pairs = pairset(ctx)
-            remaining = [k for (k, v) in ctx.f5_indices if v.tag == :to_sat]
-            pair!(ctx, pairs, unitvector(ctx, remaining[1]))
+            pair!(ctx, pairs, unitvector(ctx, indx_key))
             last_index = maximum(g -> index(ctx, g[1]), G)
             f5sat_core!(ctx, G, H, koszul_q, pairs, max_remasks = max_remasks; kwargs...)
-            ctx.f5_indices[remaining[1]].tag = :f
+            ctx.f5_indices[indx_key].tag = :f
 
             # construct components of higher dimension
-            curr_index = ctx.f5_indices[i].index
+            curr_index = ctx.f5_indices[indx_key].index
             G_new = filter(g -> index(ctx, g[1]) < curr_index && tag(ctx, g[1]) != :zd, G)
             gs = collect(filter(kv -> kv[2].tag == :zd && last_index < kv[2].index < curr_index, ctx.f5_indices))
             for (j, zd_index) in enumerate(gs)
@@ -319,10 +319,6 @@ function decomp_core!(ctx::SΓ,
                 for (l, p) in enumerate(new_comp_pols)
                     new_generator!(ctx_new, l, p, :f)
                     new_basis_elem!(ctx_new, G_new, unitvector(ctx_new, l))
-                end
-                if i < ngens
-                    next_eqn = ctx(unitvector(ctx, i + 1)).pol
-                    new_generator!(ctx_new, length(new_comp_pols) + 1, next_eqn, :to_sat)
                 end
                 push!(components, (ctx_new, G_new, H_new))
             end

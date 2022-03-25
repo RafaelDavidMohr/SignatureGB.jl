@@ -150,6 +150,13 @@ function new_generator!(ctx::SigPolynomialΓ{I, M, MM, T},
     return new_index_key
 end
 
+function new_generator!(ctx::SigPolynomialΓ{I, M, MM, T},
+                        pol::Polynomial{M, T},
+                        tag = :f) where {I, M, MM, T}
+    
+    new_generator!(ctx, maxindex(ctx) + 1, pol, tag)
+end
+    
 # find maximal index
 function maxindex(ctx::SigPolynomialΓ{I, M}) where {I, M}
 
