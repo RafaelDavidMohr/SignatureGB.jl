@@ -20,6 +20,11 @@ const MonSigSet{I, M, SΓ} = Set{MonSigPair{I, M}}
 new_basis(ctx::SigPolynomialΓ{I, M}) where {I, M} = Tuple{SigHash{I, M}, M}[]
 new_syz(ctx::SigPolynomialΓ{I, M}) where {I, M} = SigHash{I, M}[]
 
+function gb_size(ctx::SigPolynomialΓ{I, M}, G::Basis{I, M}) where {I, M}
+
+    isempty(G) ? 0 : sum([length(ctx(g).pol) for (g, _) in G])
+end
+
 function new_basis_elem!(ctx::SigPolynomialΓ{I, M},
                          basis::Basis{I, M},
                          sig::SigHash{I, M}) where {I, M}

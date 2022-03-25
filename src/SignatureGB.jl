@@ -78,7 +78,7 @@ function nondegen_part(I::Vector{P};
     end
     ctx = setup(I; mod_rep_type = :highest_index,
                 mod_order = :POT,
-                track_module_tags = [:to_sat],
+                track_module_tags = [:f],
                 kwargs...)
     G, H, koszul_q, pairs = pairs_and_basis(ctx, 1, start_gen = 2)
     logger = SGBLogger(ctx, verbose = verbose, task = :sat)
@@ -117,11 +117,11 @@ function decomp(I::Vector{P};
     end
     ctx = setup([I[1]]; mod_rep_type = :highest_index,
                 mod_order = :POT,
-                track_module_tags = [:to_sat, :zd],
+                track_module_tags = [:f, :zd],
                 kwargs...)
     G, H, koszul_q, _ = pairs_and_basis(ctx, 1, start_gen = 2)
     remaining = [ctx.po(f) for f in I[2:end]]
-    logger = SGBLogger(ctx, verbose = verbose, task = :sat)
+    logger = SGBLogger(ctx, verbose = verbose, task = :decomp)
     with_logger(logger) do
 	components = decomp_core!(ctx, G, H, koszul_q, remaining; kwargs...)
         verbose == 2 && printout(logger)
@@ -165,7 +165,7 @@ function sgb_core!(ctx::SΓ,
             remask!(ctx.po.mo.table)
         end
         to_reduce, done = core_loop!(ctx, G, H, koszul_q, pairs, select, all_koszul)
-        @logmsg Verbose2 "" indx = mod_order(ctx) == :POT ? maximum(p -> index(ctx, p), to_reduce) : 0
+        @logmsg Verbose2 "" indx = mod_order(ctx) == :POT && !(isempty(to_reduce)) ? maximum(p -> index(ctx, p), to_reduce) : 0
         isempty(to_reduce) && continue
         mat = F5matrix(ctx, done, collect(to_reduce))
         @logmsg Verbose2 "" nz_entries = sum([length(rw) for rw in values(rows(mat))]) mat_size = (length(rows(mat)), length(tbl(mat)))
@@ -173,16 +173,18 @@ function sgb_core!(ctx::SΓ,
         
         new_elems!(ctx, G, H, pairs, mat, all_koszul)
         @logmsg Verbose2 "" end_time_core = time()
+        @logmsg Verbose2 "" gb_size = gb_size(ctx, G)
     end
 end
 
 function f5sat_core!(ctx::SΓ,
-    G::Basis{I,M},
-    H::Syz{I,M},
-    koszul_q::KoszulQueue{I,M,SΓ},
-    pairs::PairSet{I,M,SΓ};
-    max_remasks = 3,
-    kwargs...) where {I,M,SΓ<:SigPolynomialΓ{I,M}}
+                     G::Basis{I,M},
+                     H::Syz{I,M},
+                     koszul_q::KoszulQueue{I,M,SΓ},
+                     pairs::PairSet{I,M,SΓ};
+                     max_remasks = 3,
+                     sat_tag = :to_sat,
+                     kwargs...) where {I,M,SΓ<:SigPolynomialΓ{I,M}}
 
     if !(extends_degree(termorder(ctx.po.mo)))
         error("I currently don't know how to deal with non-degree based monomial orderings...")
@@ -214,10 +216,11 @@ function f5sat_core!(ctx::SΓ,
         max_sig = last(collect(keys(rws)))
         curr_indx_key = max_sig[2][1]
         @logmsg Verbose2 "" indx = index(ctx, max_sig) tag = tag(ctx, max_sig)
-        if tag(ctx, max_sig) == :to_sat
+        if tag(ctx, max_sig) == sat_tag
             zero_red = filter(kv -> iszero(pol(mat, kv[2])), rws)
             if isempty(zero_red)
                 new_elems!(ctx, G, H, pairs, mat, all_koszul)
+                @logmsg Verbose2 "" gb_size = gb_size(ctx, G)
             else
                 # zero divisors to insert
                 @debug string("inserting pols coming from signatures\n", ["$((s, ctx))\n" for s in keys(zero_red)]...)
@@ -266,6 +269,7 @@ function f5sat_core!(ctx::SΓ,
             end
         else
             new_elems!(ctx, G, H, pairs, mat, all_koszul)
+            @logmsg Verbose2 "" gb_size = gb_size(ctx, G)
         end
         @logmsg Verbose2 "" end_time_core = time()
     end
@@ -282,9 +286,8 @@ function nondegen_part_core!(ctx::SΓ,
     ngens = length(ctx.f5_indices)
     
     for i in 2:ngens
-        ctx.f5_indices[i].tag = :to_sat
         pair!(ctx, pairs, unitvector(ctx, i))
-        f5sat_core!(ctx, G, H, koszul_q, pairs, max_remasks = max_remasks; kwargs...)
+        f5sat_core!(ctx, G, H, koszul_q, pairs, max_remasks = max_remasks, sat_tag = :f; kwargs...)
         pairs = pairset(ctx)
     end
 end
@@ -303,13 +306,14 @@ function decomp_core!(ctx::SΓ,
     
     for (i, f) in enumerate(remaining)
         for (j, (ctx, G, H, l, t, s)) in enumerate(copy(components))
-            indx_key = new_generator!(ctx, f, :to_sat)
+            @logmsg Verbose2 "" add_row = true defaults = [(:component, j), (:level, i)]
+            indx_key = new_generator!(ctx, f)
             pairs = pairset(ctx)
             pair!(ctx, pairs, unitvector(ctx, indx_key))
             last_index = maximum(g -> index(ctx, g[1]), G)
             G_old = copy(G)
             basis_before = [ctx(g[1]).pol for g in G_old]
-            f5sat_core!(ctx, G, H, koszul_q, pairs, max_remasks = max_remasks; kwargs...)
+            f5sat_core!(ctx, G, H, koszul_q, pairs, max_remasks = max_remasks, sat_tag = :f; kwargs...)
             ctx.f5_indices[indx_key].tag = :f
 
             # construct components of higher dimension
@@ -334,7 +338,7 @@ function decomp_core!(ctx::SΓ,
                 end
                 ctx_new = sigpolynomialctx(ctx.po.co, 0,
                                            polynomials = ctx.po,
-                                           track_module_tags = [:to_sat, :zd],
+                                           track_module_tags = [:f, :zd],
                                            mod_rep_type = :highest_index)
                 G_new = new_basis(ctx_new)
                 H_new = new_syz(ctx_new)

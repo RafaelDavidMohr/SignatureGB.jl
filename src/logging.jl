@@ -43,34 +43,27 @@ function SGBLogger(ctx::SigPolynomialΓ{I};
     Logging.disable_logging(to_disable)
     verbose_table = [Logging.LogLevel(0), Verbose1, Verbose2]
     timings = new_timings()
+
+    core_info = DataFrame(sig_deg = Int64[], sel = Int64[],
+                          pairs = Int64[], mat = Tuple{Int64, Int64}[],
+                          density = Float32[], arit_ops = Int64[], syz = Int64[],
+                          new_elems = Int64[], gb_size = Int64[], time = Float64[])
+    
     if task == :sat
-        return SGBLogger{I, typeof(current_logger())}(current_logger(), verbose_table[verbose + 1],
-                                                     DataFrame(sig_deg = Int64[], indx = Int64[], tag = Symbol[], sel = Int64[],
-                                                               pairs = Int64[], mat = Tuple{Int64, Int64}[],
-                                                               density = Float32[], arit_ops = Int64[], syz = Int64[],
-                                                               new_elems = Int64[], time = Float64[]),
-                                                     zero(Float64), timings)
+        insertcols!(core_info, :indx => Int64[], :tag => Symbol[])
+    elseif task == :decomp
+        insertcols!(core_info, :indx => Int64[], :tag => Symbol[], :level => Int64[], :component => Int64[])
     elseif mod_order(ctx) == :POT
-        return SGBLogger{I, typeof(current_logger())}(current_logger(), verbose_table[verbose + 1],
-                                                     DataFrame(sig_deg = Int64[], indx = Int64[], sel = Int64[],
-                                                               pairs = Int64[], mat = Tuple{Int64, Int64}[],
-                                                               density = Float32[], arit_ops = Int64[], syz = Int64[],
-                                                               new_elems = Int64[], time = Float64[]),
-                                                      zero(Float64), timings)
-    else
-        return SGBLogger{I, typeof(global_logger())}(global_logger(), verbose_table[verbose + 1],
-                                                     DataFrame(sig_deg = Int64[], sel = Int64[],
-                                                               pairs = Int64[], mat = Tuple{Int64, Int64}[],
-                                                               density = Float32[], arit_ops = Int64[], syz = Int64[],
-                                                               new_elems = Int64[], time = Float64[]),
-                                                     zero(Float64), timings)
+        insertcols!(core_info, :indx => Int64[])
     end
+    return SGBLogger{I, typeof(current_logger())}(current_logger(), verbose_table[verbose + 1], core_info,
+                                                  zero(Float64), timings)
 end
 
-function add_info_row!(logger::SGBLogger)
+function add_info_row!(logger::SGBLogger, defaults...)
 
-    tuples = Dict([(:sig_deg, 0), (:sel, 0), (:pairs, 0), (:mat, (0,0)),
-                   (:density, zero(Float32)), (:arit_ops, 0),
+    tuples = Dict([defaults..., (:sig_deg, 0), (:sel, 0), (:pairs, 0),
+                   (:mat, (0,0)), (:density, zero(Float32)), (:arit_ops, 0),
                    (:syz, 0), (:new_elems, 0), (:time, zero(Float64))])
     push!(logger.core_info, tuples, cols = :subset)
 end
@@ -97,6 +90,7 @@ end
 function Logging.handle_message(logger::SGBLogger, level, message, _module, group, id, file, line;
                                 # TODO: put relevant key value pairs
                                 add_row = false,
+                                defaults = [],
                                 curr_index = 0,
                                 sig_degree = -1,
                                 nselected = 0,
@@ -108,6 +102,7 @@ function Logging.handle_message(logger::SGBLogger, level, message, _module, grou
                                 arit_ops = 0,
                                 new_syz = false,
                                 new_basis = false,
+                                gb_size = 0,
                                 start_time_core = 0.0,
                                 end_time_core = 0.0,
                                 kwargs...)
@@ -119,8 +114,7 @@ function Logging.handle_message(logger::SGBLogger, level, message, _module, grou
     elseif level == Verbose2
         # TODO: record data, format message
         if add_row
-            add_info_row!(logger)
-            set_info_row!(logger, (:syz, 0), (:new_elems, 0))
+            add_info_row!(logger, defaults...)
         end
         if sig_degree >= 0
             set_info_row!(logger, (:sig_deg, sig_degree))
@@ -154,6 +148,9 @@ function Logging.handle_message(logger::SGBLogger, level, message, _module, grou
         end
         if new_basis
             inc_row!(logger, :new_elems)
+        end
+        if gb_size != 0
+            set_info_row!(logger, (:gb_size, gb_size))
         end
         if start_time_core != 0.0
             logger.stop_watch_start = start_time_core
