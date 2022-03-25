@@ -60,7 +60,7 @@ function f5sat(I::Vector{P},
         kwargs...)
     new_generator!(ctx, length(I) + 1, to_sat, :to_sat)
     G, H, koszul_q, pairs = pairs_and_basis(ctx, length(I) + 1)
-    logger = SGBLogger(ctx, verbose = verbose)
+    logger = SGBLogger(ctx, verbose = verbose, task = :sat)
     with_logger(logger) do
         f5sat_core!(ctx, G, H, koszul_q, pairs; kwargs...)
         verbose == 2 && printout(logger)
@@ -81,7 +81,7 @@ function nondegen_part(I::Vector{P};
                 track_module_tags = [:to_sat],
                 kwargs...)
     G, H, koszul_q, pairs = pairs_and_basis(ctx, 1, start_gen = 2)
-    logger = SGBLogger(ctx, verbose = verbose)
+    logger = SGBLogger(ctx, verbose = verbose, task = :sat)
     with_logger(logger) do
 	nondegen_part_core!(ctx, G, H, koszul_q, pairs; kwargs...)
         verbose == 2 && printout(logger)
@@ -90,6 +90,24 @@ function nondegen_part(I::Vector{P};
     [R(ctx, g[1]) for g in G]
 end
 
+struct DecompResult{P}
+    result::Vector{Tuple{Vector{P}, Int64, Symbol, Symbol}}
+end
+
+function Base.show(io::IO, res::DecompResult)
+    for (comp, i, t, s) in res.result
+        if s == :lower_dim
+            if t == :lower_dim
+                println(io, "component obtained on level $(i) of lower dimension coming from component of lower dimension")
+            else
+                println(io, "component obtained on level $(i) of lower dimension coming from nondegenerate part")
+            end
+        else
+            println(io, "nondegenerate part")
+        end
+    end
+end
+    
 function decomp(I::Vector{P};
                 verbose = 0,
                 kwargs...) where {P <: AA.MPolyElem}
@@ -103,12 +121,12 @@ function decomp(I::Vector{P};
                 kwargs...)
     G, H, koszul_q, _ = pairs_and_basis(ctx, 1, start_gen = 2)
     remaining = [ctx.po(f) for f in I[2:end]]
-    logger = SGBLogger(ctx, verbose = verbose)
+    logger = SGBLogger(ctx, verbose = verbose, task = :sat)
     with_logger(logger) do
 	components = decomp_core!(ctx, G, H, koszul_q, remaining; kwargs...)
         verbose == 2 && printout(logger)
         R = parent(first(I))
-        return [[R(ctx, g[1]) for g in G] for (ctx, G) in components]
+        return DecompResult([([R(ctx, g[1]) for g in G], i, t, s) for (ctx, G, i, t, s) in components])
     end
 end
 
@@ -147,6 +165,7 @@ function sgb_core!(ctx::SΓ,
             remask!(ctx.po.mo.table)
         end
         to_reduce, done = core_loop!(ctx, G, H, koszul_q, pairs, select, all_koszul)
+        @logmsg Verbose2 "" indx = mod_order(ctx) == :POT ? maximum(p -> index(ctx, p), to_reduce) : 0
         isempty(to_reduce) && continue
         mat = F5matrix(ctx, done, collect(to_reduce))
         @logmsg Verbose2 "" nz_entries = sum([length(rw) for rw in values(rows(mat))]) mat_size = (length(rows(mat)), length(tbl(mat)))
@@ -158,40 +177,40 @@ function sgb_core!(ctx::SΓ,
 end
 
 function f5sat_core!(ctx::SΓ,
-                     G::Basis{I, M},
-                     H::Syz{I, M},
-                     koszul_q::KoszulQueue{I, M, SΓ},
-                     pairs::PairSet{I, M, SΓ};
-                     max_remasks = 3,
-                     kwargs...) where {I, M, SΓ <: SigPolynomialΓ{I, M}}
+    G::Basis{I,M},
+    H::Syz{I,M},
+    koszul_q::KoszulQueue{I,M,SΓ},
+    pairs::PairSet{I,M,SΓ};
+    max_remasks = 3,
+    kwargs...) where {I,M,SΓ<:SigPolynomialΓ{I,M}}
 
     if !(extends_degree(termorder(ctx.po.mo)))
         error("I currently don't know how to deal with non-degree based monomial orderings...")
     end
-    
+
     select = :deg_and_pos
     all_koszul = true
     curr_indx = index(ctx, first(pairs)[1])
-    
+
     while !(isempty(pairs))
         # TODO: is this a good idea
-        if max_remasks > 0 && rand() < max(1/max_remasks, 1/3)
+        if max_remasks > 0 && rand() < max(1 / max_remasks, 1 / 3)
             max_remasks -= 1
             remask!(ctx.po.mo.table)
         end
-        
+
         next_index = index(ctx, first(pairs)[1])
         if next_index != curr_indx
             curr_indx = next_index
         end
-        
+
         to_reduce, done = core_loop!(ctx, G, H, koszul_q, pairs, select, all_koszul, select_both = false)
         isempty(done) && continue
         mat = F5matrixHighestIndex(ctx, done, collect(to_reduce))
         reduction!(mat)
         rws = rows(mat)
         @logmsg Verbose2 "" nz_entries = sum([length(pol(mat, rw)) for rw in values(rws)]) mat_size = (length(rws), length(tbl(mat)))
-        
+
         max_sig = last(collect(keys(rws)))
         curr_indx_key = max_sig[2][1]
         @logmsg Verbose2 "" indx = index(ctx, max_sig) tag = tag(ctx, max_sig)
@@ -203,9 +222,9 @@ function f5sat_core!(ctx::SΓ,
                 # zero divisors to insert
                 @debug string("inserting pols coming from signatures\n", ["$((s, ctx))\n" for s in keys(zero_red)]...)
                 pols_to_insert = [unindexpolynomial(tbl(mat.module_matrix),
-                                                    module_pol(mat, sig))
+                    module_pol(mat, sig))
                                   for sig in keys(zero_red)]
-                
+
                 # cache some reduction results for future use
                 for g in G
                     index(ctx, g[1]) == curr_indx && push!(ctx.cashed_sigs, g[1])
@@ -217,7 +236,7 @@ function f5sat_core!(ctx::SΓ,
                     if index(ctx, sig) == curr_indx && lt(ctx.po.mo, lm, leadingmonomial(ctx, sig..., no_rewrite = true))
                         @logmsg Verbose2 "" new_basis = true
                         q = unindexpolynomial(tbl(mat.module_matrix),
-                                          tail(module_pol(mat, sig)))
+                            tail(module_pol(mat, sig)))
                         ctx(mul(ctx, sig...), p, q)
                         push!(ctx.cashed_sigs, mul(ctx, sig...))
                     end
@@ -227,7 +246,6 @@ function f5sat_core!(ctx::SΓ,
                 for p in pols_to_insert
                     @logmsg Verbose2 "" new_syz = true
                     new_index_key = new_generator!(ctx, curr_indx, p, :zd)
-                    # TODO: make this a function
                     if isunit(ctx.po, p)
                         new_basis_elem!(G, unitvector(ctx, new_index_key), one(ctx.po.mo))
                         return
@@ -281,35 +299,39 @@ function decomp_core!(ctx::SΓ,
                                         P <: Polynomial{M}}
 
     ngens = length(ctx.f5_indices)
-    components = [(ctx, G, H)]
+    components = [(ctx, G, H, 1, :nondeg, :nondeg)]
     
-    for f in remaining
-        for (ctx, G, H) in copy(components)
+    for (i, f) in enumerate(remaining)
+        for (j, (ctx, G, H, l, t, s)) in enumerate(copy(components))
             indx_key = new_generator!(ctx, f, :to_sat)
             pairs = pairset(ctx)
             pair!(ctx, pairs, unitvector(ctx, indx_key))
             last_index = maximum(g -> index(ctx, g[1]), G)
+            G_old = copy(G)
+            basis_before = [ctx(g[1]).pol for g in G_old]
             f5sat_core!(ctx, G, H, koszul_q, pairs, max_remasks = max_remasks; kwargs...)
             ctx.f5_indices[indx_key].tag = :f
 
             # construct components of higher dimension
             curr_index = ctx.f5_indices[indx_key].index
-            G_new = filter(g -> index(ctx, g[1]) < curr_index && tag(ctx, g[1]) != :zd, G)
-            gs = collect(filter(kv -> kv[2].tag == :zd && last_index < kv[2].index < curr_index, ctx.f5_indices))
-            for (j, zd_index) in enumerate(gs)
-                new_comp_pols = [ctx(g[1]).pol for g in G_new]
-                non_triv = false
+            new_components = empty(components)
+            gs = [(k, ctx(unitvector(ctx, k)).pol) for (k, v) in ctx.f5_indices
+                      if v.tag == :zd && last_index < v.index < curr_index]
+            if any(g -> isunit(ctx.po, g[2]), gs)
+                components[j] = (ctx, G_old, H, l, t, s)
+                continue
+            end
+            for (j, (zd_index, g)) in enumerate(gs)
+                new_comp_pols = copy(basis_before)
                 for k in 1:j-1
-                    non_triv = true
-                    push!(new_comp_pols, ctx(unitvector(ctx, gs[k][1])).pol)
+                    push!(new_comp_pols, g)
                 end
                 for sig in H
                     if sig[1] == zd_index[1]
-                        non_triv = true
-                        push!(new_comp_pols, project(ctx, sig))
+                        p = project(ctx, sig)
+                        push!(new_comp_pols, p)
                     end
                 end
-                !(non_triv) && continue
                 ctx_new = sigpolynomialctx(ctx.po.co, 0,
                                            polynomials = ctx.po,
                                            track_module_tags = [:to_sat, :zd],
@@ -320,11 +342,12 @@ function decomp_core!(ctx::SΓ,
                     new_generator!(ctx_new, l, p, :f)
                     new_basis_elem!(ctx_new, G_new, unitvector(ctx_new, l))
                 end
-                push!(components, (ctx_new, G_new, H_new))
+                push!(new_components, (ctx_new, G_new, H_new, i+1, s, :lower_dim))
             end
+            components = vcat(components, new_components)
         end
     end
-    return [(ctx, G) for (ctx, G, H) in components]
+    return [(ctx, G, i, t, s) for (ctx, G, H, i, t, s) in components]
 end
 
 function core_loop!(ctx::SΓ,

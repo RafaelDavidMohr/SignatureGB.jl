@@ -35,19 +35,28 @@ function printout(logger::SGBLogger)
 end
 
 # TODO: change dataframe based on a task variable
-function SGBLogger(ctx::SigPolynomialΓ{I}; verbose = 0) where I
+function SGBLogger(ctx::SigPolynomialΓ{I};
+                   task = :sgb,
+                   verbose = 0) where I
     # probably shouldnt do this
     to_disable = min(Logging.LogLevel(-751), LogLevel(Logging.min_enabled_level(current_logger()).level - 1))
     Logging.disable_logging(to_disable)
     verbose_table = [Logging.LogLevel(0), Verbose1, Verbose2]
     timings = new_timings()
-    if :to_sat in ctx.track_module_tags
+    if task == :sat
         return SGBLogger{I, typeof(current_logger())}(current_logger(), verbose_table[verbose + 1],
                                                      DataFrame(sig_deg = Int64[], indx = Int64[], tag = Symbol[], sel = Int64[],
                                                                pairs = Int64[], mat = Tuple{Int64, Int64}[],
                                                                density = Float32[], arit_ops = Int64[], syz = Int64[],
                                                                new_elems = Int64[], time = Float64[]),
                                                      zero(Float64), timings)
+    elseif mod_order(ctx) == :POT
+        return SGBLogger{I, typeof(current_logger())}(current_logger(), verbose_table[verbose + 1],
+                                                     DataFrame(sig_deg = Int64[], indx = Int64[], sel = Int64[],
+                                                               pairs = Int64[], mat = Tuple{Int64, Int64}[],
+                                                               density = Float32[], arit_ops = Int64[], syz = Int64[],
+                                                               new_elems = Int64[], time = Float64[]),
+                                                      zero(Float64), timings)
     else
         return SGBLogger{I, typeof(global_logger())}(global_logger(), verbose_table[verbose + 1],
                                                      DataFrame(sig_deg = Int64[], sel = Int64[],
