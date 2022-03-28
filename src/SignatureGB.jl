@@ -50,22 +50,22 @@ function sgb(I::Vector{P};
 end
 
 function f5sat(I::Vector{P},
-    to_sat::P;
-    verbose = 0,
-    kwargs...) where {P<:AA.MPolyElem}
+               to_sat::P;
+               verbose = 0,
+               kwargs...) where {P<:AA.MPolyElem}
 
+    R = parent(first(I))
     ctx = setup(I; mod_rep_type = :highest_index,
         mod_order = :POT,
         track_module_tags = [:to_sat],
         kwargs...)
-    new_generator!(ctx, length(I) + 1, to_sat, :to_sat)
+    new_generator!(ctx, length(I) + 1, ctx.po(to_sat), :to_sat)
     G, H, koszul_q, pairs = pairs_and_basis(ctx, length(I) + 1)
     logger = SGBLogger(ctx, verbose = verbose, task = :sat)
     with_logger(logger) do
-        f5sat_core!(ctx, G, H, koszul_q, pairs; kwargs...)
+        f5sat_core!(ctx, G, H, koszul_q, pairs, R; kwargs...)
         verbose == 2 && printout(logger)
     end
-    R = parent(first(I))
     [R(ctx, g[1]) for g in filter(g -> tag(ctx, g[1]) != :to_sat, G)]
 end    
 
@@ -182,9 +182,11 @@ function f5sat_core!(ctx::SΓ,
                      G::Basis{I,M},
                      H::Syz{I,M},
                      koszul_q::KoszulQueue{I,M,SΓ},
-                     pairs::PairSet{I,M,SΓ};
+                     pairs::PairSet{I,M,SΓ},
+                     R;
                      max_remasks = 3,
                      sat_tag = :to_sat,
+                     f5c = false,
                      kwargs...) where {I,M,SΓ<:SigPolynomialΓ{I,M}}
 
     if !(extends_degree(termorder(ctx.po.mo)))
@@ -204,12 +206,29 @@ function f5sat_core!(ctx::SΓ,
 
         next_index = index(ctx, first(pairs)[1])
         if next_index != curr_indx
+            # here we could interreduce
+            # final interreduction outside of this function
+            if f5c
+                @logmsg Verbose1 "" interred = true
+                basis = [R(ctx.po, ctx(g[1]).pol) for g in G]
+                interred_basis = [ctx.po(g) for g in gens(std(Ideal(R, basis), complete_reduction = true))]
+                G_new = new_basis(ctx)
+                for ((sig, _), p) in zip(G, interred_basis)
+                    ctx(sig, p)
+                    push!(G_new, (sig, leadingmonomial(p)))
+                end
+                empty!(G)
+                for g_new in G_new
+                    push!(G, g_new)
+                end
+                empty!(G_new)
+            end
             curr_indx = next_index
         end
 
-        to_reduce, done = core_loop!(ctx, G, H, koszul_q, pairs, select, all_koszul, select_both = false)
+        to_reduce, done = core_loop!(ctx, G, H, koszul_q, pairs, select, all_koszul, select_both = false, f5c = f5c)
         isempty(done) && continue
-        mat = F5matrixHighestIndex(ctx, done, collect(to_reduce))
+        mat = F5matrixHighestIndex(ctx, done, collect(to_reduce), f5c = f5c)
         reduction!(mat)
         rws = rows(mat)
         @logmsg Verbose2 "" nz_entries = sum([length(pol(mat, rw)) for rw in values(rws)]) mat_size = (length(rws), length(tbl(mat)))
@@ -397,7 +416,7 @@ function core_loop!(ctx::SΓ,
         return to_reduce, M[]
     end
     done = symbolic_pp!(ctx, to_reduce, G, H, all_koszul,
-                        are_pairs = are_pairs)
+                        are_pairs = are_pairs; kwargs...)
     return to_reduce, done
 end
 
@@ -425,8 +444,8 @@ function new_elems!(ctx::SΓ,
         else
             p = unindexpolynomial(tbl(mat), pol(mat, row))
             lm = leadingmonomial(p)
-            # @debug "old leading monomial $(gpair(ctx.po.mo, leadingmonomial(ctx, sig..., no_rewrite = true)))"
-            # @debug "new leading monomial $(gpair(ctx.po.mo, lm))"
+            @debug "old leading monomial $(gpair(ctx.po.mo, leadingmonomial(ctx, sig..., no_rewrite = true)))"
+            @debug "new leading monomial $(gpair(ctx.po.mo, lm))"
             if (isunitvector(ctx, new_sig) && !((new_sig, lm) in G)) || lt(ctx.po.mo, lm, leadingmonomial(ctx, sig..., no_rewrite = true))
                 @debug "adding $((sig, ctx))"
                 new_info = true

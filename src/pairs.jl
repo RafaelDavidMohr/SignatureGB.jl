@@ -248,7 +248,8 @@ function select!(ctx::SΓ,
                  pairs::PairSet{I, M, SΓ},
                  cond::Val{S},
                  all_koszul;
-                 select_both = true) where {I, M, SΓ <: SigPolynomialΓ{I, M}, S}
+                 select_both = true,
+                 kwargs...) where {I, M, SΓ <: SigPolynomialΓ{I, M}, S}
 
     @debug "selecting pairs..."
     nselected = 0

@@ -11,7 +11,8 @@ function find_reducer(ctx::SigPolynomialΓ{I, M},
                       max_sig_index::I,
                       sig_degree::E;
                       interreduction_step = false,
-                      f5c = false) where {I, M, E}
+                      f5c = false,
+                      kwargs...) where {I, M, E}
 
     if mod_order(ctx) == :SCHREY
         cond = p -> schrey_degree(ctx, p) <= sig_degree
@@ -48,7 +49,8 @@ function symbolic_pp!(ctx::SΓ,
                       all_koszul;
                       are_pairs = true,
                       interreduction_step = false,
-                      f5c = false) where {I, M,
+                      f5c = false,
+                      kwargs...) where {I, M,
                                           MS <: Union{MonSigSet{I, M}, Set{MonSigPair{I, M}}},
                                           SΓ <: SigPolynomialΓ{I, M}}
 
@@ -75,7 +77,8 @@ function symbolic_pp!(ctx::SΓ,
             push!(done, m)
             red = find_reducer(ctx, G, H, m, all_koszul, max_sig_index, sig_degree,
                                interreduction_step = interreduction_step,
-                               f5c = f5c)
+                               f5c = f5c;
+                               kwargs...)
             isnothing(red) && continue
             push!(pairs, red)
             @debug "found reducer $((red, ctx)) for $(gpair(ctx.po.mo, m))"

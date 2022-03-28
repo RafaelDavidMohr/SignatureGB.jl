@@ -19,7 +19,7 @@ function reduction!(mat::MacaulayMatrix)
             continue
         end
 
-        # @debug "top reducing row with signature $((key, mat.matrix.ctx))"
+        @debug "top reducing row with signature $((key, mat.matrix.ctx))"
         buffer!(row, buffer)
         for (k, c) in enumerate(pol(mat, buffer))
             (iszero(c) || isnull(pivots[k])) && continue
@@ -192,10 +192,11 @@ end
 
 function F5matrixHighestIndex(ctx::SigPolynomialΓ{I, M, MM, T},
                               mons::Vector{M},
-                              row_sigs::Vector{MonSigPair{I, M}}) where {I, M, MM, T}
+                              row_sigs::Vector{MonSigPair{I, M}};
+                              kwargs...) where {I, M, MM, T}
     
-    matrix = F5matrix(ctx, mons, row_sigs)
-    module_matrix = F5matrix(ctx, M[], row_sigs, used_for = :highest_index)    
+    matrix = F5matrix(ctx, mons, row_sigs; kwargs...)
+    module_matrix = F5matrix(ctx, M[], row_sigs, used_for = :highest_index; kwargs...)    
     return F5matrixPartialModule(matrix, module_matrix)
 end
 
