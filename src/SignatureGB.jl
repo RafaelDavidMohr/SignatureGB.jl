@@ -76,14 +76,15 @@ function nondegen_part(I::Vector{P};
     if length(I) > Singular.nvars(parent(first(I)))
         error("Put in a number of polynomials less than or equal to the number of variables")
     end
-    ctx = setup(I; mod_rep_type = :highest_index,
+    ctx = setup([I[1]]; mod_rep_type = :highest_index,
                 mod_order = :POT,
-                track_module_tags = [:f],
+                track_module_tags = [:f, :h, :zd],
                 kwargs...)
-    G, H, koszul_q, pairs = pairs_and_basis(ctx, 1, start_gen = 2)
+    G, H, koszul_q, _ = pairs_and_basis(ctx, 1, start_gen = 2)
+    remaining = [ctx.po(f) for f in I[2:end]]
     logger = SGBLogger(ctx, verbose = verbose, task = :sat)
     with_logger(logger) do
-	nondegen_part_core!(ctx, G, H, koszul_q, pairs; kwargs...)
+	nondegen_part_core!(ctx, G, H, koszul_q, remaining; kwargs...)
         verbose == 2 && printout(logger)
     end
     R = parent(first(I))
@@ -279,16 +280,41 @@ function nondegen_part_core!(ctx::SΓ,
                              G::Basis{I, M},
                              H::Syz{I, M},
                              koszul_q::KoszulQueue{I, M, SΓ},
-                             pairs::PairSet{I, M, SΓ};
+                             remaining::Vector{P},
                              max_remasks = 3,
-                             kwargs...) where {I, M, SΓ <: SigPolynomialΓ{I, M}}
+                             kwargs...) where {I, M, SΓ <: SigPolynomialΓ{I, M},
+                                               P <: Polynomial{M}}
 
     ngens = length(ctx.f5_indices)
+    cleaning_info = eltype(ctx)[]
+    pairs = pairset(ctx)
     
-    for i in 2:ngens
-        pair!(ctx, pairs, unitvector(ctx, i))
-        f5sat_core!(ctx, G, H, koszul_q, pairs, max_remasks = max_remasks, sat_tag = :f; kwargs...)
-        pairs = pairset(ctx)
+    for (i, f) in enumerate(remaining)
+        indx_key = new_generator!(ctx, f)
+        pair!(ctx, pairs, unitvector(ctx, indx_key))
+        last_index = maximum(g -> index(ctx, g[1]), G)
+        f5sat_core!(ctx, G, H, koszul_q, pairs, max_remasks = max_remasks - i, sat_tag = :f; kwargs...)
+
+        curr_index = ctx.f5_indices[indx_key].index
+        gs = [k for (k, v) in ctx.f5_indices
+                  if v.tag == :zd && last_index < v.index < curr_index]
+        for k in gs
+            syz = filter(h -> index(ctx, h) == index(ctx, k), H)
+            cleaner = random_lin_comb(ctx.po, [project(ctx, h) for h in syz])
+            new_indx_key = new_generator!(ctx, curr_index + 1, cleaner, :h)
+            push!(cleaning_info, unitvector(ctx, new_indx_key))
+        end
+
+        for (j, cleaner) in enumerate(cleaning_info)
+            if index(ctx, cleaner) < curr_index + 1
+                new_index!(ctx, cleaner[1], curr_index + j, :h)
+            end
+            pair!(ctx, pairs, cleaner)
+            f5sat_core!(ctx, G, H, koszul_q, pairs, max_remasks = max_remasks - i, sat_tag = :h; kwargs...)
+            filter!(g -> index(ctx, g[1]) < index(ctx, cleaner), G)
+        end
+        
+        pairset = empty(pairs)
     end
 end
 
