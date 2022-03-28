@@ -160,7 +160,8 @@ function pairs!(ctx::SΓ,
                 G::Basis{I, M},
                 H::Syz{I, M},
                 all_koszul;
-                enable_lower_index_rewrite = true) where {I, M, SΓ <: SigPolynomialΓ{I, M}}
+                f5c = true,
+                kwargs...) where {I, M, SΓ <: SigPolynomialΓ{I, M}}
 
     index_key = sig[1]
     for (j, (g, lm)) in enumerate(G)
@@ -170,7 +171,7 @@ function pairs!(ctx::SΓ,
         a = div(ctx.po.mo, m, lm_sig)
         rewriteable_syz(ctx, a, sig, G, H, all_koszul) && continue
         b = div(ctx.po.mo, m, lm)
-        if enable_lower_index_rewrite || i == index_key
+        if !(f5c) || g[1] == index_key
             rewriteable(ctx, b, g, j, G, H, all_koszul) && continue
         end
         if lt(ctx, (index_key, ctx(sig).sigratio), (g[1], ctx(g).sigratio))

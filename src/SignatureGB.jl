@@ -231,7 +231,7 @@ function f5sat_core!(ctx::SΓ,
         if tag(ctx, max_sig) == sat_tag
             zero_red = filter(kv -> iszero(pol(mat, kv[2])), rws)
             if isempty(zero_red)
-                new_elems!(ctx, G, H, pairs, mat, all_koszul)
+                new_elems!(ctx, G, H, pairs, mat, all_koszul, f5c = f5c; kwargs...)
                 @logmsg Verbose2 "" gb_size = gb_size(ctx, G)
             else
                 # zero divisors to insert
@@ -278,7 +278,7 @@ function f5sat_core!(ctx::SΓ,
                 end
             end
         else
-            new_elems!(ctx, G, H, pairs, mat, all_koszul)
+            new_elems!(ctx, G, H, pairs, mat, all_koszul, f5c = f5c; kwargs...)
             @logmsg Verbose2 "" gb_size = gb_size(ctx, G)
         end
         @logmsg Verbose2 "" end_time_core = time()
@@ -422,7 +422,8 @@ function new_elems!(ctx::SΓ,
                     H::Syz{I, M},
                     pairs::PairSet{I, M, SΓ},
                     mat::MacaulayMatrix,
-                    all_koszul) where {I, M, SΓ <: SigPolynomialΓ{I, M}}
+                    all_koszul;
+                    kwargs...) where {I, M, SΓ <: SigPolynomialΓ{I, M}}
 
     rws = rows(mat)
     for (sig, row) in rws
@@ -456,7 +457,7 @@ function new_elems!(ctx::SΓ,
                     ctx(new_sig, p)
                 end
                 push!(G, (new_sig, lm))
-                pairs!(ctx, pairs, new_sig, lm, G, H, all_koszul)
+                pairs!(ctx, pairs, new_sig, lm, G, H, all_koszul; kwargs...)
             end
         end
     end
