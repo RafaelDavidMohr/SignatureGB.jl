@@ -61,7 +61,7 @@ function f5sat(I::Vector{P},
         kwargs...)
     new_generator!(ctx, length(I) + 1, ctx.po(to_sat), :to_sat)
     G, H, koszul_q, pairs = pairs_and_basis(ctx, length(I) + 1)
-    logger = SGBLogger(ctx, verbose = verbose, task = :sat)
+    logger = SGBLogger(ctx, verbose = verbose, task = :sat; kwargs...)
     with_logger(logger) do
         f5sat_core!(ctx, G, H, koszul_q, pairs, R; kwargs...)
         verbose == 2 && printout(logger)
@@ -73,6 +73,7 @@ function nondegen_part(I::Vector{P};
                        verbose = 0,
                        kwargs...) where {P <: AA.MPolyElem}
 
+    R = parent(first(I))
     if length(I) > Singular.nvars(parent(first(I)))
         error("Put in a number of polynomials less than or equal to the number of variables")
     end
@@ -82,12 +83,11 @@ function nondegen_part(I::Vector{P};
                 kwargs...)
     G, H, koszul_q, _ = pairs_and_basis(ctx, 1, start_gen = 2)
     remaining = [ctx.po(f) for f in I[2:end]]
-    logger = SGBLogger(ctx, verbose = verbose, task = :sat)
+    logger = SGBLogger(ctx, verbose = verbose, task = :sat; kwargs...)
     with_logger(logger) do
-	nondegen_part_core!(ctx, G, H, koszul_q, remaining; kwargs...)
+	nondegen_part_core!(ctx, G, H, koszul_q, remaining, R; kwargs...)
         verbose == 2 && printout(logger)
     end
-    R = parent(first(I))
     [R(ctx, g[1]) for g in G]
 end
 
@@ -196,7 +196,8 @@ function f5sat_core!(ctx::SΓ,
     select = :deg_and_pos
     all_koszul = true
     curr_indx = index(ctx, first(pairs)[1])
-
+    old_gb_length = length(G)
+    
     while !(isempty(pairs))
         # TODO: is this a good idea
         if max_remasks > 0 && rand() < max(1 / max_remasks, 1 / 3)
@@ -209,19 +210,10 @@ function f5sat_core!(ctx::SΓ,
             # here we could interreduce
             # final interreduction outside of this function
             if f5c
-                @logmsg Verbose1 "" interred = true
-                basis = [R(ctx.po, ctx(g[1]).pol) for g in G]
-                interred_basis = [ctx.po(g) for g in gens(std(Ideal(R, basis), complete_reduction = true))]
-                G_new = new_basis(ctx)
-                for ((sig, _), p) in zip(G, interred_basis)
-                    ctx(sig, p)
-                    push!(G_new, (sig, leadingmonomial(p)))
+                if length(G) > old_gb_length
+                    interreduction!(ctx, G, R)
                 end
-                empty!(G)
-                for g_new in G_new
-                    push!(G, g_new)
-                end
-                empty!(G_new)
+                old_gb_length = length(G)
             end
             curr_indx = next_index
         end
@@ -244,9 +236,7 @@ function f5sat_core!(ctx::SΓ,
             else
                 # zero divisors to insert
                 @debug string("inserting pols coming from signatures\n", ["$((s, ctx))\n" for s in keys(zero_red)]...)
-                pols_to_insert = [unindexpolynomial(tbl(mat.module_matrix),
-                    module_pol(mat, sig))
-                                  for sig in keys(zero_red)]
+                pols_to_insert = (sig -> unindexpolynomial(tbl(mat.module_matrix), module_pol(mat, sig))).(keys(zero_red))
 
                 # cache some reduction results for future use
                 for g in G
@@ -300,7 +290,9 @@ function nondegen_part_core!(ctx::SΓ,
                              H::Syz{I, M},
                              koszul_q::KoszulQueue{I, M, SΓ},
                              remaining::Vector{P},
+                             R;
                              max_remasks = 3,
+                             f5c = false,
                              kwargs...) where {I, M, SΓ <: SigPolynomialΓ{I, M},
                                                P <: Polynomial{M}}
 
@@ -312,13 +304,16 @@ function nondegen_part_core!(ctx::SΓ,
         indx_key = new_generator!(ctx, f)
         pair!(ctx, pairs, unitvector(ctx, indx_key))
         last_index = maximum(g -> index(ctx, g[1]), G)
-        f5sat_core!(ctx, G, H, koszul_q, pairs, max_remasks = max_remasks - i, sat_tag = :f; kwargs...)
-
+        f5sat_core!(ctx, G, H, koszul_q, pairs, R,
+                    max_remasks = max_remasks - i, sat_tag = :f; f5c = f5c, kwargs...)
+        f5c && interreduction!(ctx, G, R)
+        
         curr_index = ctx.f5_indices[indx_key].index
         gs = [k for (k, v) in ctx.f5_indices
                   if v.tag == :zd && last_index < v.index < curr_index]
         for k in gs
             syz = filter(h -> index(ctx, h) == index(ctx, k), H)
+            isempty(syz) && continue
             cleaner = random_lin_comb(ctx.po, [project(ctx, h) for h in syz])
             new_indx_key = new_generator!(ctx, curr_index + 1, cleaner, :h)
             push!(cleaning_info, unitvector(ctx, new_indx_key))
@@ -329,11 +324,13 @@ function nondegen_part_core!(ctx::SΓ,
                 new_index!(ctx, cleaner[1], curr_index + j, :h)
             end
             pair!(ctx, pairs, cleaner)
-            f5sat_core!(ctx, G, H, koszul_q, pairs, max_remasks = max_remasks - i, sat_tag = :h; kwargs...)
-            filter!(g -> index(ctx, g[1]) < index(ctx, cleaner), G)
+            f5sat_core!(ctx, G, H, koszul_q, pairs, R,
+                        max_remasks = max_remasks - i, sat_tag = :h; f5c = f5c, kwargs...)
+            empty!(pairs)
+            filter!(g -> tag(ctx, g[1]) != :h, G)
         end
         
-        pairset = empty(pairs)
+        empty!(pairs)
     end
 end
 
@@ -463,6 +460,25 @@ function new_elems!(ctx::SΓ,
             end
         end
     end
+end
+
+function interreduction!(ctx::SigPolynomialΓ{I, M},
+                         G::Basis{I, M},
+                         R) where {I, M}
+
+    @logmsg Verbose1 "" interred = true
+    basis = [R(ctx.po, ctx(g[1]).pol) for g in G]
+    interred_basis = (g -> ctx.po(g)).(gens(std(Ideal(R, basis), complete_reduction = true)))
+    G_new = new_basis(ctx)
+    for ((sig, _), p) in zip(G, interred_basis)
+        ctx(sig, p)
+        push!(G_new, (sig, leadingmonomial(p)))
+    end
+    empty!(G)
+    for g_new in G_new
+        push!(G, g_new)
+    end
+    @logmsg Verbose2 "" gb_size_aft_interred = gb_size(ctx, G)
 end
 
 function debug_sgb!(;io = stdout)

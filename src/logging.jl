@@ -37,7 +37,9 @@ end
 # TODO: change dataframe based on a task variable
 function SGBLogger(ctx::SigPolynomialΓ{I};
                    task = :sgb,
-                   verbose = 0) where I
+                   verbose = 0,
+                   f5c = false,
+                   kwargs...) where I
     # probably shouldnt do this
     to_disable = min(Logging.LogLevel(-751), LogLevel(Logging.min_enabled_level(current_logger()).level - 1))
     Logging.disable_logging(to_disable)
@@ -50,11 +52,16 @@ function SGBLogger(ctx::SigPolynomialΓ{I};
                           new_elems = Int64[], gb_size = Int64[], time = Float64[])
     
     if task == :sat
-        insertcols!(core_info, :indx => Int64[], :tag => Symbol[])
+        insertcols!(core_info, :tag => Symbol[])
     elseif task == :decomp
         insertcols!(core_info, :indx => Int64[], :tag => Symbol[], :level => Int64[], :component => Int64[])
-    elseif mod_order(ctx) == :POT
+    end
+    if mod_order(ctx) == :POT
         insertcols!(core_info, :indx => Int64[])
+    end
+    if f5c
+        insertcols!(core_info, :gb_size, :gb_size_aft_interred => Int64[],
+                    after = true)
     end
     return SGBLogger{I, typeof(current_logger())}(current_logger(), verbose_table[verbose + 1], core_info,
                                                   zero(Float64), timings)
@@ -87,6 +94,7 @@ function inc_row!(logger::SGBLogger,
     inc_row!(logger, name, 1)
 end
 
+# TODO: simplify this using the column names
 function Logging.handle_message(logger::SGBLogger, level, message, _module, group, id, file, line;
                                 # TODO: put relevant key value pairs
                                 add_row = false,
@@ -104,6 +112,7 @@ function Logging.handle_message(logger::SGBLogger, level, message, _module, grou
                                 new_syz = false,
                                 new_basis = false,
                                 gb_size = 0,
+                                gb_size_aft_interred = 0,
                                 start_time_core = 0.0,
                                 end_time_core = 0.0,
                                 kwargs...)
@@ -155,6 +164,9 @@ function Logging.handle_message(logger::SGBLogger, level, message, _module, grou
         end
         if gb_size != 0
             set_info_row!(logger, (:gb_size, gb_size))
+        end
+        if gb_size_aft_interred != 0
+            set_info_row!(logger, (:gb_size_aft_interred, gb_size_aft_interred))
         end
         if start_time_core != 0.0
             logger.stop_watch_start = start_time_core
