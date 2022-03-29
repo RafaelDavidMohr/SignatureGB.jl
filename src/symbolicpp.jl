@@ -66,7 +66,8 @@ function symbolic_pp!(ctx::SΓ,
     end
     todo = Set{M}(vcat([ctx(p..., no_rewrite = get_orig_elem(p)).pol.mo for p in pairs]...))
     if are_pairs
-        done = Set{M}([mul(ctx.po.mo, p[1], leadingmonomial(ctx, p[2])) for p in pairs])
+        # done = Set{M}([mul(ctx.po.mo, p[1], leadingmonomial(ctx, p[2])) for p in pairs])
+        done = Set{M}([leadingmonomial(ctx, p[1], p[2], no_rewrite = get_orig_elem(p)) for p in pairs])
     else
         done = Set(M[])
     end
@@ -85,5 +86,6 @@ function symbolic_pp!(ctx::SΓ,
             union!(todo, ctx(red..., no_rewrite = get_orig_elem(red)).pol.mo)
         end
     end
+    @debug "done with symbolic pp..."
     sort(collect(done), lt = (a, b) -> lt(ctx.po.mo, a, b), rev = true)
 end     

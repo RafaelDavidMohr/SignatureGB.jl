@@ -160,7 +160,7 @@ function pairs!(ctx::SΓ,
                 G::Basis{I, M},
                 H::Syz{I, M},
                 all_koszul;
-                f5c = true,
+                f5c = false,
                 kwargs...) where {I, M, SΓ <: SigPolynomialΓ{I, M}}
 
     index_key = sig[1]

@@ -301,11 +301,13 @@ function nondegen_part_core!(ctx::SΓ,
     pairs = pairset(ctx)
     
     for (i, f) in enumerate(remaining)
+        last_index = maxindex(ctx)
         indx_key = new_generator!(ctx, f)
         pair!(ctx, pairs, unitvector(ctx, indx_key))
-        last_index = maximum(g -> index(ctx, g[1]), G)
+        # last_index = maximum(g -> index(ctx, g[1]), G)
         f5sat_core!(ctx, G, H, koszul_q, pairs, R,
                     max_remasks = max_remasks - i, sat_tag = :f; f5c = f5c, kwargs...)
+        empty!(pairs)
         f5c && interreduction!(ctx, G, R)
         
         curr_index = ctx.f5_indices[indx_key].index
@@ -315,6 +317,7 @@ function nondegen_part_core!(ctx::SΓ,
             syz = filter(h -> index(ctx, h) == index(ctx, k), H)
             isempty(syz) && continue
             cleaner = random_lin_comb(ctx.po, [project(ctx, h) for h in syz])
+            @info "new cleaner" R(ctx.po, cleaner)
             new_indx_key = new_generator!(ctx, curr_index + 1, cleaner, :h)
             push!(cleaning_info, unitvector(ctx, new_indx_key))
         end
@@ -409,6 +412,7 @@ function core_loop!(ctx::SΓ,
     @logmsg Verbose1 "" curr_index = index(ctx, first(pairs)[1]) sig_degree = degree(ctx, first(pairs)[1]) tag = tag(ctx, first(pairs)[1])
     @debug string("pairset:\n", [isnull(p[2]) ? "$((p[1], ctx))\n" : "$((p[1], ctx)), $((p[2], ctx))\n" for p in pairs]...)
     to_reduce, sig_degree, are_pairs = select!(ctx, koszul_q, pairs, Val(select), all_koszul; kwargs...)
+    @logmsg Verbose2 "" min_deg = minimum(p -> degree(ctx.po, ctx(p...).pol), to_reduce)
     if isempty(to_reduce)
         return to_reduce, M[]
     end

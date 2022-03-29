@@ -19,7 +19,6 @@ function reduction!(mat::MacaulayMatrix)
             continue
         end
 
-        @debug "top reducing row with signature $((key, mat.matrix.ctx))"
         buffer!(row, buffer)
         for (k, c) in enumerate(pol(mat, buffer))
             (iszero(c) || isnull(pivots[k])) && continue
