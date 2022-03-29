@@ -39,13 +39,13 @@ function sgb(I::Vector{P};
              kwargs...) where {P <: AA.MPolyElem}
 
     ctx = setup(I; kwargs...)
+    R = parent(first(I))
     G, H, koszul_q, pairs = pairs_and_basis(ctx, length(I))
-    logger = SGBLogger(ctx, verbose = verbose)
+    logger = SGBLogger(ctx, verbose = verbose; kwargs...)
     with_logger(logger) do
-        sgb_core!(ctx, G, H, koszul_q, pairs; kwargs...)
+        sgb_core!(ctx, G, H, koszul_q, pairs, R; kwargs...)
         verbose == 2 && printout(logger)
     end
-    R = parent(first(I))
     [R(ctx, g[1]) for g in G]
 end
 
@@ -135,10 +135,12 @@ function sgb_core!(ctx::SΓ,
                    G::Basis{I, M},
                    H::Syz{I, M},
                    koszul_q::KoszulQueue{I, M, SΓ},
-                   pairs::PairSet{I, M, SΓ};
+                   pairs::PairSet{I, M, SΓ},
+                   R;
                    select = nothing,
                    all_koszul = false,
                    max_remasks = 3,
+                   f5c = false,
                    kwargs...) where {I, M, SΓ <: SigPolynomialΓ{I, M}}
 
     if !(extends_degree(termorder(ctx.po.mo)))
@@ -158,21 +160,36 @@ function sgb_core!(ctx::SΓ,
             select = :deg
         end
     end
-        
+
+    curr_indx = index(ctx, first(pairs)[1])
+    old_gb_length = length(G)
+    
     while !(isempty(pairs))
+        next_index = index(ctx, first(pairs)[1])
+        if next_index != curr_indx
+            # final interreduction outside of this function
+            if f5c
+                if length(G) > old_gb_length
+                    interreduction!(ctx, G, R)
+                end
+                old_gb_length = length(G)
+            end
+            curr_indx = next_index
+        end
+        
         # TODO: is this a good idea?
         if max_remasks > 0 && rand() < max(1/max_remasks, 1/3)
             max_remasks -= 1
             remask!(ctx.po.mo.table)
         end
-        to_reduce, done = core_loop!(ctx, G, H, koszul_q, pairs, select, all_koszul)
+        to_reduce, done = core_loop!(ctx, G, H, koszul_q, pairs, select, all_koszul, f5c = f5c)
         @logmsg Verbose2 "" indx = mod_order(ctx) == :POT && !(isempty(to_reduce)) ? maximum(p -> index(ctx, p), to_reduce) : 0
         isempty(to_reduce) && continue
-        mat = F5matrix(ctx, done, collect(to_reduce))
+        mat = F5matrix(ctx, done, collect(to_reduce), f5c = f5c)
         @logmsg Verbose2 "" nz_entries = sum([length(rw) for rw in values(rows(mat))]) mat_size = (length(rows(mat)), length(tbl(mat)))
         reduction!(mat)
         
-        new_elems!(ctx, G, H, pairs, mat, all_koszul)
+        new_elems!(ctx, G, H, pairs, mat, all_koszul, f5c = f5c)
         @logmsg Verbose2 "" end_time_core = time()
         @logmsg Verbose2 "" gb_size = gb_size(ctx, G)
     end
@@ -269,6 +286,7 @@ function f5sat_core!(ctx::SΓ,
                 # rebuild pairset
                 pairs = pairset(ctx)
                 filter!(g -> index(ctx, g[1]) < curr_indx, G)
+                # TODO: try replacing f with f^2 here -> shit results
                 pair!(ctx, pairs, unitvector(ctx, curr_indx_key))
                 for index_key in keys(ctx.f5_indices)
                     sig = unitvector(ctx, index_key)
