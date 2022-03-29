@@ -13,7 +13,7 @@ include("./pairs.jl")
 include("./symbolicpp.jl")
 include("./reduction_better.jl")
 # include("./interreduction.jl")
-# include("./gen_example_file.jl")
+include("./gen_example_file.jl")
 
 export sgb, f5sat, nondegen_part, decomp
 

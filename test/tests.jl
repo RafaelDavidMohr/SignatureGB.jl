@@ -194,19 +194,19 @@ end
     println(SG.mat_show(mat.module_matrix))
 end
 
-# @testset "small groebner 2" begin
-#     R, (x, y, z, t) = Singular.PolynomialRing(Singular.Fp(7), ["x", "y", "z", "t"])
-#     I = [y*z - 2*t^2, x*y + t^2, x^2*z + 3*x*t^2 - 2*y*t^2]
-#     gb = SG.f5(I, interreduction = false)
-#     @test length(gb) == 7
-# end
+@testset "small groebner 2" begin
+    R, (x, y, z, t) = Singular.PolynomialRing(Singular.Fp(7), ["x", "y", "z", "t"])
+    I = [y*z - 2*t^2, x*y + t^2, x^2*z + 3*x*t^2 - 2*y*t^2]
+    gb = SG.sgb(I)
+    @test length(gb) == 7
+end
 
-# @testset "cyclic 4" begin
-#     R, (x, y, z, w) = Singular.PolynomialRing(Singular.Fp(101), ["x", "y", "z", "w"])
-#     I = SG.cyclic([x,y,z,w])
-#     gb = SG.f5(I, interreduction = false, verbose = 1)
-#     @test SG.is_gb(gb)
-# end
+@testset "cyclic 4" begin
+    R, (x, y, z, w) = Singular.PolynomialRing(Singular.Fp(101), ["x", "y", "z", "w"])
+    I = SG.cyclic([x,y,z,w])
+    gb = SG.sgb(I)
+    @test SG.is_gb(gb)
+end
 
 # @testset "cyclic 4 sigtails" begin
 #     R, (x, y, z, w) = Singular.PolynomialRing(Singular.Fp(101), ["x", "y", "z", "w"])
