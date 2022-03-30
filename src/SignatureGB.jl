@@ -161,6 +161,10 @@ function sgb_core!(ctx::SΓ,
         end
     end
 
+    if f5c
+        mod_order(ctx) != :POT && error("F5c only makes sense for position over term ordering.")
+    end
+
     curr_indx = index(ctx, first(pairs)[1])
     old_gb_length = length(G)
     
@@ -194,7 +198,7 @@ function sgb_core!(ctx::SΓ,
         @logmsg Verbose2 "" gb_size = gb_size(ctx, G)
     end
 end
-
+    
 function f5sat_core!(ctx::SΓ,
                      G::Basis{I,M},
                      H::Syz{I,M},
@@ -204,6 +208,7 @@ function f5sat_core!(ctx::SΓ,
                      max_remasks = 3,
                      sat_tag = :to_sat,
                      f5c = false,
+                     just_colon = false,
                      kwargs...) where {I,M,SΓ<:SigPolynomialΓ{I,M}}
 
     if !(extends_degree(termorder(ctx.po.mo)))
@@ -245,7 +250,7 @@ function f5sat_core!(ctx::SΓ,
         max_sig = last(collect(keys(rws)))
         curr_indx_key = max_sig[2][1]
         @logmsg Verbose2 "" indx = index(ctx, max_sig) tag = tag(ctx, max_sig)
-        if tag(ctx, max_sig) == sat_tag
+        if tag(ctx, max_sig) == sat_tag && !(just_colon)
             zero_red = filter(kv -> iszero(pol(mat, kv[2])), rws)
             if isempty(zero_red)
                 new_elems!(ctx, G, H, pairs, mat, all_koszul, f5c = f5c; kwargs...)
@@ -300,6 +305,18 @@ function f5sat_core!(ctx::SΓ,
             @logmsg Verbose2 "" gb_size = gb_size(ctx, G)
         end
         @logmsg Verbose2 "" end_time_core = time()
+    end
+
+    if just_colon
+        for h in H
+            if tag(ctx, h) == sat_tag
+                p = project(ctx, h)
+                indx_key = new_generator!(ctx, curr_indx, p, :p)
+                new_basis_elem!(ctx, G, unitvector(ctx, indx_key))
+            end
+        end
+        filter!(g -> tag(ctx, g[1]) != sat_tag, G)
+        f5c && interreduction!(ctx, G, R)
     end
 end
 
@@ -430,10 +447,10 @@ function core_loop!(ctx::SΓ,
     @logmsg Verbose1 "" curr_index = index(ctx, first(pairs)[1]) sig_degree = degree(ctx, first(pairs)[1]) tag = tag(ctx, first(pairs)[1])
     @debug string("pairset:\n", [isnull(p[2]) ? "$((p[1], ctx))\n" : "$((p[1], ctx)), $((p[2], ctx))\n" for p in pairs]...)
     to_reduce, sig_degree, are_pairs = select!(ctx, koszul_q, pairs, Val(select), all_koszul; kwargs...)
-    @logmsg Verbose2 "" min_deg = minimum(p -> degree(ctx.po, ctx(p...).pol), to_reduce)
     if isempty(to_reduce)
         return to_reduce, M[]
     end
+    @logmsg Verbose2 "" min_deg = minimum(p -> degree(ctx.po, ctx(p...).pol), to_reduce)
     done = symbolic_pp!(ctx, to_reduce, G, H, all_koszul,
                         are_pairs = are_pairs; kwargs...)
     return to_reduce, done

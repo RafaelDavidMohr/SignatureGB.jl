@@ -94,13 +94,14 @@ function koszul_syz(ctx::SigPolynomialΓ{I, M},
                     a::SigHash{I, M},
                     b::SigHash{I, M}) where {I, M}
 
-    sig_a = mul(ctx, leadingmonomial(ctx, b), a)
-    sig_b = mul(ctx, leadingmonomial(ctx, a), b)
+    # sig_a = mul(ctx, leadingmonomial(ctx, b), a)
+    # sig_b = mul(ctx, leadingmonomial(ctx, a), b)
 
-    if lt(ctx, sig_a, sig_b)
-        return sig_b
-    end
-    return sig_a
+    # if lt(ctx, sig_a, sig_b)
+    #     return sig_b
+    # end
+    # return sig_a
+    return mul(ctx, leadingmonomial(ctx, b), a)
 end
 
 function check!(K::KoszulQueue{I, M, SΓ},
