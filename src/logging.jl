@@ -59,6 +59,10 @@ function SGBLogger(ctx::SigPolynomialΓ{I};
     if mod_order(ctx) == :POT
         insertcols!(core_info, :indx => Int64[])
     end
+    if mod_order(ctx) == :SCHREY
+        insertcols!(core_info, :sig_deg, :sugar_deg => Int64[],
+                    after = true)
+    end
     if f5c
         insertcols!(core_info, :size, :size_aft => Int64[],
                     after = true)
@@ -102,6 +106,7 @@ function Logging.handle_message(logger::SGBLogger, level, message, _module, grou
                                 curr_index = 0,
                                 interred = false,
                                 sig_degree = -1,
+                                sugar_deg = -1,
                                 min_deg = -1,
                                 nselected = 0,
                                 npairs = 0,
@@ -132,6 +137,9 @@ function Logging.handle_message(logger::SGBLogger, level, message, _module, grou
         end
         if sig_degree >= 0
             set_info_row!(logger, (:sig_deg, sig_degree))
+        end
+        if sugar_deg >= 0
+            set_info_row!(logger, (:sugar_deg, sugar_deg))
         end
         if min_deg >= 0
             set_info_row!(logger, (:min_deg, min_deg))

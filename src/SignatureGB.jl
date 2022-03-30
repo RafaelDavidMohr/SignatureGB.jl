@@ -157,7 +157,7 @@ function sgb_core!(ctx::SΓ,
         if mod_order(ctx) == :POT
             select = :deg_and_pos
         elseif mod_order(ctx) == :SCHREY
-            select = :deg
+            select = :schrey_deg
         end
     end
 

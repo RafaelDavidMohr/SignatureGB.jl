@@ -254,6 +254,7 @@ function select!(ctx::SΓ,
                  kwargs...) where {I, M, SΓ <: SigPolynomialΓ{I, M}, S}
 
     @debug "selecting pairs..."
+    @logmsg Verbose2 "" add_row = true
     nselected = 0
     npairs = length(pairs)
     pair = first(pairs)
@@ -272,7 +273,9 @@ function select!(ctx::SΓ,
     elseif S == :deg
         cond = p -> degree(ctx, p[1]) == sig_degree
     elseif S == :schrey_deg
-        cond = p -> schrey_degree(ctx, p[1]) == schrey_degree(ctx, pair[1])
+        schrey_deg = schrey_degree(ctx, pair[1])
+        @logmsg Verbose2 "" sugar_deg = schrey_deg
+        cond = p -> schrey_degree(ctx, p[1]) == schrey_deg
     else
         error("Select method must be one of :deg_and_pos, :schrey_deg or :pos")
     end
@@ -295,7 +298,7 @@ function select!(ctx::SΓ,
         end
     end
 
-    @logmsg Verbose2 "" add_row = true sig_degree nselected npairs
+    @logmsg Verbose2 "" sig_degree nselected npairs
     @debug string("selected:\n", ["$((p, ctx))\n" for p in selected]...)
     selected, sig_degree, are_pairs
 end

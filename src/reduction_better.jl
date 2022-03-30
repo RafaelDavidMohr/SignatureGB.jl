@@ -74,7 +74,7 @@ function F5matrix(ctx::SigPolynomialΓ{I, M, MM, T},
 
     if used_for == :pols
         max_index = maximum(p -> index(ctx, p), row_sigs)
-        get_pol = p -> ctx(p..., no_rewrite = index(ctx, p) < max_index).pol
+        get_pol = p -> ctx(p..., no_rewrite = f5c && index(ctx, p) < max_index).pol
     elseif used_for == :highest_index
         largest_index = maximum(p -> index(ctx, p), row_sigs)
         get_pol = p -> index(ctx, p) < largest_index || !(tag(ctx, p) in ctx.track_module_tags) ? zero(ctx.po) : project(ctx, p...)
