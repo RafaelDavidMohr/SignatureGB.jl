@@ -102,6 +102,14 @@ function F5matrix(ctx::SigPolynomialΓ{I, M, MM, T},
     F5matrix(rows, tbl, ctx, interreduction_matrix)
 end
 
+function is_triangular(mat::F5matrix)
+    for (sig1, sig2) in combinations(collect(keys(mat.rows)), 2)
+        (isempty(mat.rows[sig1]) || isempty(mat.rows[sig2])) && continue
+        leadingmonomial(mat.rows[sig1]) == leadingmonomial(mat.rows[sig2]) && return false
+    end
+    return true
+end
+
 tbl(mat::F5matrix) = mat.tbl
 rows(mat::F5matrix) = mat.rows
 coeff_ctx(mat::F5matrix) = mat.ctx.po.co

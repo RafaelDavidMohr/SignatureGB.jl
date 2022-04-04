@@ -352,6 +352,7 @@ function nondegen_part_core!(ctx::SΓ,
         for k in gs
             syz = filter(h -> index(ctx, h) == index(ctx, k), H)
             isempty(syz) && continue
+            hs = [project(ctx, h) for h in syz]
             cleaner = random_lin_comb(ctx.po, [project(ctx, h) for h in syz])
             @info "new cleaner" R(ctx.po, cleaner)
             new_indx_key = new_generator!(ctx, curr_index + 1, cleaner, :h)

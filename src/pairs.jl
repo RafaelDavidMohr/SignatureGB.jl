@@ -214,7 +214,7 @@ function rewriteable_syz(ctx::SigPolynomialΓ{I, M},
     if all_koszul
         for (g, lm) in G
             if index(ctx, g) < index(ctx, sig)
-                divides(ctx.po.mo, lm, mul(ctx, m, sig)[2]) && return true
+                divides(ctx.po.mo, lm, msig[2]) && return true
             end
         end
     end

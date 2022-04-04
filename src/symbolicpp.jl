@@ -33,7 +33,7 @@ function find_reducer(ctx::SigPolynomialΓ{I, M},
             end
             if isnothing(reducer) || Base.Order.lt(mpairord, (delta, g), reducer)
                 reducer = (delta, g)
-                f5c && break
+                f5c && index(ctx, g) < max_sig_index && break
             end
             # if interreduction_step && delta != Base.one(ctx.po.mo)
             #     return (delta, g)
