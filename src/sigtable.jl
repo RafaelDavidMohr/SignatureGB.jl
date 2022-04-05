@@ -146,6 +146,9 @@ function new_generator!(ctx::SigPolynomialΓ{I, M, MM, T},
     new_index!(ctx, new_index_key, index, tag)
     sighash = unitvector(ctx, new_index_key)
     # TODO: take care of other module reps
+    if mod_order(ctx) == :SCHREY
+        ctx.lms[new_index_key] = leadingmonomial(pol)
+    end
     ctx(sighash, pol)
     return new_index_key
 end

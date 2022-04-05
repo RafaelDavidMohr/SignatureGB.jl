@@ -15,7 +15,7 @@ include("./reduction_better.jl")
 # include("./interreduction.jl")
 include("./gen_example_file.jl")
 
-export sgb, f5sat, nondegen_part, decomp
+export sgb, f5sat, nondegen_part, regular_limit, decomp
 
 # build initial pairset, basis and syzygies
 function pairs_and_basis(ctx::SigPolynomialΓ,
@@ -86,6 +86,27 @@ function nondegen_part(I::Vector{P};
     logger = SGBLogger(ctx, verbose = verbose, task = :sat; kwargs...)
     with_logger(logger) do
 	nondegen_part_core!(ctx, G, H, koszul_q, remaining, R; kwargs...)
+        verbose == 2 && printout(logger)
+    end
+    [R(ctx, g[1]) for g in G]
+end
+
+function regular_limit(I::Vector{P};
+                       verbose = 0,
+                       kwargs...) where {P <: AA.MPolyElem}
+
+    R = parent(first(I))
+    if length(I) > Singular.nvars(parent(first(I)))
+        error("Put in a number of polynomials less than or equal to the number of variables")
+    end
+    ctx = setup(I; mod_rep_type = :random_lin_comb,
+                mod_order = :SCHREY,
+                track_module_tags = [:f],
+                kwargs...)
+    G, H, koszul_q, pairs = pairs_and_basis(ctx, length(I))
+    logger = SGBLogger(ctx, verbose = verbose; kwargs...)
+    with_logger(logger) do
+        regular_limit_core!(ctx, G, H, koszul_q, pairs; kwargs...)
         verbose == 2 && printout(logger)
     end
     [R(ctx, g[1]) for g in G]
@@ -199,7 +220,64 @@ function sgb_core!(ctx::SΓ,
         @logmsg Verbose2 "" gb_size = gb_size(ctx, G)
     end
 end
+
+function regular_limit_core!(ctx::SΓ,
+                             G::Basis{I,M},
+                             H::Syz{I,M},
+                             koszul_q::KoszulQueue{I,M,SΓ},
+                             pairs::PairSet{I,M,SΓ};
+                             kwargs...) where {I, M, SΓ<:SigPolynomialΓ{I,M}}
     
+    if !(extends_degree(termorder(ctx.po.mo)))
+        error("I currently don't know how to deal with non-degree based monomial orderings...")
+    end
+    select = :schrey_deg
+    all_koszul = false
+
+    while !(isempty(pairs))
+        
+        to_reduce, done = core_loop!(ctx, G, H, koszul_q, pairs, select, all_koszul; kwargs...)
+        isempty(to_reduce) && continue
+        mat = F5matrix(ctx, done, collect(to_reduce); kwargs...)
+        @logmsg Verbose2 "" nz_entries = sum([length(rw) for rw in values(rows(mat))]) mat_size = (length(rows(mat)), length(tbl(mat)))
+        reduction!(mat)
+        rws = rows(mat)
+        
+        zero_red = filter(kv -> iszero(pol(mat, kv[2])) && !(iszero(module_pol(mat, kv[1]))), rws)
+        if isempty(zero_red)
+            new_elems!(ctx, G, H, pairs, mat, all_koszul; kwargs...)
+            @logmsg Verbose2 "" gb_size = gb_size(ctx, G)
+        else
+            for (sig, _) in zero_red
+                push!(H, mul(ctx, sig...))
+            end
+            pols_to_insert = (sig -> unindexpolynomial(tbl(mat.module_matrix), module_pol(mat, sig))).(keys(zero_red))
+            max_indx = maxindex(ctx)
+            # insert zero divisors
+            for (i, p) in enumerate(pols_to_insert)
+                @logmsg Verbose2 "" new_syz = true
+                new_index_key = new_generator!(ctx, max_indx + i, p, :zd)
+                if isunit(ctx.po, p)
+                    new_basis_elem!(G, unitvector(ctx, new_index_key), one(ctx.po.mo))
+                    return
+                end
+            end
+            # rebuild basis and pairset
+            pairs = pairset(ctx)
+            filter!(g -> all(i -> lt(ctx, g[1], unitvector(ctx, max_indx + i)), 1:length(pols_to_insert)), G)
+            for i in 1:length(pols_to_insert)
+                pair!(ctx, pairs, unitvector(ctx, max_indx + i))
+            end
+            for index_key in keys(ctx.f5_indices)
+                if any(i -> lt(ctx, unitvector(ctx, max_indx + i), unitvector(ctx, index_key)), 1:length(pols_to_insert))
+                    pair!(ctx, pairs, unitvector(ctx, index_key))
+                end
+            end
+        end
+        @logmsg Verbose2 "" end_time_core = time()
+    end
+end
+
 function f5sat_core!(ctx::SΓ,
                      G::Basis{I,M},
                      H::Syz{I,M},
@@ -230,7 +308,6 @@ function f5sat_core!(ctx::SΓ,
 
         next_index = index(ctx, first(pairs)[1])
         if next_index != curr_indx
-            # here we could interreduce
             # final interreduction outside of this function
             if f5c
                 if length(G) > old_gb_length
@@ -292,7 +369,6 @@ function f5sat_core!(ctx::SΓ,
                 # rebuild pairset
                 pairs = pairset(ctx)
                 filter!(g -> index(ctx, g[1]) < curr_indx, G)
-                # TODO: try replacing f with f^2 here -> shit results
                 pair!(ctx, pairs, unitvector(ctx, curr_indx_key))
                 for index_key in keys(ctx.f5_indices)
                     sig = unitvector(ctx, index_key)

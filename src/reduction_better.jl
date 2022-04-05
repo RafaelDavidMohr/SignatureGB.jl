@@ -80,7 +80,7 @@ function f5_matrix(ctx::SigPolynomialΓ{I, M, MM, T},
         get_pol = p -> index(ctx, p) < max_index || !(tag(ctx, p) in ctx.track_module_tags) ? zero(ctx.po) : project(ctx, p...)
     else
         max_index = maximum(p -> index(ctx, p), row_sigs)
-        get_pol = p -> ctx(p..., no_rewrite = f5c && index(ctx, p) < max_index).module_rep
+        get_pol = p -> !(tag(ctx, p) in ctx.track_module_tags) ? zero(ctx.po) : ctx(p..., no_rewrite = f5c && index(ctx, p) < max_index).module_rep
     end
         
     if interreduction_matrix
