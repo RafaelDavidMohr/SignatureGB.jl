@@ -205,6 +205,12 @@ function polynomialctx(coefficients; monomials=nothing, kwargs...)
                        typeof(coefficients)}(monomials, coefficients)
 end
 
+function Base.show(io::IO, p::Γpair0{P, PΓ}) where {P <: Polynomial, PΓ <: Context{P}}
+    
+    print(io, [(Int(c), convert(Vector{Int}, exponents(p.ctx.mo, m)))
+               for (c, m) in zip(p.dat.co, p.dat.mo)])
+end
+
 nvars(ctx::PolynomialΓ) = nvars(ctx.mo)
 variables(ctx::PolynomialΓ) = variables(ctx.mo)
 termorder(ctx::PolynomialΓ) = termorder(ctx.mo)

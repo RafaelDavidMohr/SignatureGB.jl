@@ -340,7 +340,7 @@ function setup(I::Vector{P};
         T = eltype(coefficients)
         coeffs = rand(zero(T):T(char - 1), length(I))
         for (i, f) in enumerate(I)
-            ctx(unitvector(ctx, i), f, ctx.mod_po(coeffs[i]))
+            ctx(unitvector(ctx, i), ctx.po(f), Polynomial([one(ctx.mod_po.mo)], [coeffs[i]]))
         end
     end
     if mod_order == :SCHREY

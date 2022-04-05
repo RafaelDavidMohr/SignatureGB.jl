@@ -62,22 +62,25 @@ function index_pols(mons::Vector{M},
     return tbl, sig_pols_indexed
 end
         
-function F5matrix(ctx::SigPolynomialΓ{I, M, MM, T},
-                  mons::Vector{M},
-                  row_sigs::Vector{MonSigPair{I, M}};
-                  interreduction_matrix = false,
-                  # used if an interreduction occured: in this case signatures are still hashes
-                  f5c = false,
-                  # used for matrix in which we track the projections to the largest index
-                  # in this case we ignore the projections of elements in lower index
-                  used_for = :pols) where {I, M, MM, T}
+function f5_matrix(ctx::SigPolynomialΓ{I, M, MM, T},
+                   mons::Vector{M},
+                   row_sigs::Vector{MonSigPair{I, M}};
+                   interreduction_matrix = false,
+                   # used if an interreduction occured: in this case signatures are still hashes
+                   f5c = false,
+                   # used for matrix in which we track the projections to the largest index
+                   # in this case we ignore the projections of elements in lower index
+                   used_for = :pols) where {I, M, MM, T}
 
     if used_for == :pols
         max_index = maximum(p -> index(ctx, p), row_sigs)
         get_pol = p -> ctx(p..., no_rewrite = f5c && index(ctx, p) < max_index).pol
     elseif used_for == :highest_index
-        largest_index = maximum(p -> index(ctx, p), row_sigs)
-        get_pol = p -> index(ctx, p) < largest_index || !(tag(ctx, p) in ctx.track_module_tags) ? zero(ctx.po) : project(ctx, p...)
+        max_index = maximum(p -> index(ctx, p), row_sigs)
+        get_pol = p -> index(ctx, p) < max_index || !(tag(ctx, p) in ctx.track_module_tags) ? zero(ctx.po) : project(ctx, p...)
+    else
+        max_index = maximum(p -> index(ctx, p), row_sigs)
+        get_pol = p -> ctx(p..., no_rewrite = f5c && index(ctx, p) < max_index).module_rep
     end
         
     if interreduction_matrix
@@ -197,16 +200,6 @@ mutable struct F5matrixPartialModule{I, M, J, T, O} <: MacaulayMatrix{MonSigPair
     module_matrix::F5matrix{I, M, J, T, O}
 end
 
-function F5matrixHighestIndex(ctx::SigPolynomialΓ{I, M, MM, T},
-                              mons::Vector{M},
-                              row_sigs::Vector{MonSigPair{I, M}};
-                              kwargs...) where {I, M, MM, T}
-    
-    matrix = F5matrix(ctx, mons, row_sigs; kwargs...)
-    module_matrix = F5matrix(ctx, M[], row_sigs, used_for = :highest_index; kwargs...)    
-    return F5matrixPartialModule(matrix, module_matrix)
-end
-
 @forward F5matrixPartialModule.matrix tbl, coeff_ctx, new_pivots, ignore
 pol(mat::F5matrixPartialModule, row) = row[1]
 module_pol(mat::F5matrixPartialModule, sig) = rows(mat.module_matrix)[sig]
@@ -246,4 +239,17 @@ function critical_loop!(buffer::Tuple{Vector{Tbuf}, Vector{Tbuf}},
 
     mult = critical_loop!(buffer[1], pivot[1], ctx)
     sub_row!(buffer[2], pivot[2], mult, ctx)
+end
+
+# Final constructor
+
+function F5matrix(ctx::SigPolynomialΓ{I, M, MM, T},
+                  mons::Vector{M},
+                  row_sigs::Vector{MonSigPair{I, M}};
+                  kwargs...) where {I, M, MM, T}
+
+    matrix = f5_matrix(ctx, mons, row_sigs; kwargs...)
+    isnothing(mod_rep_type(ctx)) && return matrix
+    module_matrix = f5_matrix(ctx, M[], row_sigs, used_for = mod_rep_type(ctx); kwargs...)
+    return F5matrixPartialModule(matrix, module_matrix)
 end

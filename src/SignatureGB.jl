@@ -56,9 +56,9 @@ function f5sat(I::Vector{P},
 
     R = parent(first(I))
     ctx = setup(I; mod_rep_type = :highest_index,
-        mod_order = :POT,
-        track_module_tags = [:to_sat],
-        kwargs...)
+                mod_order = :POT,
+                track_module_tags = [:to_sat],
+                kwargs...)
     new_generator!(ctx, length(I) + 1, ctx.po(to_sat), :to_sat)
     G, H, koszul_q, pairs = pairs_and_basis(ctx, length(I) + 1)
     logger = SGBLogger(ctx, verbose = verbose, task = :sat; kwargs...)
@@ -243,7 +243,7 @@ function f5sat_core!(ctx::SΓ,
 
         to_reduce, done = core_loop!(ctx, G, H, koszul_q, pairs, select, all_koszul, select_both = false, f5c = f5c)
         isempty(done) && continue
-        mat = F5matrixHighestIndex(ctx, done, collect(to_reduce), f5c = f5c)
+        mat = F5matrix(ctx, done, collect(to_reduce), f5c = f5c)
         reduction!(mat)
         rws = rows(mat)
         @logmsg Verbose2 "" nz_entries = sum([length(pol(mat, rw)) for rw in values(rws)]) mat_size = (length(rws), length(tbl(mat)))
@@ -490,13 +490,14 @@ function new_elems!(ctx::SΓ,
                 new_info = true
                 @logmsg Verbose2 "" new_basis = true
                 new_rewriter!(ctx, pairs, new_sig)
-                if mod_rep_type(ctx) != nothing
-                    q = unindexpolynomial(tbl(mat.module_matrix),
-                                          tail(module_pol(mat, sig)))
-                    ctx(new_sig, p, q)
+                if mod_rep_type(ctx) == nothing
+                    q = zero(eltype(ctx.po))
+                elseif mod_rep_type(ctx) == :highest_index
+                    q = unindexpolynomial(tbl(mat.module_matrix), tail(module_pol(mat, sig)))
                 else
-                    ctx(new_sig, p)
+                    q = unindexpolynomial(tbl(mat.module_matrix), module_pol(mat, sig))
                 end
+                ctx(new_sig, p, q)
                 push!(G, (new_sig, lm))
                 pairs!(ctx, pairs, new_sig, lm, G, H, all_koszul; kwargs...)
             end
