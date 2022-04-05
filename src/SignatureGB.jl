@@ -101,7 +101,7 @@ function regular_limit(I::Vector{P};
     end
     ctx = setup(I; mod_rep_type = :random_lin_comb,
                 mod_order = :SCHREY,
-                track_module_tags = [:f],
+                track_module_tags = [:f, :zd],
                 kwargs...)
     G, H, koszul_q, pairs = pairs_and_basis(ctx, length(I))
     logger = SGBLogger(ctx, verbose = verbose; kwargs...)
@@ -236,7 +236,7 @@ function regular_limit_core!(ctx::SΓ,
 
     while !(isempty(pairs))
         
-        to_reduce, done = core_loop!(ctx, G, H, koszul_q, pairs, select, all_koszul; kwargs...)
+        to_reduce, done = core_loop!(ctx, G, H, koszul_q, pairs, select, all_koszul, select_both = false; kwargs...)
         isempty(to_reduce) && continue
         mat = F5matrix(ctx, done, collect(to_reduce); kwargs...)
         @logmsg Verbose2 "" nz_entries = sum([length(rw) for rw in values(rows(mat))]) mat_size = (length(rows(mat)), length(tbl(mat)))
