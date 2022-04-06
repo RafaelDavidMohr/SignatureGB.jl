@@ -242,19 +242,21 @@ function regular_limit_core!(ctx::SΓ,
         @logmsg Verbose2 "" nz_entries = sum([length(rw) for rw in values(rows(mat))]) mat_size = (length(rows(mat)), length(tbl(mat)))
         reduction!(mat)
         rws = rows(mat)
-        
-        zero_red = filter(kv -> iszero(pol(mat, kv[2])) && !(iszero(module_pol(mat, kv[1]))), rws)
+
+        zero_red_all = filter(kv -> iszero(pol(mat, kv[2])), rws)
+        zero_red = filter(kv -> !(iszero(module_pol(mat, kv[1]))), zero_red_all)
         if isempty(zero_red)
             new_elems!(ctx, G, H, pairs, mat, all_koszul; kwargs...)
             @logmsg Verbose2 "" gb_size = gb_size(ctx, G)
         else
-            for (sig, _) in zero_red
+            for (sig, _) in zero_red_all
                 push!(H, mul(ctx, sig...))
                 ctx(mul(ctx, sig...), zero(eltype(ctx.po)))
             end
             pols_to_insert = (sig -> unindexpolynomial(tbl(mat.module_matrix), module_pol(mat, sig))).(keys(zero_red))
             max_indx = maxindex(ctx)
             # insert zero divisors
+            println("inserting stuff")
             for (i, p) in enumerate(pols_to_insert)
                 @logmsg Verbose2 "" new_syz = true
                 new_index_key = new_generator!(ctx, max_indx + i, p, :zd)
