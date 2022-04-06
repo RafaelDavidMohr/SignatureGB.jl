@@ -343,6 +343,7 @@ function setup(I::Vector{P};
         T = eltype(coefficients)
         coeffs = rand(zero(T):T(char - 1), length(I))
         for (i, f) in enumerate(I)
+            println(Int(coeffs[i]))
             ctx(unitvector(ctx, i), ctx.po(f), Polynomial([one(ctx.mod_po.mo)], [coeffs[i]]))
         end
     end

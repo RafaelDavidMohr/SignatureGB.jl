@@ -250,6 +250,7 @@ function regular_limit_core!(ctx::SΓ,
         else
             for (sig, _) in zero_red
                 push!(H, mul(ctx, sig...))
+                ctx(mul(ctx, sig...), zero(eltype(ctx.po)))
             end
             pols_to_insert = (sig -> unindexpolynomial(tbl(mat.module_matrix), module_pol(mat, sig))).(keys(zero_red))
             max_indx = maxindex(ctx)
@@ -554,6 +555,8 @@ function new_elems!(ctx::SΓ,
                 q = unindexpolynomial(tbl(mat.module_matrix),
                                           tail(module_pol(mat, sig)))
                 ctx(new_sig, zero(q), q)
+            else
+                ctx(new_sig, zero(eltype(ctx.po)))
             end
             new_rewriter!(ctx, pairs, new_sig)
         else
