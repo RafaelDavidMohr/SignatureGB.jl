@@ -14,7 +14,7 @@ function find_reducer(ctx::SigPolynomialΓ{I, M},
                       f5c = false,
                       kwargs...) where {I, M, E}
 
-    if mod_order(ctx) == :SCHREY
+    if mod_order(ctx) == :SCHREY || mod_order(ctx) == :DPOT
         cond = p -> schrey_degree(ctx, p) <= sig_degree
     elseif mod_order(ctx) == :POT
         cond = p -> index(ctx, p) < max_sig_index || degree(ctx, p) <= sig_degree
@@ -58,7 +58,7 @@ function symbolic_pp!(ctx::SΓ,
     @debug "symbolic preprocessing..."
     max_sig_index = maximum(p -> index(ctx, p), pairs)
     get_orig_elem = p -> f5c && index(ctx, p) < max_sig_index
-    if mod_order(ctx) == :SCHREY
+    if mod_order(ctx) == :SCHREY || mod_order(ctx) == :DPOT
         sig_degree = maximum(p -> schrey_degree(ctx, p), pairs)
     elseif mod_order(ctx) == :POT
         sig_degree = maximum(p -> degree(ctx, p), filter(p -> index(ctx, p) == max_sig_index, pairs))

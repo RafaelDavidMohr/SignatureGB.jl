@@ -50,4 +50,11 @@ function mac_bound(I::Vector{P}) where {P <: AbstractAlgebra.MPolyElem}
     sum([total_degree(I_sorted[j]) for j in 1:l]) - l + 1
 end
     
-    
+function homogenize(R, f)
+    d = Singular.total_degree(f)
+    f_hom = zero(R)
+    for (c, m) in zip(Singular.coefficients(f), Singular.monomials(f))
+        sum += gens(R)[1]^(d - total_degree(m)) * c * m
+    end
+    return f_hom
+end

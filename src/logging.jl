@@ -59,7 +59,7 @@ function SGBLogger(ctx::SigPolynomialΓ{I};
     if mod_order(ctx) == :POT
         insertcols!(core_info, :indx => Int64[])
     end
-    if mod_order(ctx) == :SCHREY
+    if mod_order(ctx) == :SCHREY || mod_order(ctx) == :DPOT
         insertcols!(core_info, :sig_deg, :sugar_deg => Int64[],
                     after = true)
     end

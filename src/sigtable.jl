@@ -277,6 +277,18 @@ end
             end
             return index(ctx, a[1]) < index(ctx, b[1])
         end
+    elseif MORD == :DPOT
+        quote
+            d1 = degree(ctx.po.mo, a[2]) + degree(ctx.po.mo, ctx.lms[a[1]])
+            d2 = degree(ctx.po.mo, b[2]) + degree(ctx.po.mo, ctx.lms[b[1]])
+            if d1 == d2
+                if a[1] == b[1]
+                    return lt(ctx.po.mo, a[2], b[2])
+                end
+                return index(ctx, a[1]) < index(ctx, b[1])
+            end
+            return d1 < d2
+        end
     elseif MORD == :TOP
         quote
             if a[2] == b[2]
@@ -323,8 +335,8 @@ function setup(I::Vector{P};
     else
         error("only grevlex order currently supported")
     end
-    if mod_order != :POT && mod_order != :SCHREY
-        error("only position over term or schreyer order currently supported")
+    if !(mod_order in [:POT, :SCHREY, :DPOT])
+        error("only position over term, degree position over term or schreyer order currently supported")
     end
     if modulus != 32
         error("only 32 bit modulus currently supported")
@@ -347,7 +359,7 @@ function setup(I::Vector{P};
             ctx(unitvector(ctx, i), ctx.po(f), Polynomial([one(ctx.mod_po.mo)], [coeffs[i]]))
         end
     end
-    if mod_order == :SCHREY
+    if mod_order == :SCHREY || mod_order == :DPOT
         ctx.lms = Dict([(pos_type(ctx)(i), leadingmonomial(ctx, unitvector(ctx, i)))
                         for i in 1:length(I)])
     end

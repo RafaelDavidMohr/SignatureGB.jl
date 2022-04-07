@@ -169,7 +169,7 @@ function sgb_core!(ctx::SΓ,
     end
 
     if all_koszul
-        if mod_order(ctx) != :POT
+        if !(mod_order(ctx) in [:POT, :DPOT])
             error("checking against all Koszul syzygies currently only supported for position over term.")
         end
     end
@@ -177,7 +177,7 @@ function sgb_core!(ctx::SΓ,
     if isnothing(select)
         if mod_order(ctx) == :POT
             select = :deg_and_pos
-        elseif mod_order(ctx) == :SCHREY
+        elseif mod_order(ctx) == :SCHREY || mod_order(ctx) == :DPOT
             select = :schrey_deg
         end
     end
@@ -186,6 +186,9 @@ function sgb_core!(ctx::SΓ,
         !(all_koszul) && error("Something is currently breaking when using f5c and not checking against all koszul syzygies. We are working hard to fix it :-)")
         mod_order(ctx) != :POT && error("F5c only makes sense for position over term ordering.")
     end
+
+    # TEMP: temporary solution to not correctly symbolically preproc. the unit vectors
+    select_both = mod_order(ctx) == :POT
 
     curr_indx = index(ctx, first(pairs)[1])
     old_gb_length = length(G)
@@ -208,7 +211,7 @@ function sgb_core!(ctx::SΓ,
             max_remasks -= 1
             remask!(ctx.po.mo.table)
         end
-        to_reduce, done = core_loop!(ctx, G, H, koszul_q, pairs, select, all_koszul, f5c = f5c)
+        to_reduce, done = core_loop!(ctx, G, H, koszul_q, pairs, select, all_koszul, f5c = f5c, select_both = select_both)
         @logmsg Verbose2 "" indx = mod_order(ctx) == :POT && !(isempty(to_reduce)) ? maximum(p -> index(ctx, p), to_reduce) : 0
         isempty(to_reduce) && continue
         mat = F5matrix(ctx, done, collect(to_reduce), f5c = f5c)
