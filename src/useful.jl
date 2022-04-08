@@ -54,7 +54,7 @@ function homogenize(R, f)
     d = Singular.total_degree(f)
     f_hom = zero(R)
     for (c, m) in zip(Singular.coefficients(f), Singular.monomials(f))
-        sum += gens(R)[1]^(d - total_degree(m)) * c * m
+        f_hom += gens(R)[1]^(d - total_degree(m)) * c * m
     end
     return f_hom
 end

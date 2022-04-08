@@ -15,7 +15,7 @@ include("./reduction_better.jl")
 # include("./interreduction.jl")
 include("./gen_example_file.jl")
 
-export sgb, f5sat, nondegen_part, regular_limit, decomp
+export sgb, f5sat, nondegen_part, decomp
 
 # build initial pairset, basis and syzygies
 function pairs_and_basis(ctx::SigPolynomialΓ,
@@ -91,26 +91,26 @@ function nondegen_part(I::Vector{P};
     [R(ctx, g[1]) for g in G]
 end
 
-function regular_limit(I::Vector{P};
-                       verbose = 0,
-                       kwargs...) where {P <: AA.MPolyElem}
+# function regular_limit(I::Vector{P};
+#                        verbose = 0,
+#                        kwargs...) where {P <: AA.MPolyElem}
 
-    R = parent(first(I))
-    if length(I) > Singular.nvars(parent(first(I)))
-        error("Put in a number of polynomials less than or equal to the number of variables")
-    end
-    ctx = setup(I; mod_rep_type = :random_lin_comb,
-                mod_order = :SCHREY,
-                track_module_tags = [:f, :zd],
-                kwargs...)
-    G, H, koszul_q, pairs = pairs_and_basis(ctx, length(I))
-    logger = SGBLogger(ctx, verbose = verbose; kwargs...)
-    with_logger(logger) do
-        regular_limit_core!(ctx, G, H, koszul_q, pairs; kwargs...)
-        verbose == 2 && printout(logger)
-    end
-    [R(ctx, g[1]) for g in G]
-end
+#     R = parent(first(I))
+#     if length(I) > Singular.nvars(parent(first(I)))
+#         error("Put in a number of polynomials less than or equal to the number of variables")
+#     end
+#     ctx = setup(I; mod_rep_type = :random_lin_comb,
+#                 mod_order = :DPOT,
+#                 track_module_tags = [:f, :zd],
+#                 kwargs...)
+#     G, H, koszul_q, pairs = pairs_and_basis(ctx, length(I))
+#     logger = SGBLogger(ctx, verbose = verbose; kwargs...)
+#     with_logger(logger) do
+#         regular_limit_core!(ctx, G, H, koszul_q, pairs; kwargs...)
+#         verbose == 2 && printout(logger)
+#     end
+#     [R(ctx, g[1]) for g in G]
+# end
 
 struct DecompResult{P}
     result::Vector{Tuple{Vector{P}, Int64, Symbol, Symbol}}
@@ -224,65 +224,65 @@ function sgb_core!(ctx::SΓ,
     end
 end
 
-function regular_limit_core!(ctx::SΓ,
-                             G::Basis{I,M},
-                             H::Syz{I,M},
-                             koszul_q::KoszulQueue{I,M,SΓ},
-                             pairs::PairSet{I,M,SΓ};
-                             kwargs...) where {I, M, SΓ<:SigPolynomialΓ{I,M}}
+# function regular_limit_core!(ctx::SΓ,
+#                              G::Basis{I,M},
+#                              H::Syz{I,M},
+#                              koszul_q::KoszulQueue{I,M,SΓ},
+#                              pairs::PairSet{I,M,SΓ};
+#                              kwargs...) where {I, M, SΓ<:SigPolynomialΓ{I,M}}
     
-    if !(extends_degree(termorder(ctx.po.mo)))
-        error("I currently don't know how to deal with non-degree based monomial orderings...")
-    end
-    select = :schrey_deg
-    all_koszul = false
+#     if !(extends_degree(termorder(ctx.po.mo)))
+#         error("I currently don't know how to deal with non-degree based monomial orderings...")
+#     end
+#     select = :schrey_deg
+#     all_koszul = true
 
-    while !(isempty(pairs))
+#     while !(isempty(pairs))
         
-        to_reduce, done = core_loop!(ctx, G, H, koszul_q, pairs, select, all_koszul, select_both = false; kwargs...)
-        isempty(to_reduce) && continue
-        mat = F5matrix(ctx, done, collect(to_reduce); kwargs...)
-        @logmsg Verbose2 "" nz_entries = sum([length(rw) for rw in values(rows(mat))]) mat_size = (length(rows(mat)), length(tbl(mat)))
-        reduction!(mat)
-        rws = rows(mat)
+#         to_reduce, done = core_loop!(ctx, G, H, koszul_q, pairs, select, all_koszul, select_both = false; kwargs...)
+#         isempty(to_reduce) && continue
+#         mat = F5matrix(ctx, done, collect(to_reduce); kwargs...)
+#         @logmsg Verbose2 "" nz_entries = sum([length(rw) for rw in values(rows(mat))]) mat_size = (length(rows(mat)), length(tbl(mat)))
+#         reduction!(mat)
+#         rws = rows(mat)
 
-        zero_red_all = filter(kv -> iszero(pol(mat, kv[2])), rws)
-        zero_red = filter(kv -> !(iszero(module_pol(mat, kv[1]))), zero_red_all)
-        if isempty(zero_red)
-            new_elems!(ctx, G, H, pairs, mat, all_koszul; kwargs...)
-            @logmsg Verbose2 "" gb_size = gb_size(ctx, G)
-        else
-            for (sig, _) in zero_red_all
-                push!(H, mul(ctx, sig...))
-                ctx(mul(ctx, sig...), zero(eltype(ctx.po)))
-            end
-            pols_to_insert = (sig -> unindexpolynomial(tbl(mat.module_matrix), module_pol(mat, sig))).(keys(zero_red))
-            max_indx = maxindex(ctx)
-            # insert zero divisors
-            println("inserting stuff")
-            for (i, p) in enumerate(pols_to_insert)
-                @logmsg Verbose2 "" new_syz = true
-                new_index_key = new_generator!(ctx, max_indx + i, p, :zd)
-                if isunit(ctx.po, p)
-                    new_basis_elem!(G, unitvector(ctx, new_index_key), one(ctx.po.mo))
-                    return
-                end
-            end
-            # rebuild basis and pairset
-            pairs = pairset(ctx)
-            filter!(g -> all(i -> lt(ctx, g[1], unitvector(ctx, max_indx + i)), 1:length(pols_to_insert)), G)
-            for i in 1:length(pols_to_insert)
-                pair!(ctx, pairs, unitvector(ctx, max_indx + i))
-            end
-            for index_key in keys(ctx.f5_indices)
-                if any(i -> lt(ctx, unitvector(ctx, max_indx + i), unitvector(ctx, index_key)), 1:length(pols_to_insert))
-                    pair!(ctx, pairs, unitvector(ctx, index_key))
-                end
-            end
-        end
-        @logmsg Verbose2 "" end_time_core = time()
-    end
-end
+#         zero_red_all = filter(kv -> iszero(pol(mat, kv[2])), rws)
+#         zero_red = filter(kv -> !(iszero(module_pol(mat, kv[1]))), zero_red_all)
+#         if isempty(zero_red)
+#             new_elems!(ctx, G, H, pairs, mat, all_koszul; kwargs...)
+#             @logmsg Verbose2 "" gb_size = gb_size(ctx, G)
+#         else
+#             for (sig, _) in zero_red_all
+#                 push!(H, mul(ctx, sig...))
+#                 ctx(mul(ctx, sig...), zero(eltype(ctx.po)))
+#             end
+#             pols_to_insert = (sig -> unindexpolynomial(tbl(mat.module_matrix), module_pol(mat, sig))).(keys(zero_red))
+#             max_indx = maxindex(ctx)
+#             # insert zero divisors
+#             println("inserting stuff")
+#             for (i, p) in enumerate(pols_to_insert)
+#                 @logmsg Verbose2 "" new_syz = true
+#                 new_index_key = new_generator!(ctx, max_indx + i, p, :zd)
+#                 if isunit(ctx.po, p)
+#                     new_basis_elem!(G, unitvector(ctx, new_index_key), one(ctx.po.mo))
+#                     return
+#                 end
+#             end
+#             # rebuild basis and pairset
+#             pairs = pairset(ctx)
+#             filter!(g -> all(i -> lt(ctx, g[1], unitvector(ctx, max_indx + i)), 1:length(pols_to_insert)), G)
+#             for i in 1:length(pols_to_insert)
+#                 pair!(ctx, pairs, unitvector(ctx, max_indx + i))
+#             end
+#             for index_key in keys(ctx.f5_indices)
+#                 if any(i -> lt(ctx, unitvector(ctx, max_indx + i), unitvector(ctx, index_key)), 1:length(pols_to_insert))
+#                     pair!(ctx, pairs, unitvector(ctx, index_key))
+#                 end
+#             end
+#         end
+#         @logmsg Verbose2 "" end_time_core = time()
+#     end
+# end
 
 function f5sat_core!(ctx::SΓ,
                      G::Basis{I,M},
@@ -550,9 +550,14 @@ function new_elems!(ctx::SΓ,
 
     rws = rows(mat)
     for (sig, row) in rws
+        if mod_order(ctx) == :POT
+            max_indx = maximum(p -> index(ctx, p), keys(rws))
+            index(ctx, sig) < max_indx && continue
+        end
         new_sig = mul(ctx, sig...)
         @debug "considering $((sig, ctx))"
         if isempty(pol(mat, row))
+            @debug "old leading monomial $(gpair(ctx.po.mo, leadingmonomial(ctx, sig..., no_rewrite = true)))"
             @debug "syzygy $((sig, ctx))"
             @logmsg Verbose2 "" new_syz = true
             push!(H, new_sig)
