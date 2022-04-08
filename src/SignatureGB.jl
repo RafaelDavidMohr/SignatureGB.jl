@@ -162,6 +162,7 @@ function sgb_core!(ctx::SΓ,
                    all_koszul = false,
                    max_remasks = 3,
                    f5c = false,
+                   deg_bound = 0,
                    kwargs...) where {I, M, SΓ <: SigPolynomialΓ{I, M}}
 
     if !(extends_degree(termorder(ctx.po.mo)))
@@ -182,6 +183,10 @@ function sgb_core!(ctx::SΓ,
         end
     end
 
+    if deg_bound > 0 && mod_order(ctx) != :DPOT
+        error("only put deg_bound > 0 if you use :DPOT as a module order")
+    end
+
     if f5c
         !(all_koszul) && error("Something is currently breaking when using f5c and not checking against all koszul syzygies. We are working hard to fix it :-)")
         mod_order(ctx) != :POT && error("F5c only makes sense for position over term ordering.")
@@ -194,6 +199,10 @@ function sgb_core!(ctx::SΓ,
     old_gb_length = length(G)
     
     while !(isempty(pairs))
+        if deg_bound > 0
+            deg = schrey_degree(ctx, first(pairs)[1])
+            deg > deg_bound && return
+        end
         next_index = index(ctx, first(pairs)[1])
         if next_index != curr_indx
             # final interreduction outside of this function
