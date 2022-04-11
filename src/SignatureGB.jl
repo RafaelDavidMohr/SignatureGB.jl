@@ -559,12 +559,12 @@ function new_elems!(ctx::SΓ,
 
     rws = rows(mat)
     for (sig, row) in rws
+        @debug "considering $((sig, ctx))"
         if mod_order(ctx) == :POT
             max_indx = maximum(p -> index(ctx, p), keys(rws))
             index(ctx, sig) < max_indx && continue
         end
         new_sig = mul(ctx, sig...)
-        @debug "considering $((sig, ctx))"
         if isempty(pol(mat, row))
             @debug "old leading monomial $(gpair(ctx.po.mo, leadingmonomial(ctx, sig..., no_rewrite = true)))"
             @debug "syzygy $((sig, ctx))"

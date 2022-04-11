@@ -164,8 +164,8 @@ function unbuffer!(buffer::Vector{Tbuf},
         end
         push!(coeffs, mod_coeff)
         push!(mons, J(j))
-        buffer[j] = zero(Tbuf)
     end
+    fill!(buffer, zero(Tbuf))
     row = Polynomial(mons, coeffs)
     first_nz, row
 end
