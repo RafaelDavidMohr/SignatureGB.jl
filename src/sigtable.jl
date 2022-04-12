@@ -110,7 +110,7 @@ unitvector(ctx::SigPolynomialΓ, i) = (pos_type(ctx)(i), one(ctx.po.mo))
 isunitvector(ctx::SigPolynomialΓ{I, M}, a::SigHash{I, M}) where {I, M} = isone(a[2])
 
 function index(ctx::SigPolynomialΓ{I},
-               i::I) where {I}
+               i) where {I}
 
     iszero(i) && return zero(I)
     ctx.f5_indices[i].index

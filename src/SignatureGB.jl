@@ -69,6 +69,26 @@ function f5sat(I::Vector{P},
     [R(ctx, g[1]) for g in filter(g -> tag(ctx, g[1]) != :to_sat, G)]
 end    
 
+function f45sat(I::Vector{P},
+                to_sat::P;
+                verbose = 0,
+                kwargs...) where {P<:AA.MPolyElem}
+
+    R = parent(first(I))
+    ctx = setup(I; mod_rep_type = :highest_index,
+                mod_order = :DPOT,
+                track_module_tags = [:to_sat],
+                kwargs...)
+    sat_indx_key = new_generator!(ctx, length(I) + 1, ctx.po(to_sat), :to_sat)
+    G, H, koszul_q, pairs = pairs_and_basis(ctx, length(I))
+    logger = SGBLogger(ctx, verbose = verbose; kwargs...)
+    with_logger(logger) do
+        f45sat_core!(ctx, G, H, koszul_q, pairs, R, sat_indx_key; kwargs...)
+        verbose == 2 && printout(logger)
+    end
+    [R(ctx, g[1]) for g in G]
+end
+
 function nondegen_part(I::Vector{P};
                        verbose = 0,
                        kwargs...) where {P <: AA.MPolyElem}
@@ -409,6 +429,39 @@ function f5sat_core!(ctx::SΓ,
         end
         filter!(g -> tag(ctx, g[1]) != sat_tag, G)
         f5c && interreduction!(ctx, G, R)
+    end
+end
+
+function f45sat_core!(ctx::SΓ,
+                      G::Basis{I,M},
+                      H::Syz{I,M},
+                      koszul_q::KoszulQueue{I,M,SΓ},
+                      pairs::PairSet{I,M,SΓ},
+                      R,
+                      sat_indx_key;
+                      max_remasks = 3,
+                      kwargs...) where {I,M,SΓ<:SigPolynomialΓ{I,M}}
+
+    deg_bound = 1
+    sat_pairset = pairset(ctx)
+    while !(isempty(pairs))
+        sgb_core!(ctx, G, H, koszul_q, pairs, R, all_koszul = true, deg_bound = deg_bound)
+        pair!(ctx, sat_pairset, unitvector(ctx, sat_indx_key))
+        if isempty(pairs)
+            deg_bound = 0
+        end
+        sgb_core!(ctx, G, H, koszul_q, sat_pairset, R, all_koszul = true, deg_bound = deg_bound)
+        empty!(sat_pairset)
+        for (i, h) in enumerate(H)
+            if h[1] == sat_indx_key
+                p = project(ctx, h)
+                indx_key = new_generator!(ctx, index(ctx, sat_indx_key), p, :zd)
+                pair!(ctx, pairs, unitvector(ctx, indx_key))
+                deleteat!(H, i)
+            end
+        end
+        filter!(g -> g[1][1] != sat_indx_key, G)
+        deg_bound += 1
     end
 end
 
