@@ -457,9 +457,9 @@ function f45sat_core!(ctx::SΓ,
                 p = project(ctx, h)
                 indx_key = new_generator!(ctx, index(ctx, sat_indx_key), p, :zd)
                 pair!(ctx, pairs, unitvector(ctx, indx_key))
-                deleteat!(H, i)
             end
         end
+        filter!(h -> h[1] != sat_indx_key, H)
         filter!(g -> g[1][1] != sat_indx_key, G)
         deg_bound += 1
     end
