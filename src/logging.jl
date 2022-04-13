@@ -55,7 +55,10 @@ function SGBLogger(ctx::SigPolynomialΓ{I};
         insertcols!(core_info, :tag => Symbol[])
     elseif task == :decomp
         insertcols!(core_info, :indx => Int64[], :tag => Symbol[], :level => Int64[], :component => Int64[])
+    elseif task == :f4sat
+        insertcols!(core_info, :gb_or_sat => Symbol[])
     end
+    
     if mod_order(ctx) == :POT
         insertcols!(core_info, :indx => Int64[])
     end
@@ -117,6 +120,7 @@ function Logging.handle_message(logger::SGBLogger, level, message, _module, grou
                                 arit_ops = 0,
                                 new_syz = false,
                                 new_basis = false,
+                                gb_or_sat = nothing,
                                 gb_size = 0,
                                 gb_size_aft_interred = 0,
                                 start_time_core = 0.0,
@@ -134,6 +138,9 @@ function Logging.handle_message(logger::SGBLogger, level, message, _module, grou
         # TODO: record data, format message
         if add_row
             add_info_row!(logger, defaults...)
+        end
+        if !(isnothing(gb_or_sat))
+            set_info_row!(logger, (:gb_or_sat, gb_or_sat))
         end
         if sig_degree >= 0
             set_info_row!(logger, (:sig_deg, sig_degree))

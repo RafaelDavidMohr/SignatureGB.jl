@@ -81,7 +81,7 @@ function f45sat(I::Vector{P},
                 kwargs...)
     sat_indx_key = new_generator!(ctx, length(I) + 1, ctx.po(to_sat), :to_sat)
     G, H, koszul_q, pairs = pairs_and_basis(ctx, length(I))
-    logger = SGBLogger(ctx, verbose = verbose; kwargs...)
+    logger = SGBLogger(ctx, verbose = verbose, task = :f4sat; kwargs...)
     with_logger(logger) do
         f45sat_core!(ctx, G, H, koszul_q, pairs, R, sat_indx_key; kwargs...)
         verbose == 2 && printout(logger)
@@ -183,6 +183,7 @@ function sgb_core!(ctx::SΓ,
                    max_remasks = 3,
                    f5c = false,
                    deg_bound = 0,
+                   exit_upon_zero_reduction = false,
                    kwargs...) where {I, M, SΓ <: SigPolynomialΓ{I, M}}
 
     if !(extends_degree(termorder(ctx.po.mo)))
@@ -247,9 +248,12 @@ function sgb_core!(ctx::SΓ,
         @logmsg Verbose2 "" nz_entries = sum([length(rw) for rw in values(rows(mat))]) mat_size = (length(rows(mat)), length(tbl(mat)))
         reduction!(mat)
         
-        new_elems!(ctx, G, H, pairs, mat, all_koszul, f5c = f5c)
+        met_syz = new_elems!(ctx, G, H, pairs, mat, all_koszul, f5c = f5c)
         @logmsg Verbose2 "" end_time_core = time()
         @logmsg Verbose2 "" gb_size = gb_size(ctx, G)
+        if exit_upon_zero_reduction && met_syz
+            return
+        end
     end
 end
 
@@ -433,32 +437,38 @@ function f5sat_core!(ctx::SΓ,
 end
 
 function f45sat_core!(ctx::SΓ,
-                      G::Basis{I,M},
-                      H::Syz{I,M},
-                      koszul_q::KoszulQueue{I,M,SΓ},
-                      pairs::PairSet{I,M,SΓ},
-                      R,
-                      sat_indx_key;
-                      max_remasks = 3,
-                      kwargs...) where {I,M,SΓ<:SigPolynomialΓ{I,M}}
+    G::Basis{I,M},
+    H::Syz{I,M},
+    koszul_q::KoszulQueue{I,M,SΓ},
+    pairs::PairSet{I,M,SΓ},
+    R,
+    sat_indx_key;
+    max_remasks = 3,
+    kwargs...) where {I,M,SΓ<:SigPolynomialΓ{I,M}}
 
     gen_degree = indx_key -> degree(ctx.po, ctx(unitvector(ctx, indx_key)).pol)
     deg_bound = 1
     sat_pairset = pairset(ctx)
     while !(isempty(pairs))
+        @logmsg Verbose2 "" add_row = true gb_or_sat = :gb
         sgb_core!(ctx, G, H, koszul_q, pairs, R, all_koszul = true, deg_bound = deg_bound)
         pair!(ctx, sat_pairset, unitvector(ctx, sat_indx_key))
         if isempty(pairs)
             deg_bound = 0
         end
-        sgb_core!(ctx, G, H, koszul_q, sat_pairset, R, all_koszul = true, deg_bound = deg_bound)
+        @logmsg Verbose2 "" add_row = true gb_or_sat = :sat
+        sgb_core!(ctx, G, H, koszul_q, sat_pairset, R, all_koszul = true, deg_bound = deg_bound,
+                  exit_upon_zero_reduction = true)
         empty!(sat_pairset)
-        
+
         zero_divisors = [project(ctx, h) for h in H if h[1] == sat_indx_key]
+        if !(isempty(zero_divisors))
+            println("found zero divisors in degree $(degree(ctx.po, first(zero_divisors)))")
+        end
         min_new_index = maxindex(ctx)
         for p in zero_divisors
             larger_deg_gen_info = filter(kv -> kv[2].tag != :to_sat && gen_degree(kv[1]) > degree(ctx.po, p),
-                                         collect(ctx.f5_indices))
+                collect(ctx.f5_indices))
             if isempty(larger_deg_gen_info)
                 p_index = index(ctx, sat_indx_key)
             else
@@ -469,7 +479,6 @@ function f45sat_core!(ctx::SΓ,
                 min_new_index = p_index
             end
         end
-        filter!(g -> index(ctx, g[1]) < min_new_index, G)
         collected_pairset = collect(pairs)
         empty!(pairs)
         for indx_key in keys(ctx.f5_indices)
@@ -483,7 +492,8 @@ function f45sat_core!(ctx::SΓ,
                 end
             end
         end
-        
+        filter!(g -> index(ctx, g[1]) < min_new_index, G)
+
         # for (i, h) in enumerate(H)
         #     if h[1] == sat_indx_key
         #         p = project(ctx, h)
@@ -642,6 +652,7 @@ function new_elems!(ctx::SΓ,
                     all_koszul;
                     kwargs...) where {I, M, SΓ <: SigPolynomialΓ{I, M}}
 
+    met_syz = false
     rws = rows(mat)
     for (sig, row) in rws
         @debug "considering $((sig, ctx))"
@@ -651,6 +662,7 @@ function new_elems!(ctx::SΓ,
         end
         new_sig = mul(ctx, sig...)
         if isempty(pol(mat, row))
+            met_syz = true
             @debug "old leading monomial $(gpair(ctx.po.mo, leadingmonomial(ctx, sig..., no_rewrite = true)))"
             @debug "syzygy $((sig, ctx))"
             @logmsg Verbose2 "" new_syz = true
@@ -686,6 +698,7 @@ function new_elems!(ctx::SΓ,
             end
         end
     end
+    return met_syz
 end
 
 function interreduction!(ctx::SigPolynomialΓ{I, M},
