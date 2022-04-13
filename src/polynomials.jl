@@ -218,6 +218,7 @@ termorder(ctx::PolynomialΓ) = termorder(ctx.mo)
 isunit(ctx::PolynomialΓ, p::Polynomial) = monomials(p) == [one(ctx.mo)]
 
 function degree(ctx::PolynomialΓ{M}, p::Polynomial{M}) where M
+    isempty(p.mo) && return zero(exponenttype(ctx.mo))
     maximum(m -> degree(ctx.mo, m), p.mo)
 end
 

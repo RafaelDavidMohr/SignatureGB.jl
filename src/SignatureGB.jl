@@ -442,6 +442,7 @@ function f45sat_core!(ctx::SΓ,
                       max_remasks = 3,
                       kwargs...) where {I,M,SΓ<:SigPolynomialΓ{I,M}}
 
+    gen_degree = indx_key -> degree(ctx.po, ctx(unitvector(ctx, indx_key)).pol)
     deg_bound = 1
     sat_pairset = pairset(ctx)
     while !(isempty(pairs))
@@ -452,13 +453,44 @@ function f45sat_core!(ctx::SΓ,
         end
         sgb_core!(ctx, G, H, koszul_q, sat_pairset, R, all_koszul = true, deg_bound = deg_bound)
         empty!(sat_pairset)
-        for (i, h) in enumerate(H)
-            if h[1] == sat_indx_key
-                p = project(ctx, h)
-                indx_key = new_generator!(ctx, index(ctx, sat_indx_key), p, :zd)
-                pair!(ctx, pairs, unitvector(ctx, indx_key))
+        
+        zero_divisors = [project(ctx, h) for h in H if h[1] == sat_indx_key]
+        min_new_index = maxindex(ctx)
+        for p in zero_divisors
+            larger_deg_gen_info = filter(kv -> kv[2].tag != :to_sat && gen_degree(kv[1]) > degree(ctx.po, p),
+                                         collect(ctx.f5_indices))
+            if isempty(larger_deg_gen_info)
+                p_index = index(ctx, sat_indx_key)
+            else
+                p_index = minimum(kv -> kv[2].index, larger_deg_gen_info)
+            end
+            new_key = new_generator!(ctx, p_index, p, :zd)
+            if p_index < min_new_index
+                min_new_index = p_index
             end
         end
+        filter!(g -> index(ctx, g[1]) < min_new_index, G)
+        collected_pairset = collect(pairs)
+        empty!(pairs)
+        for indx_key in keys(ctx.f5_indices)
+            if index(ctx, indx_key) >= min_new_index && tag(ctx, indx_key) != :to_sat
+                pair!(ctx, pairs, unitvector(ctx, indx_key))
+            else
+                for p in collected_pairset
+                    if p[1][2][1] == indx_key
+                        push!(pairs, p)
+                    end
+                end
+            end
+        end
+        
+        # for (i, h) in enumerate(H)
+        #     if h[1] == sat_indx_key
+        #         p = project(ctx, h)
+        #         indx_key = new_generator!(ctx, index(ctx, sat_indx_key), p, :zd)
+        #         pair!(ctx, pairs, unitvector(ctx, indx_key))
+        #     end
+        # end
         filter!(h -> h[1] != sat_indx_key, H)
         filter!(g -> g[1][1] != sat_indx_key, G)
         deg_bound += 1
