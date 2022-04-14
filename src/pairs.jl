@@ -238,8 +238,16 @@ function new_rewriter!(ctx::SΓ,
                        sig::SigHash{I, M}) where {I, M, SΓ <: SigPolynomialΓ{I, M}}
     pos, m = sig
     crit = p -> (divides(ctx, sig, mul(ctx, p[1]...)) || (!(isnull(p[2])) && divides(ctx, sig, mul(ctx, p[2]...))))
+    if !(iszero(ctx(sig).pol))
+        crit2 = p -> index(ctx, sig) < index(ctx, p[1]) && divides(ctx.po.mo, leadingmonomial(ctx, sig), mul(ctx, p[1]...)[2])
+    else
+        crit2 = p -> false
+    end
     for p in pairset
         if crit(p)
+            delete!(pairset, p)
+        end
+        if mod_order(ctx) == :DPOT && crit2(p)
             delete!(pairset, p)
         end
     end

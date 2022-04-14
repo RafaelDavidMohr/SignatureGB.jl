@@ -679,7 +679,6 @@ function new_elems!(ctx::SΓ,
                 @debug "adding $((sig, ctx))"
                 new_info = true
                 @logmsg Verbose2 "" new_basis = true
-                new_rewriter!(ctx, pairs, new_sig)
                 if mod_rep_type(ctx) == nothing
                     q = zero(eltype(ctx.po))
                 elseif mod_rep_type(ctx) == :highest_index
@@ -688,6 +687,7 @@ function new_elems!(ctx::SΓ,
                     q = unindexpolynomial(tbl(mat.module_matrix), module_pol(mat, sig))
                 end
                 ctx(new_sig, p, q)
+                new_rewriter!(ctx, pairs, new_sig)
                 push!(G, (new_sig, lm))
                 pairs!(ctx, pairs, new_sig, lm, G, H, all_koszul; kwargs...)
             end
