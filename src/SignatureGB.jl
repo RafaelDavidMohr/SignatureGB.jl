@@ -437,17 +437,18 @@ function f5sat_core!(ctx::SΓ,
 end
 
 function f45sat_core!(ctx::SΓ,
-    G::Basis{I,M},
-    H::Syz{I,M},
-    koszul_q::KoszulQueue{I,M,SΓ},
-    pairs::PairSet{I,M,SΓ},
-    R,
-    sat_indx_key;
-    max_remasks = 3,
-    kwargs...) where {I,M,SΓ<:SigPolynomialΓ{I,M}}
+                      G::Basis{I,M},
+                      H::Syz{I,M},
+                      koszul_q::KoszulQueue{I,M,SΓ},
+                      pairs::PairSet{I,M,SΓ},
+                      R,
+                      sat_indx_key;
+                      max_remasks = 3,
+                      kwargs...) where {I,M,SΓ<:SigPolynomialΓ{I,M}}
 
     gen_degree = indx_key -> degree(ctx.po, ctx(unitvector(ctx, indx_key)).pol)
     deg_bound = 1
+    sat_degree = degree(ctx.po, ctx(unitvector(ctx, sat_indx_key)).pol)
     sat_pairset = pairset(ctx)
     while !(isempty(pairs))
         @logmsg Verbose2 "" add_row = true gb_or_sat = :gb
@@ -468,7 +469,7 @@ function f45sat_core!(ctx::SΓ,
         min_new_index = maxindex(ctx)
         for p in zero_divisors
             larger_deg_gen_info = filter(kv -> kv[2].tag != :to_sat && gen_degree(kv[1]) > degree(ctx.po, p),
-                collect(ctx.f5_indices))
+                                         collect(ctx.f5_indices))
             if isempty(larger_deg_gen_info)
                 p_index = index(ctx, sat_indx_key)
             else
@@ -493,14 +494,6 @@ function f45sat_core!(ctx::SΓ,
             end
         end
         filter!(g -> index(ctx, g[1]) < min_new_index, G)
-
-        # for (i, h) in enumerate(H)
-        #     if h[1] == sat_indx_key
-        #         p = project(ctx, h)
-        #         indx_key = new_generator!(ctx, index(ctx, sat_indx_key), p, :zd)
-        #         pair!(ctx, pairs, unitvector(ctx, indx_key))
-        #     end
-        # end
         filter!(h -> h[1] != sat_indx_key, H)
         filter!(g -> g[1][1] != sat_indx_key, G)
         deg_bound += 1
@@ -539,8 +532,10 @@ function nondegen_part_core!(ctx::SΓ,
             syz = filter(h -> index(ctx, h) == index(ctx, k), H)
             isempty(syz) && continue
             hs = [project(ctx, h) for h in syz]
+            for h in hs
+                println("new cleaner $(R(ctx.po, h))")
+            end
             cleaner = random_lin_comb(ctx.po, [project(ctx, h) for h in syz])
-            @info "new cleaner" R(ctx.po, cleaner)
             new_indx_key = new_generator!(ctx, curr_index + 1, cleaner, :h)
             push!(cleaning_info, unitvector(ctx, new_indx_key))
         end
