@@ -83,7 +83,7 @@ function f45sat(I::Vector{P},
     G, H, koszul_q, pairs = pairs_and_basis(ctx, length(I))
     logger = SGBLogger(ctx, verbose = verbose, task = :f4sat; kwargs...)
     with_logger(logger) do
-        f45sat_core!(ctx, G, H, koszul_q, pairs, R, sat_indx_key; kwargs...)
+        f45sat_core!(ctx, G, H, koszul_q, pairs, R, [sat_indx_key]; kwargs...)
         verbose == 2 && printout(logger)
     end
     [R(ctx, g[1]) for g in G]
@@ -442,18 +442,19 @@ function f45sat_core!(ctx::SΓ,
                       koszul_q::KoszulQueue{I,M,SΓ},
                       pairs::PairSet{I,M,SΓ},
                       R,
-                      sat_indx_key;
+                      sat_indx_keys;
                       max_remasks = 3,
                       kwargs...) where {I,M,SΓ<:SigPolynomialΓ{I,M}}
 
     gen_degree = indx_key -> degree(ctx.po, ctx(unitvector(ctx, indx_key)).pol)
     deg_bound = 1
-    sat_degree = degree(ctx.po, ctx(unitvector(ctx, sat_indx_key)).pol)
     sat_pairset = pairset(ctx)
     while !(isempty(pairs))
         @logmsg Verbose2 "" add_row = true gb_or_sat = :gb
         sgb_core!(ctx, G, H, koszul_q, pairs, R, all_koszul = true, deg_bound = deg_bound)
-        pair!(ctx, sat_pairset, unitvector(ctx, sat_indx_key))
+        for key in sat_indx_keys
+            pair!(ctx, sat_pairset, unitvector(ctx, key))
+        end
         if isempty(pairs)
             deg_bound = 0
         end
@@ -462,12 +463,9 @@ function f45sat_core!(ctx::SΓ,
                   exit_upon_zero_reduction = true)
         empty!(sat_pairset)
 
-        zero_divisors = [project(ctx, h) for h in H if h[1] == sat_indx_key]
-        if !(isempty(zero_divisors))
-            println("found zero divisors in degree $(degree(ctx.po, first(zero_divisors)))")
-        end
+        zero_divisors = [(h[1], project(ctx, h)) for h in H if h[1] in sat_indx_keys]
         min_new_index = maxindex(ctx)
-        for p in zero_divisors
+        for (sat_indx_key, p) in zero_divisors
             larger_deg_gen_info = filter(kv -> kv[2].tag != :to_sat && gen_degree(kv[1]) > degree(ctx.po, p),
                                          collect(ctx.f5_indices))
             if isempty(larger_deg_gen_info)
@@ -494,8 +492,7 @@ function f45sat_core!(ctx::SΓ,
             end
         end
         filter!(g -> index(ctx, g[1]) < min_new_index, G)
-        filter!(h -> h[1] != sat_indx_key, H)
-        filter!(g -> g[1][1] != sat_indx_key, G)
+        filter!(h -> !(h[1] in sat_indx_keys), H)
         deg_bound += 1
     end
 end
