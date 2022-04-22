@@ -87,6 +87,7 @@ function f5core!(dat::F5Data{I, SΓ},
                  interreduction = true,
                  select_both = true,
                  continous_cleanup = true,
+                 no_random = false,
                  verbose = 0) where {I, M, SΓ <: SigPolynomialΓ{I, M}}
     
     ctx = dat.ctx
@@ -133,7 +134,11 @@ function f5core!(dat::F5Data{I, SΓ},
                         end
                     end
                     if !(isempty(non_zero_cond_local))
-                        h = random_lin_comb(ctx.po, non_zero_cond_local)
+                        if !(no_random)
+                            h = random_lin_comb(ctx.po, non_zero_cond_local)
+                        else
+                            h = first(non_zero_cond_local)
+                        end
                         new_posit_key = register!(ctx, h, info_hashmap)
                         push!(non_zero_cond, new_posit_key)
                     end
@@ -371,6 +376,7 @@ function decompose(I::Vector{P};
                    verbose = 0,
                    interreduction = true,
                    max_remasks = 3,
+                   no_random = false,
                    kwargs...) where {P <: AA.MPolyElem}
     
     R = parent(first(I))
@@ -381,7 +387,7 @@ function decompose(I::Vector{P};
                   max_remasks = max_remasks, kwargs...)
     G, H, pairs = pairs_and_basis(dat, length(I), start_gen = start_gen)
     G, total_num_arit_ops = f5core!(dat, G, H, pairs, select = select, verbose = verbose,
-                                    new_elems = new_elems_decomp!, select_both = false, interreduction = interreduction)
+                                    new_elems = new_elems_decomp!, select_both = false, no_random = no_random, interreduction = interreduction)
     [R(dat.ctx, (i, g[1])) for i in keys(G) for g in G[i]]
 end
 end
