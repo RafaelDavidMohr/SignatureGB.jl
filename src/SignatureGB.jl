@@ -384,7 +384,7 @@ function decompose(I::Vector{P};
                   mon_order = mon_order, index_type = index_type,
                   mask_type = mask_type, pos_type = pos_type,
                   trace_sig_tail_tags = [:f, :g_gen, :h],
-                  max_remasks = max_remasks, kwargs...)
+                  max_remasks = max_remasks; kwargs...)
     G, H, pairs = pairs_and_basis(dat, length(I), start_gen = start_gen)
     G, total_num_arit_ops = f5core!(dat, G, H, pairs, select = select, verbose = verbose,
                                     new_elems = new_elems_decomp!, select_both = false, no_random = no_random, interreduction = interreduction)
