@@ -21,8 +21,8 @@ function find_reducer(ctx::SigPolynomialΓ{I, M},
     else
         cond = p -> degree(ctx, p) <= sig_degree
     end
-    
-    reducer = nothing
+
+    reducer = nullmonsigpair(ctx)
     mpairord = mpairordering(ctx)
     for (j, (g, lm)) in enumerate(G)
         if divides(ctx.po.mo, lm, m)
@@ -31,13 +31,10 @@ function find_reducer(ctx::SigPolynomialΓ{I, M},
             if !(f5c) || index(ctx, g) == max_sig_index
                 rewriteable(ctx, delta, g, j, G, H, all_koszul) && continue
             end
-            if isnothing(reducer) || Base.Order.lt(mpairord, (delta, g), reducer)
+            if isnull(reducer) || Base.Order.lt(mpairord, (delta, g), reducer)
                 reducer = (delta, g)
                 f5c && index(ctx, g) < max_sig_index && break
             end
-            # if interreduction_step && delta != Base.one(ctx.po.mo)
-            #     return (delta, g)
-            # end
         end
     end
     return reducer
@@ -80,7 +77,7 @@ function symbolic_pp!(ctx::SΓ,
             red = find_reducer(ctx, G, H, m, all_koszul, max_sig_index, sig_degree,
                                f5c = f5c;
                                kwargs...)
-            isnothing(red) && continue
+            isnull(red) && continue
             push!(pairs, red)
             @debug "found reducer $((red, ctx)) for $(gpair(ctx.po.mo, m))"
             union!(todo, ctx(red..., no_rewrite = get_orig_elem(red)).pol.mo)

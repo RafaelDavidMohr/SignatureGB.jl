@@ -359,7 +359,7 @@ function f5sat_core!(ctx::SΓ,
 
         to_reduce, done = core_loop!(ctx, G, H, koszul_q, pairs, select, all_koszul, select_both = false, f5c = f5c)
         isempty(done) && continue
-        mat = F5matrix(ctx, done, collect(to_reduce), f5c = f5c)
+        mat = F5matrix(ctx, done, collect(to_reduce), curr_indx, f5c = f5c)
         reduction!(mat)
         rws = rows(mat)
         @logmsg Verbose2 "" nz_entries = sum([length(pol(mat, rw)) for rw in values(rws)]) mat_size = (length(rws), length(tbl(mat)))
@@ -370,7 +370,7 @@ function f5sat_core!(ctx::SΓ,
         if tag(ctx, max_sig) == sat_tag && !(just_colon)
             zero_red = filter(kv -> iszero(pol(mat, kv[2])), rws)
             if isempty(zero_red)
-                new_elems!(ctx, G, H, pairs, mat, all_koszul, f5c = f5c; kwargs...)
+                new_elems!(ctx, G, H, pairs, mat, all_koszul, curr_indx, f5c = f5c; kwargs...)
                 @logmsg Verbose2 "" gb_size = gb_size(ctx, G)
             else
                 # zero divisors to insert
