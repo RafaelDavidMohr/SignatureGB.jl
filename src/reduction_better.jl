@@ -64,7 +64,8 @@ end
         
 function f5_matrix(ctx::SigPolynomialΓ{I, M, MM, T},
                    mons::Vector{M},
-                   row_sigs::Vector{MonSigPair{I, M}};
+                   row_sigs::Vector{MonSigPair{I, M}},
+                   curr_indx::I;
                    interreduction_matrix = false,
                    # used if an interreduction occured: in this case signatures are still hashes
                    f5c = false,
@@ -73,14 +74,14 @@ function f5_matrix(ctx::SigPolynomialΓ{I, M, MM, T},
                    used_for = :pols) where {I, M, MM, T}
 
     if used_for == :pols
-        max_index = maximum(p -> index(ctx, p), row_sigs)
-        get_pol = p -> ctx(p..., no_rewrite = f5c && index(ctx, p) < max_index).pol
+        # max_index = maximum(p -> index(ctx, p), row_sigs)
+        get_pol = p -> ctx(p..., no_rewrite = f5c && index(ctx, p) < curr_indx).pol
     elseif used_for == :highest_index
-        max_index = maximum(p -> index(ctx, p), row_sigs)
-        get_pol = p -> index(ctx, p) < max_index || !(tag(ctx, p) in ctx.track_module_tags) ? zero(ctx.po) : project(ctx, p...)
+        # max_index = maximum(p -> index(ctx, p), row_sigs)
+        get_pol = p -> index(ctx, p) < curr_indx || !(tag(ctx, p) in ctx.track_module_tags) ? zero(ctx.po) : project(ctx, p...)
     else
-        max_index = maximum(p -> index(ctx, p), row_sigs)
-        get_pol = p -> !(tag(ctx, p) in ctx.track_module_tags) ? zero(ctx.po) : ctx(p..., no_rewrite = f5c && index(ctx, p) < max_index).module_rep
+        # max_index = maximum(p -> index(ctx, p), row_sigs)
+        get_pol = p -> !(tag(ctx, p) in ctx.track_module_tags) ? zero(ctx.po) : ctx(p..., no_rewrite = f5c && index(ctx, p) < curr_indx).module_rep
     end
         
     if interreduction_matrix
@@ -245,11 +246,12 @@ end
 
 function F5matrix(ctx::SigPolynomialΓ{I, M, MM, T},
                   mons::Vector{M},
-                  row_sigs::Vector{MonSigPair{I, M}};
+                  row_sigs::Vector{MonSigPair{I, M}},
+                  curr_indx::I;
                   kwargs...) where {I, M, MM, T}
 
-    matrix = f5_matrix(ctx, mons, row_sigs; kwargs...)
+    matrix = f5_matrix(ctx, mons, row_sigs, curr_indx; kwargs...)
     isnothing(mod_rep_type(ctx)) && return matrix
-    module_matrix = f5_matrix(ctx, M[], row_sigs, used_for = mod_rep_type(ctx); kwargs...)
+    module_matrix = f5_matrix(ctx, M[], row_sigs, curr_indx, used_for = mod_rep_type(ctx); kwargs...)
     return F5matrixPartialModule(matrix, module_matrix)
 end

@@ -244,11 +244,11 @@ function sgb_core!(ctx::SΓ,
         to_reduce, done = core_loop!(ctx, G, H, koszul_q, pairs, select, all_koszul, f5c = f5c, select_both = select_both)
         @logmsg Verbose2 "" indx = mod_order(ctx) == :POT && !(isempty(to_reduce)) ? maximum(p -> index(ctx, p), to_reduce) : 0
         isempty(to_reduce) && continue
-        mat = F5matrix(ctx, done, collect(to_reduce), f5c = f5c)
+        mat = F5matrix(ctx, done, collect(to_reduce), curr_indx, f5c = f5c)
         @logmsg Verbose2 "" nz_entries = sum([length(rw) for rw in values(rows(mat))]) mat_size = (length(rows(mat)), length(tbl(mat)))
         reduction!(mat)
         
-        met_syz = new_elems!(ctx, G, H, pairs, mat, all_koszul, f5c = f5c)
+        met_syz = new_elems!(ctx, G, H, pairs, mat, all_koszul, curr_indx, f5c = f5c)
         @logmsg Verbose2 "" end_time_core = time()
         @logmsg Verbose2 "" gb_size = gb_size(ctx, G)
         if exit_upon_zero_reduction && met_syz
@@ -417,7 +417,7 @@ function f5sat_core!(ctx::SΓ,
                 end
             end
         else
-            new_elems!(ctx, G, H, pairs, mat, all_koszul, f5c = f5c; kwargs...)
+            new_elems!(ctx, G, H, pairs, mat, all_koszul, curr_indx, f5c = f5c; kwargs...)
             @logmsg Verbose2 "" gb_size = gb_size(ctx, G)
         end
         @logmsg Verbose2 "" end_time_core = time()
@@ -641,7 +641,8 @@ function new_elems!(ctx::SΓ,
                     H::Syz{I, M},
                     pairs::PairSet{I, M, SΓ},
                     mat::MacaulayMatrix,
-                    all_koszul;
+                    all_koszul,
+                    curr_indx::I;
                     kwargs...) where {I, M, SΓ <: SigPolynomialΓ{I, M}}
 
     met_syz = false
@@ -649,8 +650,7 @@ function new_elems!(ctx::SΓ,
     for (sig, row) in rws
         @debug "considering $((sig, ctx))"
         if mod_order(ctx) == :POT
-            max_indx = maximum(p -> index(ctx, p), keys(rws))
-            index(ctx, sig) < max_indx && continue
+            index(ctx, sig) < curr_indx && continue
         end
         new_sig = mul(ctx, sig...)
         if isempty(pol(mat, row))
