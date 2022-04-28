@@ -15,6 +15,17 @@ macro default(ex, fs)
     end
 end
 
+function permute(a, perm)
+    [perm[x] for x in a]
+end
+
+function inv_perm(perm)
+    inv_perm = similar(perm)
+    for (preim, im) in enumerate(perm)
+        inv_perm[im] = preim
+    end
+end
+
 #.. Helpers for BitVectors
 
 function bitarray_to_int(arr::BitArray,

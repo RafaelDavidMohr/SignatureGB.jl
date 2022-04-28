@@ -3,6 +3,16 @@ mutable struct SymPPData{I, M, T, J}
     rows::Vector{Tuple{MonSigPair{I, M}, Polynomial{J, T}}}
 end
 
+function symppdata!(ctx::SigPolynomialΓ{I, M},
+                    tbl::EasyTable{M, J},
+                    rows::Vector{Tuple{MonSigPair{I, M}, Polynomial{J, T}}}) where {I, M, T, J}
+
+    tbl.sortperm = sortperm(tbl.val, lt = (m1, m2) -> lt(ctx.po.mo, m1, m2),
+                            rev = true)
+    tbl.inv_sortperm = inv_perm(tbl.sortperm)
+    SymPPData(tbl, sort(rows, by = x -> x[1], lt = (s1, s2) -> lt(mpairordering(ctx), s1, s2)))
+end
+
 function find_reducer(ctx::SigPolynomialΓ{I, M},
                       G::Basis{I, M},
                       H::Syz{I, M},
@@ -84,5 +94,5 @@ function symbolic_pp!(ctx::SΓ,
         @debug "found reducer $((red, ctx)) for $(gpair(ctx.po.mo, m))"
     end
     @debug "done with symbolic pp..."
-    return SymPPData(tbl, sigpolys)
+    return symppdata!(ctx, tbl, sigpolys)
 end     

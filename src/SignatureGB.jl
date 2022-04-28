@@ -634,7 +634,7 @@ function core_loop!(ctx::SΓ,
     @logmsg Verbose2 "" min_deg = minimum(p -> degree(ctx.po, ctx(p...).pol), to_reduce)
     data = symbolic_pp!(ctx, to_reduce, G, H, all_koszul, curr_indx,
                         are_pairs = are_pairs; kwargs...)
-    mat = F5matrix(ctx, done, collect(to_reduce), curr_indx, f5c = f5c)
+    mat = f5_matrix(ctx, data)
     reduction!(mat)
     return 
 end
@@ -648,9 +648,7 @@ function new_elems!(ctx::SΓ,
                     curr_indx::I;
                     kwargs...) where {I, M, SΓ <: SigPolynomialΓ{I, M}}
 
-    met_syz = false
-    rws = rows(mat)
-    for (sig, row) in rws
+    for (sig, row) in zip(mat.sigs, mat.rows)
         @debug "considering $((sig, ctx))"
         if mod_order(ctx) == :POT
             index(ctx, sig) < curr_indx && continue
@@ -671,7 +669,8 @@ function new_elems!(ctx::SΓ,
             end
             new_rewriter!(ctx, pairs, new_sig)
         else
-            p = unindexpolynomial(tbl(mat), pol(mat, row))
+            q = pol(mat, row)
+            p = unindexpolynomial(tbl(mat), Polynomial(permute(q.mo, tbl.inv_sortperm), permute(q.mo, tbl.inv_sortperm)))
             lm = leadingmonomial(p)
             @debug "old leading monomial $(gpair(ctx.po.mo, leadingmonomial(ctx, sig..., no_rewrite = true)))"
             @debug "new leading monomial $(gpair(ctx.po.mo, lm))"

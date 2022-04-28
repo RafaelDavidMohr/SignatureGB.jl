@@ -9,13 +9,14 @@ mutable struct EasyTable{T, I <: Unsigned}
     val::Vector{T}
     rev::Dict{T, I}
     sortperm::Vector{I}
+    inv_sortperm::Vector{I}
 end
 
 function easytable(val, ind_type = UInt32)
     # tbl_val = collect(val)
     tbl_val = val
     tbl_rev = Dict{eltype(val), ind_type}(broadcast(x -> reverse(x), enumerate(tbl_val)))
-    EasyTable{eltype(val), ind_type}(tbl_val, tbl_rev, collect(1:length(val)))
+    EasyTable{eltype(val), ind_type}(tbl_val, tbl_rev, collect(1:length(val)), collect(1:length(val)))
 end
 
 ind_type(table::EasyTable{T, I}) where {T, I} = I
