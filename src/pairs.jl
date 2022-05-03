@@ -2,7 +2,6 @@ using DataStructures
 
 const MonSigPair{I, M} = Tuple{M, SigHash{I, M}}
 const Pair{I, M} = Tuple{MonSigPair{I, M}, MonSigPair{I, M}}
-const Basis{I, M} = Vector{Tuple{SigHash{I, M}, M}}
 struct Basis{I, M}
     sigs::Vector{SigHash{I, M}}
     lms::Vector{M}
@@ -23,14 +22,16 @@ const PairSet{I, M, SΓ} = SortedSet{Pair{I, M}, PairOrdering{SΓ}}
 const MonSigSet{I, M, SΓ} = Set{MonSigPair{I, M}}
 
 function new_basis(ctx::SigPolynomialΓ{I, M}) where {I, M}
-    Basis(SigHash{I, M}[], M[], Dict([(i, M[]) for i in 1:length(keys(ctx.f5_indices))]))
+    Basis(SigHash{I, M}[], M[], Dict([(i, M[]) for i in keys(ctx.f5_indices)]))
 end
-    
+
+length(G::Basis) = length(G.sigs)
+
 new_syz(ctx::SigPolynomialΓ{I, M}) where {I, M} = SigHash{I, M}[]
 
 function gb_size(ctx::SigPolynomialΓ{I, M}, G::Basis{I, M}) where {I, M}
 
-    isempty(G) ? 0 : sum([length(ctx(g).pol) for (g, _) in G])
+    isempty(G.sigs) ? 0 : sum([length(ctx(g).pol) for g in G.sigs])
 end
 
 function new_basis_elem!(basis::Basis{I, M},

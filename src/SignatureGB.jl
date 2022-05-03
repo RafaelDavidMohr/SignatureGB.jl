@@ -47,7 +47,7 @@ function sgb(I::Vector{P};
         sgb_core!(ctx, G, H, koszul_q, pairs, R; kwargs...)
         verbose == 2 && printout(logger)
     end
-    [R(ctx, g[1]) for g in G]
+    [R(ctx, g) for g in G.sigs]
 end
 
 # function f5sat(I::Vector{P},
@@ -669,7 +669,7 @@ function new_elems!(ctx::SΓ,
             lm = leadingmonomial(p)
             @debug "old leading monomial $(gpair(ctx.po.mo, leadingmonomial(ctx, sig..., no_rewrite = true)))"
             @debug "new leading monomial $(gpair(ctx.po.mo, lm))"
-            if (isunitvector(ctx, new_sig) && !((new_sig, lm) in G)) || lt(ctx.po.mo, lm, leadingmonomial(ctx, sig..., no_rewrite = true))
+            if (isunitvector(ctx, new_sig) && !(new_sig in G.sigs)) || lt(ctx.po.mo, lm, leadingmonomial(ctx, sig..., no_rewrite = true))
                 @debug "adding $((sig, ctx))"
                 new_info = true
                 @logmsg Verbose2 "" new_basis = true
@@ -696,16 +696,19 @@ function interreduction!(ctx::SigPolynomialΓ{I, M},
                          R) where {I, M}
 
     @logmsg Verbose1 "" interred = true
-    basis = [R(ctx.po, ctx(g[1]).pol) for g in G]
+    basis = [R(ctx.po, ctx(g).pol) for g in G.sigs]
     interred_basis = (g -> ctx.po(g)).(gens(interreduce(Ideal(R, basis))))
-    G_new = new_basis(ctx)
-    for ((sig, _), p) in zip(G, interred_basis)
-        ctx(sig, p)
-        push!(G_new, (sig, leadingmonomial(p)))
+    sigs = copy(G.sigs)
+    empty!(G.sigs)
+    sizehint!(G.sigs, length(interred_basis))
+    empty!(G.lms)
+    sizehint!(G.lms, length(interred_basis))
+    for i in keys(G.by_index)
+        empty!(G.by_index[i])
     end
-    empty!(G)
-    for g_new in G_new
-        push!(G, g_new)
+    for (sig, p) in zip(sigs, interred_basis)
+        ctx(sig, p)
+        new_basis_elem!(G, sig, leadingmonomial(p))
     end
     @logmsg Verbose2 "" gb_size_aft_interred = gb_size(ctx, G)
 end
