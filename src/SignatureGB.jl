@@ -26,6 +26,7 @@ function pairs_and_basis(ctx::SigPolynomialΓ,
     G = new_basis(ctx)
     for i in 1:(start_gen - 1)
         lm = leadingmonomial(ctx, unitvector(ctx, i))
+        # TODO: adapt to new basis struct
         new_basis_elem!(G, unitvector(ctx, i), lm)
     end
     H = new_syz(ctx)
@@ -626,9 +627,9 @@ function core_loop!(ctx::SΓ,
     end
     @logmsg Verbose2 "" indx = mod_order(ctx) == :POT && !(isempty(to_reduce)) ? maximum(p -> index(ctx, p), to_reduce) : 0
     @logmsg Verbose2 "" min_deg = minimum(p -> degree(ctx.po, ctx(p...).pol), to_reduce)
-    tbl, sigpolys = symbolic_pp!(ctx, to_reduce, G, H, all_koszul, curr_indx,
-                                 are_pairs = are_pairs; kwargs...)
-    mat = f5_matrix(ctx, tbl, sigpolys)
+    table, sigpolys = symbolic_pp!(ctx, to_reduce, G, H, all_koszul, curr_indx,
+                                   are_pairs = are_pairs; kwargs...)
+    mat = f5_matrix(ctx, table, sigpolys)
     @logmsg Verbose2 "" nz_entries = sum([length(rw) for rw in values(rows(mat))]) mat_size = (length(rows(mat)), length(tbl(mat)))
     reduction!(mat)
     return mat
@@ -681,20 +682,22 @@ function new_elems!(ctx::SΓ,
                 end
                 ctx(new_sig, p, q)
                 new_rewriter!(ctx, pairs, new_sig)
-                push!(G, (new_sig, lm))
+                # TODO: adapt to new basis struct
+                new_basis_elem!(G, new_sig, lm)
                 pairs!(ctx, pairs, new_sig, lm, G, H, all_koszul; kwargs...)
             end
         end
     end
 end
 
+# TODO: adapt to new basis struct
 function interreduction!(ctx::SigPolynomialΓ{I, M},
                          G::Basis{I, M},
                          R) where {I, M}
 
     @logmsg Verbose1 "" interred = true
     basis = [R(ctx.po, ctx(g[1]).pol) for g in G]
-    interred_basis = (g -> ctx.po(g)).(gens(std(Ideal(R, basis), complete_reduction = true)))
+    interred_basis = (g -> ctx.po(g)).(gens(interreduce(Ideal(R, basis))))
     G_new = new_basis(ctx)
     for ((sig, _), p) in zip(G, interred_basis)
         ctx(sig, p)

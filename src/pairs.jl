@@ -3,6 +3,11 @@ using DataStructures
 const MonSigPair{I, M} = Tuple{M, SigHash{I, M}}
 const Pair{I, M} = Tuple{MonSigPair{I, M}, MonSigPair{I, M}}
 const Basis{I, M} = Vector{Tuple{SigHash{I, M}, M}}
+struct Basis{I, M}
+    sigs::Vector{SigHash{I, M}}
+    lms::Vector{M}
+    by_index::Dict{I, Vector{M}}
+end
 const Syz{I, M} = Vector{SigHash{I, M}}
 
 struct MPairOrdering{SΓ <: SigPolynomialΓ}<:Base.Order.Ordering
@@ -17,7 +22,10 @@ const KoszulQueue{I, M, SΓ} = MutableBinaryHeap{SigHash{I, M}, SigOrdering{SΓ}
 const PairSet{I, M, SΓ} = SortedSet{Pair{I, M}, PairOrdering{SΓ}}
 const MonSigSet{I, M, SΓ} = Set{MonSigPair{I, M}}
 
-new_basis(ctx::SigPolynomialΓ{I, M}) where {I, M} = Tuple{SigHash{I, M}, M}[]
+function new_basis(ctx::SigPolynomialΓ{I, M}) where {I, M}
+    Basis(SigHash{I, M}[], M[], Dict([(i, M[]) for i in 1:length(keys(ctx.f5_indices))]))
+end
+    
 new_syz(ctx::SigPolynomialΓ{I, M}) where {I, M} = SigHash{I, M}[]
 
 function gb_size(ctx::SigPolynomialΓ{I, M}, G::Basis{I, M}) where {I, M}
@@ -25,18 +33,19 @@ function gb_size(ctx::SigPolynomialΓ{I, M}, G::Basis{I, M}) where {I, M}
     isempty(G) ? 0 : sum([length(ctx(g).pol) for (g, _) in G])
 end
 
-function new_basis_elem!(ctx::SigPolynomialΓ{I, M},
-                         basis::Basis{I, M},
-                         sig::SigHash{I, M}) where {I, M}
-
-    push!(basis, (sig, leadingmonomial(ctx, sig)))
-end
-
 function new_basis_elem!(basis::Basis{I, M},
                          sig::SigHash{I, M},
                          lm::M) where {I, M}
 
-    push!(basis, (sig, lm))
+    push!(basis.sigs, sig)
+    push!(basis.lms, lm)
+    push!(basis.by_index[sig[1]], lm)
+end
+
+function new_basis_elem!(ctx::SigPolynomialΓ{I, M},
+                         basis::Basis{I, M},
+                         sig::SigHash{I, M}) where {I, M}
+    new_basis_elem!(basis, sig, leadingmonomial(ctx, sig))
 end
 
 function Base.show(io::IO,
@@ -165,7 +174,8 @@ function pairs!(ctx::SΓ,
                 kwargs...) where {I, M, SΓ <: SigPolynomialΓ{I, M}}
 
     index_key = sig[1]
-    for (j, (g, lm)) in enumerate(G)
+    for (j, g) in enumerate(G.sigs)
+        lm = G.lms[j]
         index_key == g[1] && ctx(sig).sigratio == ctx(g).sigratio && continue
         m = lcm(ctx.po.mo, lm, lm_sig)
         m == mul(ctx.po.mo, lm, lm_sig) && continue
@@ -190,7 +200,7 @@ function rewriteable(ctx::SigPolynomialΓ{I, M},
                      G::Basis{I, M}) where {I, M}
 
     msig = mul(ctx, m, sig)
-    for (g, lm) in G[indx + 1:end]
+    for g in G.sigs[indx + 1:end]
         divides(ctx, g, msig) && return true
     end
         
@@ -212,8 +222,9 @@ function rewriteable_syz(ctx::SigPolynomialΓ{I, M},
     end
 
     if all_koszul
-        for (g, lm) in G
-            if index(ctx, g) < index(ctx, sig)
+        for i in keys(ctx.f5_indices)
+            index(ctx, i) >= index(ctx, sig) && continue
+            for lm in G.by_index[i]
                 divides(ctx.po.mo, lm, msig[2]) && return true
             end
         end

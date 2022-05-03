@@ -12,13 +12,13 @@ function reduction!(mat::MacaulayMatrix)
     
     for (i, row) in enumerate(rows(mat))
         if ignore(mat, row, pivots)
-            pivots[leadingmonomial(row)] = key
+            pivots[leadingmonomial(row)] = i
             continue
         end
 
         buffer!(row, buffer)
         for (k, c) in enumerate(buffer)
-            (iszero(c) || isnull(pivots[k])) && continue
+            (iszero(c) || iszero(pivots[k])) && continue
             critical_loop!(buffer, rows(mat)[pivots[k]], coeff_ctx(mat))
         end
 
@@ -43,7 +43,7 @@ function mat_show(mat::MacaulayMatrix)
 end
 
 # base f5 matrix, no module representation
-mutable struct F5matrix{I, M, J, T, O} <: MacaulayMatrix{MonSigPair{I, M}, J, T}
+mutable struct F5matrix{I, M, J, T} <: MacaulayMatrix{MonSigPair{I, M}, J, T}
     sigs::Vector{MonSigPair{I, M}}
     rows::Vector{Polynomial{J, T}}
     tbl::EasyTable{M, J}
@@ -65,13 +65,14 @@ function f5_matrix(ctx::SigPolynomialΓ{I, M, MM, T},
     sort_mon_table!(tbl, ctx.po.mo)
     sigs = MonSigPair{I, M}[]
     mat_rows = Polynomial{J, T}[]
+    rows = sort(unique(rows), by = x -> x[1], lt = (s1, s2) -> Base.lt(mpairordering(ctx), s1, s2))
     sizehint!(sigs, length(rows))
     sizehint!(mat_rows, length(rows))
     for (sig, pol) in rows
         push!(sigs, sig)
         push!(mat_rows, indexpolynomial(tbl, pol))
     end
-    F5matrix(sigs, mat_rows, data.tbl, ctx)
+    F5matrix(sigs, mat_rows, tbl, ctx)
 end
 
 function is_triangular(mat::F5matrix)
@@ -98,10 +99,10 @@ function new_buffer(mat::F5matrix)
 end
 function ignore(mat::F5matrix{I, M, J, T},
                 row::Polynomial{J, T},
-                pivots::Vector{MonSigPair{I, M}}) where {I, M, J, T}
+                pivots::Vector{Int}) where {I, M, J, T}
 
     l = leadingmonomial(row)
-    isnull(pivots[l])
+    iszero(pivots[l])
 end
 function set_row!(mat::F5matrix{I, M, J, T},
                   i,

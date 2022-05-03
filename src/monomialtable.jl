@@ -45,10 +45,10 @@ end
 function sort_mon_table!(table::EasyTable{M, J},
                          ctx::MonomialContext{M}) where {M, J}
     sortpermut = sortperm(table.val, lt = (m1, m2) -> lt(ctx, m1, m2), rev = true)
-    for i in keys(table.rev)
-        table.rev[i] = sortpermut[i]
+    sort!(table.val, lt = (m1, m2) -> lt(ctx, m1, m2), rev = true)
+    for (i, m) in enumerate(table.val)
+        table.rev[m] = i
     end
-    permute!(table.val, sortpermut)
 end
 
 #.. MonomialHashTable

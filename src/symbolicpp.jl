@@ -19,9 +19,10 @@ function find_reducer(ctx::SigPolynomialΓ{I, M},
 
     reducer = nullmonsigpair(ctx)
     mpairord = mpairordering(ctx)
-    for (j, (g, lm)) in enumerate(G)
+    for (j, lm) in enumerate(G.lms)
         if divides(ctx.po.mo, lm, m)
             delta = div(ctx.po.mo, m, lm)
+            g = G.sigs[j]
             !(cond((delta, g))) && continue
             if !(f5c) || index(ctx, g) == curr_indx
                 rewriteable(ctx, delta, g, j, G, H, all_koszul) && continue
