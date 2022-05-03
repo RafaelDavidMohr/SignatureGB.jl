@@ -108,6 +108,7 @@ function set_row!(mat::F5matrix{I, M, J, T},
                   i,
                   new_row::Polynomial{J, T}) where {I, M, J, T}
 
+    monic!(mat.ctx.po.co, new_row)
     mat.rows[i] = new_row
 end
 
@@ -155,10 +156,10 @@ function critical_loop!(buffer::Vector{Tbuf},
                         ctx::NmodLikeΓ{T, Tbuf}) where {J, T, Tbuf}
     
     mult1 = deflate(ctx, normal(ctx, buffer[leadingmonomial(pivot)]))
-    mult2 = inv(ctx, coefficient(pivot, 1))
-    mult = mul(ctx, mult1, mult2)
-    sub_row!(buffer, pivot, mult, ctx)
-    return mult
+    # mult2 = inv(ctx, coefficient(pivot, 1))
+    # mult = mul(ctx, mult1, mult2)
+    sub_row!(buffer, pivot, mult1, ctx)
+    return mult1
 end
 
 # # f5 matrices with tracking of module representation
