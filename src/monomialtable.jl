@@ -8,15 +8,13 @@ using DataStructures
 mutable struct EasyTable{T, I <: Unsigned}
     val::Vector{T}
     rev::Dict{T, I}
-    sortperm::Vector{I}
-    inv_sortperm::Vector{I}
 end
 
 function easytable(val, ind_type = UInt32)
     # tbl_val = collect(val)
     tbl_val = val
     tbl_rev = Dict{eltype(val), ind_type}(broadcast(x -> reverse(x), enumerate(tbl_val)))
-    EasyTable{eltype(val), ind_type}(tbl_val, tbl_rev, collect(1:length(val)), collect(1:length(val)))
+    EasyTable{eltype(val), ind_type}(tbl_val, tbl_rev)
 end
 
 ind_type(table::EasyTable{T, I}) where {T, I} = I
@@ -43,7 +41,15 @@ end
 function unindexpolynomial(tbl::EasyTable{M, I}, p::Polynomial{I, T}) where {M, I, T}
     Polynomial{M, T}([tbl[i] for i in p.mo], p.co)
 end
-    
+
+function sort_mon_table!(table::EasyTable{M, J},
+                         ctx::MonomialContext{M}) where {M, J}
+    sortpermut = sortperm(table.val, lt = (m1, m2) -> lt(ctx, m1, m2), rev = true)
+    for i in keys(table.rev)
+        table.rev[i] = sortpermut[i]
+    end
+    permute!(table.val, sortpermut)
+end
 
 #.. MonomialHashTable
 # Mostly for fun, may not be a good candidate for GB computations

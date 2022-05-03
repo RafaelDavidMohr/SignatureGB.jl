@@ -241,19 +241,12 @@ function sgb_core!(ctx::SΓ,
             max_remasks -= 1
             remask!(ctx.po.mo.table)
         end
-        to_reduce, done = core_loop!(ctx, G, H, koszul_q, pairs, select, all_koszul, curr_indx, f5c = f5c, select_both = select_both)
-        @logmsg Verbose2 "" indx = mod_order(ctx) == :POT && !(isempty(to_reduce)) ? maximum(p -> index(ctx, p), to_reduce) : 0
-        isempty(to_reduce) && continue
-        mat = F5matrix(ctx, done, collect(to_reduce), curr_indx, f5c = f5c)
-        @logmsg Verbose2 "" nz_entries = sum([length(rw) for rw in values(rows(mat))]) mat_size = (length(rows(mat)), length(tbl(mat)))
-        reduction!(mat)
+        mat = core_loop!(ctx, G, H, koszul_q, pairs, select, all_koszul, curr_indx,
+                         f5c = f5c, select_both = select_both)
         
-        met_syz = new_elems!(ctx, G, H, pairs, mat, all_koszul, curr_indx, f5c = f5c)
+        new_elems!(ctx, G, H, pairs, mat, all_koszul, curr_indx, f5c = f5c)
         @logmsg Verbose2 "" end_time_core = time()
         @logmsg Verbose2 "" gb_size = gb_size(ctx, G)
-        if exit_upon_zero_reduction && met_syz
-            return
-        end
     end
 end
 
@@ -629,14 +622,16 @@ function core_loop!(ctx::SΓ,
     @debug string("pairset:\n", [isnull(p[2]) ? "$((p[1], ctx))\n" : "$((p[1], ctx)), $((p[2], ctx))\n" for p in pairs]...)
     to_reduce, sig_degree, are_pairs = select!(ctx, koszul_q, pairs, Val(select), all_koszul; kwargs...)
     if isempty(to_reduce)
-        return 
+        return f5_matrix(ctx, easytable(M[]), Tuple{MonSigPair{I, M}, Polynomial{I, M}}[])
     end
+    @logmsg Verbose2 "" indx = mod_order(ctx) == :POT && !(isempty(to_reduce)) ? maximum(p -> index(ctx, p), to_reduce) : 0
     @logmsg Verbose2 "" min_deg = minimum(p -> degree(ctx.po, ctx(p...).pol), to_reduce)
-    data = symbolic_pp!(ctx, to_reduce, G, H, all_koszul, curr_indx,
-                        are_pairs = are_pairs; kwargs...)
-    mat = f5_matrix(ctx, data)
+    tbl, sigpolys = symbolic_pp!(ctx, to_reduce, G, H, all_koszul, curr_indx,
+                                 are_pairs = are_pairs; kwargs...)
+    mat = f5_matrix(ctx, tbl, sigpolys)
+    @logmsg Verbose2 "" nz_entries = sum([length(rw) for rw in values(rows(mat))]) mat_size = (length(rows(mat)), length(tbl(mat)))
     reduction!(mat)
-    return 
+    return mat
 end
 
 function new_elems!(ctx::SΓ,
@@ -655,7 +650,6 @@ function new_elems!(ctx::SΓ,
         end
         new_sig = mul(ctx, sig...)
         if isempty(pol(mat, row))
-            met_syz = true
             @debug "old leading monomial $(gpair(ctx.po.mo, leadingmonomial(ctx, sig..., no_rewrite = true)))"
             @debug "syzygy $((sig, ctx))"
             @logmsg Verbose2 "" new_syz = true
@@ -670,7 +664,7 @@ function new_elems!(ctx::SΓ,
             new_rewriter!(ctx, pairs, new_sig)
         else
             q = pol(mat, row)
-            p = unindexpolynomial(tbl(mat), Polynomial(permute(q.mo, tbl.inv_sortperm), permute(q.mo, tbl.inv_sortperm)))
+            p = unindexpolynomial(tbl(mat), q)
             lm = leadingmonomial(p)
             @debug "old leading monomial $(gpair(ctx.po.mo, leadingmonomial(ctx, sig..., no_rewrite = true)))"
             @debug "new leading monomial $(gpair(ctx.po.mo, lm))"
@@ -692,7 +686,6 @@ function new_elems!(ctx::SΓ,
             end
         end
     end
-    return met_syz
 end
 
 function interreduction!(ctx::SigPolynomialΓ{I, M},

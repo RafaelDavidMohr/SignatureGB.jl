@@ -1,18 +1,3 @@
-mutable struct SymPPData{I, M, T, J}
-    tbl::EasyTable{M, J}
-    rows::Vector{Tuple{MonSigPair{I, M}, Polynomial{J, T}}}
-end
-
-function symppdata!(ctx::SigPolynomialΓ{I, M},
-                    tbl::EasyTable{M, J},
-                    rows::Vector{Tuple{MonSigPair{I, M}, Polynomial{J, T}}}) where {I, M, T, J}
-
-    tbl.sortperm = sortperm(tbl.val, lt = (m1, m2) -> lt(ctx.po.mo, m1, m2),
-                            rev = true)
-    tbl.inv_sortperm = inv_perm(tbl.sortperm)
-    SymPPData(tbl, sort(rows, by = x -> x[1], lt = (s1, s2) -> lt(mpairordering(ctx), s1, s2)))
-end
-
 function find_reducer(ctx::SigPolynomialΓ{I, M},
                       G::Basis{I, M},
                       H::Syz{I, M},
@@ -80,8 +65,11 @@ function symbolic_pp!(ctx::SΓ,
     are_pairs && sizehint!(done, length(pairs) >> 1)
     for (i, p) in enumerate(pairs)
         pol = ctx(p..., no_rewrite = get_orig_elem(p)).pol
-        are_pairs && iseven(i) && push!(done, bla)
-        push!(sigpolys, (p, indexpolynomial(tbl, pol)))
+        are_pairs && iseven(i) && push!(done, leadingmonomial(pol))
+        for m in pol.mo
+            findorpush!(tbl, m)
+        end
+        push!(sigpolys, (p, pol))
     end
         
     for m in tbl.val
@@ -90,9 +78,13 @@ function symbolic_pp!(ctx::SΓ,
                            f5c = f5c;
                            kwargs...)
         isnull(red) && continue
-        push!(sigpolys, (red, indexpolynomial(tbl, ctx(red..., no_rewrite = get_orig_elem(red)).pol)))
+        pol = ctx(red..., no_rewrite = get_orig_elem(red)).pol
+        for m in pol.mo
+            findorpush!(tbl, m)
+        end
+        push!(sigpolys, (red, pol))
         @debug "found reducer $((red, ctx)) for $(gpair(ctx.po.mo, m))"
     end
     @debug "done with symbolic pp..."
-    return symppdata!(ctx, tbl, sigpolys)
+    return tbl, sigpolys
 end     

@@ -59,11 +59,19 @@ function index_pols(mons::Vector{M},
 end
         
 function f5_matrix(ctx::SigPolynomialΓ{I, M, MM, T},
-                   data::SymPPData{I, M, T, J}) where {I, M, MM, T, J}
+                   tbl::EasyTable{M, J},
+                   rows::Vector{Tuple{MonSigPair{I, M}, Polynomial{M, T}}}) where {I, M, MM, T, J}
 
-    rows = [Polynomial(permute(p.co, tbl.sortperm), permute(p.mo, tbl.sortperm))
-            for (sig, p) in data.rows]
-    F5matrix([sig for (sig, p) in data.rows], rows, data.tbl, ctx)
+    sort_mon_table!(tbl, ctx.po.mo)
+    sigs = MonSigPair{I, M}[]
+    mat_rows = Polynomial{J, T}[]
+    sizehint!(sigs, length(rows))
+    sizehint!(mat_rows, length(rows))
+    for (sig, pol) in rows
+        push!(sigs, sig)
+        push!(mat_rows, indexpolynomial(tbl, pol))
+    end
+    F5matrix(sigs, mat_rows, data.tbl, ctx)
 end
 
 function is_triangular(mat::F5matrix)
