@@ -40,8 +40,8 @@ function reduction!(mat::F5matrix)
         if !(iszero(first_non_zero))
             pivots[first_non_zero] = i
             mult = inv(mat.ctx.po.co, first(new_row.co))
-            new_row = mul_scalar(ctx.po, new_row, mult)
-            new_module_row = mul_scalar(ctx.po, new_module_row, mult)
+            new_row = mul_scalar(mat.ctx.po, new_row, mult)
+            new_module_row = mul_scalar(mat.ctx.po, new_module_row, mult)
         end
 
         mat.rows[i] = new_row
@@ -76,7 +76,7 @@ function f5_matrix(ctx::SigPolynomialΓ{I, M, MM, T},
     for (sig, pol, module_pol) in rows
         push!(sigs, sig)
         push!(mat_rows, indexpolynomial(tbl, pol))
-        push!(mat_module_rows, indexpolynomial(tbl, module_pol))
+        push!(mat_module_rows, indexpolynomial(module_tbl, module_pol))
     end
     F5matrix(sigs, mat_rows, mat_module_rows, tbl, module_tbl, ctx)
 end

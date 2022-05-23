@@ -68,7 +68,7 @@ function symbolic_pp!(ctx::SΓ,
     for (i, p) in enumerate(pairs)
         pol = ctx(p..., no_rewrite = get_orig_elem(p)).pol
         if mod_rep_type(ctx) == :highest_index && index(ctx, p) == curr_indx
-            module_pol = project(ctx, p..., no_rewrite = get_orig_elem(red))
+            module_pol = project(ctx, p..., no_rewrite = get_orig_elem(p))
         else
             module_pol = zero(eltype(ctx.mod_po))
         end
@@ -97,7 +97,7 @@ function symbolic_pp!(ctx::SΓ,
         for m in pol.mo
             findorpush!(tbl, m)
         end
-        for m in pol.module_pol
+        for m in module_pol.mo
             findorpush!(module_tbl, m)
         end
         push!(sigpolys, (red, pol, module_pol))
