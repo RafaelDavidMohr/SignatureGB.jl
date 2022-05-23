@@ -621,16 +621,21 @@ function core_loop!(ctx::SΓ,
     @logmsg Verbose2 "" start_time_core = time()
     @logmsg Verbose1 "" curr_index = index(ctx, first(pairs)[1]) sig_degree = degree(ctx, first(pairs)[1]) tag = tag(ctx, first(pairs)[1])
     @debug string("pairset:\n", [isnull(p[2]) ? "$((p[1], ctx))\n" : "$((p[1], ctx)), $((p[2], ctx))\n" for p in pairs]...)
+    
     to_reduce, sig_degree, are_pairs = select!(ctx, koszul_q, pairs, Val(select), all_koszul; kwargs...)
     if isempty(to_reduce)
         return f5_matrix(ctx, easytable(M[]), Tuple{MonSigPair{I, M}, Polynomial{I, M}}[])
     end
+    
     @logmsg Verbose2 "" indx = mod_order(ctx) == :POT && !(isempty(to_reduce)) ? maximum(p -> index(ctx, p), to_reduce) : 0
     @logmsg Verbose2 "" min_deg = minimum(p -> degree(ctx.po, ctx(p...).pol), to_reduce)
+    
     table, sigpolys = symbolic_pp!(ctx, to_reduce, G, H, all_koszul, curr_indx,
                                    are_pairs = are_pairs; kwargs...)
     mat = f5_matrix(ctx, table, sigpolys)
+    
     @logmsg Verbose2 "" nz_entries = sum([length(rw) for rw in values(rows(mat))]) mat_size = (length(rows(mat)), length(tbl(mat)))
+    
     reduction!(mat)
     return mat
 end

@@ -46,8 +46,8 @@ function symbolic_pp!(ctx::SΓ,
                       # interreduction_step = false,
                       f5c = false,
                       kwargs...) where {I, M,
-                                          MS <: Union{MonSigSet{I, M}, Set{MonSigPair{I, M}}},
-                                          SΓ <: SigPolynomialΓ{I, M}}
+                                        MS <: Union{MonSigSet{I, M}, Set{MonSigPair{I, M}}},
+                                        SΓ <: SigPolynomialΓ{I, M}}
 
     @debug "symbolic preprocessing..."
     get_orig_elem = p -> f5c && index(ctx, p) < curr_indx
@@ -60,7 +60,7 @@ function symbolic_pp!(ctx::SΓ,
     end
 
     tbl = easytable(M[])
-    sigpolys = Tuple{MonSigPair{I, M}, Polynomial{ind_type(tbl), eltype(ctx.po.co)}}[]
+    sigpolys = Tuple{MonSigPair{I, M}, Polynomial{eltype(ctx.po.mo), eltype(ctx.po.co)}}[]
     sizehint!(sigpolys, length(pairs))
     done = Set{M}()
     are_pairs && sizehint!(done, length(pairs) >> 1)
