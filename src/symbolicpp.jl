@@ -43,7 +43,6 @@ function symbolic_pp!(ctx::SΓ,
                       all_koszul,
                       curr_indx;
                       are_pairs = true,
-                      # interreduction_step = false,
                       f5c = false,
                       kwargs...) where {I, M,
                                         MS <: Union{MonSigSet{I, M}, Set{MonSigPair{I, M}}},
@@ -67,7 +66,7 @@ function symbolic_pp!(ctx::SΓ,
     are_pairs && sizehint!(done, length(pairs) >> 1)
     for (i, p) in enumerate(pairs)
         pol = ctx(p..., no_rewrite = get_orig_elem(p)).pol
-        if mod_rep_type(ctx) == :highest_index && index(ctx, p) == curr_indx
+        if mod_rep_type(ctx) == :highest_index && tag(ctx, p) in ctx.track_module_tags && index(ctx, p) == curr_indx
             module_pol = project(ctx, p..., no_rewrite = get_orig_elem(p))
         else
             module_pol = zero(eltype(ctx.mod_po))
@@ -89,7 +88,7 @@ function symbolic_pp!(ctx::SΓ,
                            kwargs...)
         isnull(red) && continue
         pol = ctx(red..., no_rewrite = get_orig_elem(red)).pol
-        if mod_rep_type(ctx) == :highest_index && index(ctx, red) == curr_indx
+        if mod_rep_type(ctx) == :highest_index && tag(ctx, red) in ctx.track_module_tags && index(ctx, red) == curr_indx
             module_pol = project(ctx, red..., no_rewrite = get_orig_elem(red))
         else
             module_pol = zero(eltype(ctx.mod_po))

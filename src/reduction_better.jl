@@ -65,6 +65,8 @@ function f5_matrix(ctx::SigPolynomialΓ{I, M, MM, T},
                    rows::Vector{Tuple{MonSigPair{I, M}, Polynomial{M, T}, Polynomial{MM, T}}}) where {I, M, MM, T, J, K}
 
     sort_mon_table!(tbl, ctx.po.mo)
+    sort_mon_table!(module_tbl, ctx.mod_po.mo)
+    println("module table empty: $(isempty(module_tbl.val))")
     sigs = MonSigPair{I, M}[]
     mat_rows = Polynomial{J, T}[]
     mat_module_rows = Polynomial{K, T}[]

@@ -149,7 +149,7 @@ function new_generator!(ctx::SigPolynomialΓ{I, M, MM, T},
     if mod_order(ctx) in [:SCHREY, :DPOT]
         ctx.lms[new_index_key] = leadingmonomial(pol)
     end
-    ctx(sighash, pol)
+    ctx(sighash, pol, ctx.po([one(ctx.po.mo)], [one(eltype(ctx.po.co))]))
     return new_index_key
 end
 

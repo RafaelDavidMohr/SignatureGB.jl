@@ -9,6 +9,20 @@ struct Basis{I, M}
 end
 const Syz{I, M} = Vector{SigHash{I, M}}
 
+function filter_less_than_index!(ctx::SigPolynomialΓ{I, M},
+                                 G::Basis{I, M},
+                                 indx::I) where {I, M}
+
+    to_delete = findall(sig -> index(ctx, sig) >= indx, G.sigs)
+    deleteat!(G.sigs, to_delete)
+    deleteat!(G.lms, to_delete)
+    for i in keys(G.by_index)
+        if index(ctx, i) > indx
+            G.by_index[i] = M[]
+        end
+    end
+end 
+
 struct MPairOrdering{SΓ <: SigPolynomialΓ}<:Base.Order.Ordering
     ord::SigOrdering{SΓ}
 end
@@ -40,7 +54,11 @@ function new_basis_elem!(basis::Basis{I, M},
 
     push!(basis.sigs, sig)
     push!(basis.lms, lm)
-    push!(basis.by_index[sig[1]], lm)
+    if sig[1] in keys(basis.by_index)
+        push!(basis.by_index[sig[1]], lm)
+    else
+        basis.by_index[sig[1]] = [lm]
+    end
 end
 
 function new_basis_elem!(ctx::SigPolynomialΓ{I, M},
@@ -225,8 +243,10 @@ function rewriteable_syz(ctx::SigPolynomialΓ{I, M},
     if all_koszul
         for i in keys(ctx.f5_indices)
             index(ctx, i) >= index(ctx, sig) && continue
-            for lm in G.by_index[i]
-                divides(ctx.po.mo, lm, msig[2]) && return true
+            if i in keys(G.by_index)
+                for lm in G.by_index[i]
+                    divides(ctx.po.mo, lm, msig[2]) && return true
+                end
             end
         end
     end
