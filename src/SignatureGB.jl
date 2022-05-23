@@ -634,7 +634,7 @@ function core_loop!(ctx::SΓ,
                                                  are_pairs = are_pairs; kwargs...)
     mat = f5_matrix(ctx, table, module_table, sigpolys)
     
-    @logmsg Verbose2 "" nz_entries = sum([length(rw) for rw in values(rows(mat))]) mat_size = (length(rows(mat)), length(tbl(mat)))
+    @logmsg Verbose2 "" nz_entries = sum([length(rw) for rw in mat.rows]) mat_size = (length(mat.rows), length(mat.tbl))
     
     reduction!(mat)
     return mat
@@ -644,7 +644,7 @@ function new_elems!(ctx::SΓ,
                     G::Basis{I, M},
                     H::Syz{I, M},
                     pairs::PairSet{I, M, SΓ},
-                    mat::MacaulayMatrix,
+                    mat::F5matrix,
                     all_koszul,
                     curr_indx::I;
                     kwargs...) where {I, M, SΓ <: SigPolynomialΓ{I, M}}

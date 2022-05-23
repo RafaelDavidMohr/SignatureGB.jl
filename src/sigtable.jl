@@ -344,23 +344,23 @@ function setup(I::Vector{P};
         error("choose a buffer bitsize of either 64 or 128")
     end
     buffer == 64 ? coefficients = Nmod32Γ(char) : coefficients = Nmod32xΓ(char)
-    ctx = sigpolynomialctx(coefficients, length(I); mod_order = mod_order,
+    ctx = sigpolynomialctx(coefficients, Base.length(I); mod_order = mod_order,
                            order=order, kwargs...)
+    T = eltype(coefficients)
     if mod_rep_type(ctx) in [nothing, :highest_index]
         for (i, f) in enumerate(I)
-            ctx(unitvector(ctx, i), f, [one(ctx.po.mo)])
+            ctx(unitvector(ctx, i), ctx.po(f), ctx.po(R(1)))
         end
     elseif mod_rep_type(ctx) == :random_lin_comb
-        T = eltype(coefficients)
-        coeffs = rand(zero(T):T(char - 1), length(I))
+        coeffs = rand(zero(T):T(char - 1), Base.length(I))
         for (i, f) in enumerate(I)
             println(Int(coeffs[i]))
-            ctx(unitvector(ctx, i), ctx.po(f), Polynomial([one(ctx.mod_po.mo)], [coeffs[i]]))
+            ctx(unitvector(ctx, i), ctx.po(f), ctx.po(R(1)))
         end
     end
     if mod_order == :SCHREY || mod_order == :DPOT
         ctx.lms = Dict([(pos_type(ctx)(i), leadingmonomial(ctx, unitvector(ctx, i)))
-                        for i in 1:length(I)])
+                        for i in 1:Base.length(I)])
     end
     ctx
 end

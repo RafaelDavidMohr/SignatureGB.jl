@@ -61,17 +61,25 @@ function symbolic_pp!(ctx::SΓ,
 
     tbl = easytable(M[])
     module_tbl = easytable(eltype(ctx.mod_po.mo)[])
-    sigpolys = Tuple{MonSigPair{I, M}, Polynomial{eltype(ctx.po.mo), eltype(ctx.po.co)}}[]
+    sigpolys = Tuple{MonSigPair{I, M}, eltype(ctx.po), eltype(ctx.mod_po)}[]
     sizehint!(sigpolys, length(pairs))
     done = Set{M}()
     are_pairs && sizehint!(done, length(pairs) >> 1)
     for (i, p) in enumerate(pairs)
         pol = ctx(p..., no_rewrite = get_orig_elem(p)).pol
+        if mod_rep_type(ctx) == :highest_index && index(ctx, p) == curr_indx
+            module_pol = project(ctx, p..., no_rewrite = get_orig_elem(red))
+        else
+            module_pol = zero(eltype(ctx.mod_po))
+        end
         are_pairs && iseven(i) && push!(done, leadingmonomial(pol))
         for m in pol.mo
             findorpush!(tbl, m)
         end
-        push!(sigpolys, (p, pol))
+        for m in module_pol.mo
+            findorpush!(module_tbl, m)
+        end
+        push!(sigpolys, (p, pol, module_pol))
     end
         
     for m in tbl.val
@@ -81,7 +89,7 @@ function symbolic_pp!(ctx::SΓ,
                            kwargs...)
         isnull(red) && continue
         pol = ctx(red..., no_rewrite = get_orig_elem(red)).pol
-        if ctx.mod_rep_type == :highest_index && index(ctx, red) == curr_indx
+        if mod_rep_type(ctx) == :highest_index && index(ctx, red) == curr_indx
             module_pol = project(ctx, red..., no_rewrite = get_orig_elem(red))
         else
             module_pol = zero(eltype(ctx.mod_po))

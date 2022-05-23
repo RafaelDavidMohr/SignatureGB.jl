@@ -25,7 +25,7 @@ function new_basis(ctx::SigPolynomialΓ{I, M}) where {I, M}
     Basis(SigHash{I, M}[], M[], Dict([(i, M[]) for i in keys(ctx.f5_indices)]))
 end
 
-length(G::Basis) = length(G.sigs)
+Base.length(G::Basis) = Base.length(G.sigs)
 
 new_syz(ctx::SigPolynomialΓ{I, M}) where {I, M} = SigHash{I, M}[]
 

@@ -17,10 +17,10 @@ function reduction!(mat::F5matrix)
     n_cols = length(mat.tbl)
     n_cols_module = length(mat.module_tbl)
     pivots = collect(Base.Iterators.repeated(0, n_cols))
-    buffer = zeros(buftype(coeff_ctx(mat)), n_cols)
-    module_buffer = zeros(buftype(coeff_ctx(mat)), n_cols_module)
+    buffer = zeros(buftype(mat.ctx.po.co), n_cols)
+    module_buffer = zeros(buftype(mat.ctx.mod_po.co), n_cols_module)
     
-    for (i, row) in mat.rows
+    for (i, row) in enumerate(mat.rows)
         if iszero(pivots[leadingmonomial(row)])
             pivots[leadingmonomial(row)] = i
             continue
@@ -49,7 +49,7 @@ function reduction!(mat::F5matrix)
     end
 end
 
-function mat_show(mat::MacaulayMatrix)
+function mat_show(mat::F5matrix)
     mat_vis = zeros(Int, length(rows(mat)), length(tbl(mat)))
     for (i, (sig, row)) in enumerate(rows(mat))
         for (j, c) in row
@@ -62,7 +62,7 @@ end
 function f5_matrix(ctx::SigPolynomialΓ{I, M, MM, T},
                    tbl::EasyTable{M, J},
                    module_tbl::EasyTable{MM, K},
-                   rows::Vector{Tuple{MonSigPair{I, M}, Polynomial{M, T}, Polynomial{MM, T}}}) where {I, M, MM, T, J}
+                   rows::Vector{Tuple{MonSigPair{I, M}, Polynomial{M, T}, Polynomial{MM, T}}}) where {I, M, MM, T, J, K}
 
     sort_mon_table!(tbl, ctx.po.mo)
     sigs = MonSigPair{I, M}[]
@@ -133,6 +133,6 @@ function critical_loop!(buffer::Vector{Tbuf},
                         ctx::NmodLikeΓ{T, Tbuf}) where {J, T, Tbuf}
     
     mult = deflate(ctx, normal(ctx, buffer[leadingmonomial(pivot)]))
-    sub_row!(buffer, pivot, mult1, ctx)
+    sub_row!(buffer, pivot, mult, ctx)
     return mult
 end
