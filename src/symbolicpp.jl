@@ -60,6 +60,7 @@ function symbolic_pp!(ctx::SΓ,
     end
 
     tbl = easytable(M[])
+    module_tbl = easytable(eltype(ctx.mod_po.mo)[])
     sigpolys = Tuple{MonSigPair{I, M}, Polynomial{eltype(ctx.po.mo), eltype(ctx.po.co)}}[]
     sizehint!(sigpolys, length(pairs))
     done = Set{M}()
@@ -80,12 +81,20 @@ function symbolic_pp!(ctx::SΓ,
                            kwargs...)
         isnull(red) && continue
         pol = ctx(red..., no_rewrite = get_orig_elem(red)).pol
+        if ctx.mod_rep_type == :highest_index && index(ctx, red) == curr_indx
+            module_pol = project(ctx, red..., no_rewrite = get_orig_elem(red))
+        else
+            module_pol = zero(eltype(ctx.mod_po))
+        end
         for m in pol.mo
             findorpush!(tbl, m)
         end
-        push!(sigpolys, (red, pol))
+        for m in pol.module_pol
+            findorpush!(module_tbl, m)
+        end
+        push!(sigpolys, (red, pol, module_pol))
         @debug "found reducer $((red, ctx)) for $(gpair(ctx.po.mo, m))"
     end
     @debug "done with symbolic pp..."
-    return tbl, sigpolys
+    return tbl, module_tbl, sigpolys
 end     

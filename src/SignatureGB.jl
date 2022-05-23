@@ -624,15 +624,15 @@ function core_loop!(ctx::SΓ,
     
     to_reduce, sig_degree, are_pairs = select!(ctx, koszul_q, pairs, Val(select), all_koszul; kwargs...)
     if isempty(to_reduce)
-        return f5_matrix(ctx, easytable(M[]), Tuple{MonSigPair{I, M}, Polynomial{I, M}}[])
+        return f5_matrix(ctx, easytable(M[]), easytable(M[]), Tuple{MonSigPair{I, M}, Polynomial{I, M}, Polynomial{I, eltype(ctx.mod_po.mo)}}[])
     end
     
     @logmsg Verbose2 "" indx = mod_order(ctx) == :POT && !(isempty(to_reduce)) ? maximum(p -> index(ctx, p), to_reduce) : 0
     @logmsg Verbose2 "" min_deg = minimum(p -> degree(ctx.po, ctx(p...).pol), to_reduce)
     
-    table, sigpolys = symbolic_pp!(ctx, to_reduce, G, H, all_koszul, curr_indx,
-                                   are_pairs = are_pairs; kwargs...)
-    mat = f5_matrix(ctx, table, sigpolys)
+    table, module_table, sigpolys = symbolic_pp!(ctx, to_reduce, G, H, all_koszul, curr_indx,
+                                                 are_pairs = are_pairs; kwargs...)
+    mat = f5_matrix(ctx, table, module_table, sigpolys)
     
     @logmsg Verbose2 "" nz_entries = sum([length(rw) for rw in values(rows(mat))]) mat_size = (length(rows(mat)), length(tbl(mat)))
     
@@ -649,41 +649,36 @@ function new_elems!(ctx::SΓ,
                     curr_indx::I;
                     kwargs...) where {I, M, SΓ <: SigPolynomialΓ{I, M}}
 
-    for (sig, row) in zip(mat.sigs, mat.rows)
+    for (i, (sig, row)) in enumerate(zip(mat.sigs, mat.rows))
         @debug "considering $((sig, ctx))"
         if mod_order(ctx) == :POT
             index(ctx, sig) < curr_indx && continue
         end
         new_sig = mul(ctx, sig...)
-        if isempty(pol(mat, row))
+        if isempty(row)
             @debug "old leading monomial $(gpair(ctx.po.mo, leadingmonomial(ctx, sig..., no_rewrite = true)))"
             @debug "syzygy $((sig, ctx))"
             @logmsg Verbose2 "" new_syz = true
             push!(H, new_sig)
             if mod_rep_type(ctx) != nothing
-                q = unindexpolynomial(tbl(mat.module_matrix),
-                                          tail(module_pol(mat, sig)))
+                q = unindexpolynomial(mat.module_tbl, mat.module_rows[i])
                 ctx(new_sig, zero(q), q)
             else
                 ctx(new_sig, zero(eltype(ctx.po)))
             end
             new_rewriter!(ctx, pairs, new_sig)
         else
-            q = pol(mat, row)
-            p = unindexpolynomial(tbl(mat), q)
+            p = unindexpolynomial(mat.tbl, row)
             lm = leadingmonomial(p)
             @debug "old leading monomial $(gpair(ctx.po.mo, leadingmonomial(ctx, sig..., no_rewrite = true)))"
             @debug "new leading monomial $(gpair(ctx.po.mo, lm))"
             if (isunitvector(ctx, new_sig) && !(new_sig in G.sigs)) || lt(ctx.po.mo, lm, leadingmonomial(ctx, sig..., no_rewrite = true))
                 @debug "adding $((sig, ctx))"
-                new_info = true
                 @logmsg Verbose2 "" new_basis = true
                 if mod_rep_type(ctx) == nothing
                     q = zero(eltype(ctx.po))
-                elseif mod_rep_type(ctx) == :highest_index
-                    q = unindexpolynomial(tbl(mat.module_matrix), tail(module_pol(mat, sig)))
                 else
-                    q = unindexpolynomial(tbl(mat.module_matrix), module_pol(mat, sig))
+                    q = unindexpolynomial(mat.module_tbl, mat.module_rows[i])
                 end
                 ctx(new_sig, p, q)
                 new_rewriter!(ctx, pairs, new_sig)

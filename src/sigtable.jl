@@ -241,9 +241,8 @@ function project(ctx::SigPolynomialΓ{I, M, M, T, :highest_index},
                  sig::SigHash{I, M};
                  kwargs...) where {I, M, T}
     val = ctx(m, sig; kwargs...)
-    msig = mul(ctx, m, sig)
-    Polynomial{M, T}(vcat(msig[2], val.module_rep.mo),
-                     vcat(one(T), val.module_rep.co))
+    Polynomial{M, T}(val.module_rep.mo,
+                     val.module_rep.co)
 end
 
 function project(ctx::SigPolynomialΓ{I, M, M, T, :highest_index},
@@ -349,7 +348,7 @@ function setup(I::Vector{P};
                            order=order, kwargs...)
     if mod_rep_type(ctx) in [nothing, :highest_index]
         for (i, f) in enumerate(I)
-            ctx(unitvector(ctx, i), f)
+            ctx(unitvector(ctx, i), f, [one(ctx.po.mo)])
         end
     elseif mod_rep_type(ctx) == :random_lin_comb
         T = eltype(coefficients)
