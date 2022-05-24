@@ -26,7 +26,6 @@ function pairs_and_basis(ctx::SigPolynomialΓ,
     G = new_basis(ctx)
     for i in 1:(start_gen - 1)
         lm = leadingmonomial(ctx, unitvector(ctx, i))
-        # TODO: adapt to new basis struct
         new_basis_elem!(G, unitvector(ctx, i), lm)
     end
     H = new_syz(ctx)
@@ -41,7 +40,7 @@ function sgb(I::Vector{P};
 
     ctx = setup(I; kwargs...)
     R = parent(first(I))
-    G, H, koszul_q, pairs = pairs_and_basis(ctx, length(I))
+    G, H, koszul_q, pairs = pairs_and_basis(ctx, length(I); kwargs...)
     logger = SGBLogger(ctx, verbose = verbose; kwargs...)
     with_logger(logger) do
         sgb_core!(ctx, G, H, koszul_q, pairs, R; kwargs...)
@@ -62,7 +61,7 @@ function f5sat(I::Vector{P},
     for (i, f) in enumerate(to_sat)
         new_generator!(ctx, length(I) + i, ctx.po(f), :to_sat)
     end
-    G, H, koszul_q, pairs = pairs_and_basis(ctx, length(I) + length(to_sat))
+    G, H, koszul_q, pairs = pairs_and_basis(ctx, length(I) + length(to_sat); kwargs...)
     logger = SGBLogger(ctx, verbose = verbose, task = :sat; kwargs...)
     with_logger(logger) do
         f5sat_core!(ctx, G, H, koszul_q, pairs, R; kwargs...)
