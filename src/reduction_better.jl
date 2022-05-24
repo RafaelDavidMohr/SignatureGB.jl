@@ -23,6 +23,9 @@ function reduction!(mat::F5matrix)
     for (i, row) in enumerate(mat.rows)
         if iszero(pivots[leadingmonomial(row)])
             pivots[leadingmonomial(row)] = i
+            mult = inv(mat.ctx.po.co, first(row.co))
+            mat.rows[i] = mul_scalar(mat.ctx.po, row, mult)
+            mat.module_rows[i] = mul_scalar(mat.ctx.po, mat.module_rows[i], mult)
             continue
         end
 
@@ -66,7 +69,6 @@ function f5_matrix(ctx::SigPolynomialΓ{I, M, MM, T},
 
     sort_mon_table!(tbl, ctx.po.mo)
     sort_mon_table!(module_tbl, ctx.mod_po.mo)
-    println("module table empty: $(isempty(module_tbl.val))")
     sigs = MonSigPair{I, M}[]
     mat_rows = Polynomial{J, T}[]
     mat_module_rows = Polynomial{K, T}[]

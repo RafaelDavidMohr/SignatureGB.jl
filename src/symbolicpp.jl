@@ -102,7 +102,7 @@ function symbolic_pp!(ctx::SΓ,
             findorpush!(module_tbl, m)
         end
         push!(sigpolys, (red, pol, module_pol))
-        @debug "found reducer $((red, ctx)) for $(gpair(ctx.po.mo, m))"
+        # @debug "found reducer $((red, ctx)) for $(gpair(ctx.po.mo, m))"
     end
     @debug "done with symbolic pp..."
     return tbl, module_tbl, sigpolys

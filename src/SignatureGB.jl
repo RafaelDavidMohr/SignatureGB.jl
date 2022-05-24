@@ -642,14 +642,14 @@ function new_elems!(ctx::SΓ,
                     kwargs...) where {I, M, SΓ <: SigPolynomialΓ{I, M}}
 
     for (i, (sig, row)) in enumerate(zip(mat.sigs, mat.rows))
-        @debug "considering $((sig, ctx))"
+        # @debug "considering $((sig, ctx))"
         if mod_order(ctx) == :POT
             index(ctx, sig) < curr_indx && continue
         end
         new_sig = mul(ctx, sig...)
         if isempty(row)
-            @debug "old leading monomial $(gpair(ctx.po.mo, leadingmonomial(ctx, sig..., no_rewrite = true)))"
-            @debug "syzygy $((sig, ctx))"
+            #@debug "old leading monomial $(gpair(ctx.po.mo, leadingmonomial(ctx, sig..., no_rewrite = true)))"
+            #@debug "syzygy $((sig, ctx))"
             @logmsg Verbose2 "" new_syz = true
             push!(H, new_sig)
             if mod_rep_type(ctx) != nothing
@@ -662,8 +662,8 @@ function new_elems!(ctx::SΓ,
         else
             p = unindexpolynomial(mat.tbl, row)
             lm = leadingmonomial(p)
-            @debug "old leading monomial $(gpair(ctx.po.mo, leadingmonomial(ctx, sig..., no_rewrite = true)))"
-            @debug "new leading monomial $(gpair(ctx.po.mo, lm))"
+            #@debug "old leading monomial $(gpair(ctx.po.mo, leadingmonomial(ctx, sig..., no_rewrite = true)))"
+            #@debug "new leading monomial $(gpair(ctx.po.mo, lm))"
             if (isunitvector(ctx, new_sig) && !(new_sig in G.sigs)) || lt(ctx.po.mo, lm, leadingmonomial(ctx, sig..., no_rewrite = true))
                 @debug "adding $((sig, ctx))"
                 @logmsg Verbose2 "" new_basis = true
