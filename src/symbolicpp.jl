@@ -9,8 +9,10 @@ function find_reducer(ctx::SigPolynomialΓ{I, M},
                       f5c = false,
                       kwargs...) where {I, M, E}
 
-    if mod_order(ctx) == :SCHREY || mod_order(ctx) == :DPOT
+    if mod_order(ctx) == :SCHREY
         cond = p -> schrey_degree(ctx, p) <= sig_degree
+    elseif mod_order(ctx) == :DPOT
+        cond = p -> index(ctx, p) <= curr_indx
     elseif mod_order(ctx) == :POT
         cond = p -> index(ctx, p) < curr_indx || degree(ctx, p) <= sig_degree
     else

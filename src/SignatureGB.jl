@@ -51,23 +51,24 @@ function sgb(I::Vector{P};
 end
 
 function f5sat(I::Vector{P},
-               to_sat::P;
+               to_sat::Vector{P};
                verbose = 0,
                kwargs...) where {P<:AA.MPolyElem}
 
     R = parent(first(I))
     ctx = setup(I; mod_rep_type = :highest_index,
-                mod_order = :POT,
                 track_module_tags = [:to_sat],
                 kwargs...)
-    new_generator!(ctx, length(I) + 1, ctx.po(to_sat), :to_sat)
-    G, H, koszul_q, pairs = pairs_and_basis(ctx, length(I) + 1)
+    for (i, f) in enumerate(to_sat)
+        new_generator!(ctx, length(I) + i, ctx.po(f), :to_sat)
+    end
+    G, H, koszul_q, pairs = pairs_and_basis(ctx, length(I) + length(to_sat))
     logger = SGBLogger(ctx, verbose = verbose, task = :sat; kwargs...)
     with_logger(logger) do
         f5sat_core!(ctx, G, H, koszul_q, pairs, R; kwargs...)
         verbose == 2 && printout(logger)
     end
-    [R(ctx, g) for g in filter(g -> tag(ctx, g[1]) != :to_sat, G.sigs)]
+    [R(ctx, g) for g in filter(g -> index(ctx, g) != maxindex(ctx), G.sigs)]
 end    
 
 # function f45sat(I::Vector{P},
@@ -197,12 +198,12 @@ function sgb_core!(ctx::SΓ,
         end
     end
     
-    if isnothing(select)
-        if mod_order(ctx) == :POT
-            select = :deg_and_pos
-        elseif mod_order(ctx) == :SCHREY || mod_order(ctx) == :DPOT
-            select = :schrey_deg
-        end
+    if mod_order(ctx) == :POT 
+        select = :deg_and_pos
+    elseif mod_order(ctx) == :DPOT
+        select = :schrey_deg_and_pos
+    elseif mod_order(ctx) == :SCHREY
+        select = :schrey_deg
     end
 
     if deg_bound > 0 && mod_order(ctx) != :DPOT
@@ -327,10 +328,22 @@ function f5sat_core!(ctx::SΓ,
         error("I currently don't know how to deal with non-degree based monomial orderings...")
     end
 
-    select = :deg_and_pos
+    if mod_order(ctx) == :POT 
+        select = :deg_and_pos
+    elseif mod_order(ctx) == :DPOT
+        select = :schrey_deg_and_pos
+    end
+
+    if f5c
+        mod_order(ctx) != :POT && error("F5c only makes sense for position over term ordering.")
+    end
+
+    
     all_koszul = true
     curr_indx = index(ctx, first(pairs)[1])
     old_gb_length = length(G)
+    insert_index = minimum(key -> index(ctx, key),
+                           filter(key -> tag(ctx, key) == sat_tag, keys(ctx.f5_indices)))
     
     while !(isempty(pairs))
         # TODO: is this a good idea
@@ -367,13 +380,13 @@ function f5sat_core!(ctx::SΓ,
 
                 # cache some reduction results for future use
                 for g in G.sigs
-                    index(ctx, g[1]) == curr_indx && push!(ctx.cashed_sigs, g)
+                    index(ctx, g[1]) >= insert_index && push!(ctx.cashed_sigs, g)
                 end
 
                 # insert the zero divisors
+                println("current index is: $(curr_indx)")
                 for p in pols_to_insert
-                    new_index_key = new_generator!(ctx, curr_indx, p, :zd)
-                    println(R(ctx.po, p))
+                    new_index_key = new_generator!(ctx, insert_index, p, :zd)
                     if isunit(ctx.po, p)
                         new_basis_elem!(G, unitvector(ctx, new_index_key), one(ctx.po.mo))
                         return
@@ -383,14 +396,15 @@ function f5sat_core!(ctx::SΓ,
 
                 # rebuild pairset
                 empty!(pairs)
-                filter_less_than_index!(ctx, G, curr_indx)
-                pair!(ctx, pairs, unitvector(ctx, curr_indx_key))
+                filter_less_than_index!(ctx, G, insert_index)
                 for index_key in keys(ctx.f5_indices)
                     sig = unitvector(ctx, index_key)
-                    if index(ctx, sig) >= curr_indx && tag(ctx, sig) == :zd
+                    if index(ctx, sig) >= insert_index
                         pair!(ctx, pairs, sig)
                     end
                 end
+                insert_index = minimum(key -> index(ctx, key),
+                                       filter(key -> tag(ctx, key) == sat_tag, keys(ctx.f5_indices)))
             end
         end
         @logmsg Verbose2 "" end_time_core = time()
@@ -676,7 +690,7 @@ function interreduction!(ctx::SigPolynomialΓ{I, M},
 
     @logmsg Verbose1 "" interred = true
     basis = [R(ctx.po, ctx(g).pol) for g in G.sigs]
-    interred_basis = (g -> ctx.po(g)).(gens(interreduce(Ideal(R, basis))))
+    interred_basis = (g -> ctx.po(g)).(gens(interreduce(Singular.Ideal(R, basis))))
     sigs = copy(G.sigs)
     empty!(G.sigs)
     sizehint!(G.sigs, length(interred_basis))

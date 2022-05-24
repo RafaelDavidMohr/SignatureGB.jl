@@ -316,6 +316,10 @@ function select!(ctx::SΓ,
         schrey_deg = schrey_degree(ctx, pair[1])
         @logmsg Verbose2 "" sugar_deg = schrey_deg
         cond = p -> schrey_degree(ctx, p[1]) == schrey_deg
+    elseif S == :schrey_deg_and_pos
+        schrey_deg = schrey_degree(ctx, pair[1])
+        @logmsg Verbose2 "" sugar_deg = schrey_deg
+        cond = p -> index(ctx, p[1]) == indx && schrey_degree(ctx, p[1]) == schrey_deg
     else
         error("Select method must be one of :deg_and_pos, :schrey_deg or :pos")
     end

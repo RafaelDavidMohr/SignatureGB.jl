@@ -59,7 +59,7 @@ function SGBLogger(ctx::SigPolynomialΓ{I};
         insertcols!(core_info, :gb_or_sat => Symbol[])
     end
     
-    if mod_order(ctx) == :POT
+    if mod_order(ctx) == :POT || mod_order(ctx) == :DPOT
         insertcols!(core_info, :indx => Int64[])
     end
     if mod_order(ctx) == :SCHREY || mod_order(ctx) == :DPOT
