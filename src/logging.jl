@@ -134,7 +134,7 @@ function Logging.handle_message(logger::SGBLogger, level, message, _module, grou
         if interred
             println("Interreducing...")
         end
-        if sugar_deg > 0
+        if sugar_deg > -1
             println("current degree $(sugar_deg)")
         end
     elseif level == Verbose2
