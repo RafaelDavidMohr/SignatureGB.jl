@@ -324,7 +324,6 @@ function f5sat_core!(ctx::SΓ,
                      max_remasks = 3,
                      sat_tag = [:to_sat],
                      f5c = false,
-                     just_colon = false,
                      kwargs...) where {I,M,SΓ<:SigPolynomialΓ{I,M}}
 
     if !(extends_degree(termorder(ctx.po.mo)))
@@ -345,8 +344,6 @@ function f5sat_core!(ctx::SΓ,
     all_koszul = true
     curr_indx = index(ctx, first(pairs)[1])
     old_gb_length = length(G)
-    insert_index = minimum(key -> index(ctx, key),
-                           filter(key -> tag(ctx, key) in sat_tag, keys(ctx.f5_indices)))
     
     while !(isempty(pairs))
         # TODO: is this a good idea
@@ -375,23 +372,23 @@ function f5sat_core!(ctx::SΓ,
         max_sig = last(mat.sigs)
         curr_indx_key = max_sig[2][1]
         @logmsg Verbose2 "" indx = index(ctx, max_sig) tag = tag(ctx, max_sig)
-        if tag(ctx, max_sig) in sat_tag && !(just_colon)
+        if tag(ctx, max_sig) in sat_tag
             zero_red_row_indices = findall(row -> iszero(row), mat.rows)
+            filter!(i -> tag(ctx, mat.sigs[i]) in sat_tag, zero_red_row_indices)
             if !(isempty(zero_red_row_indices))
                 # zero divisors to insert
                 pols_to_insert = (i -> unindexpolynomial(mat.module_tbl, mat.module_rows[i])).(zero_red_row_indices)
-
+                insert_data = (i -> (unindexpolynomial(mat.module_tbl, mat.module_rows[i]), index(ctx, mat.sigs[i]))).(zero_red_row_indices)
+                min_new_index = minimum(p_and_index -> p_and_index[2], insert_data)
                 # cache some reduction results for future use
                 for g in G.sigs
-                    index(ctx, g[1]) >= insert_index && push!(ctx.cashed_sigs, g)
+                    index(ctx, g[1]) >= min_new_index && push!(ctx.cashed_sigs, g)
                 end
 
                 # insert the zero divisors
-                println("current index is: $(curr_indx)")
-                for p in pols_to_insert
-                    new_index_key = new_generator!(ctx, insert_index, p, :zd)
+                for (p, indx) in insert_data
+                    new_index_key = new_generator!(ctx, indx, p, :zd)
                     if isunit(ctx.po, p)
-                        println("Hello!")
                         new_basis_elem!(G, unitvector(ctx, new_index_key), one(ctx.po.mo))
                         return
                     end
@@ -401,36 +398,22 @@ function f5sat_core!(ctx::SΓ,
                 # rebuild pairset
                 collected_pairset = collect(pairs)
                 empty!(pairs)
-                filter_less_than_index!(ctx, G, insert_index)
+                filter_less_than_index!(ctx, G, min_new_index)
                 for index_key in keys(ctx.f5_indices)
                     sig = unitvector(ctx, index_key)
-                    if index(ctx, sig) >= insert_index
+                    if index(ctx, sig) >= min_new_index
                         pair!(ctx, pairs, sig)
                     end
                 end
                 # preserve the pairs for which the generators are not thrown out
                 for pair in collected_pairset
-                    if index(ctx, pair[1]) < insert_index
+                    if index(ctx, pair[1]) < min_new_index
                         push!(pairs, pair)
                     end
                 end
-                insert_index = minimum(key -> index(ctx, key),
-                                       filter(key -> tag(ctx, key) in sat_tag, keys(ctx.f5_indices)))
             end
         end
         @logmsg Verbose2 "" end_time_core = time()
-    end
-
-    if just_colon
-        for h in H
-            if tag(ctx, h) == sat_tag
-                p = project(ctx, h)
-                indx_key = new_generator!(ctx, curr_indx, p, :p)
-                new_basis_elem!(ctx, G, unitvector(ctx, indx_key))
-            end
-        end
-        filter_less_than_index!(ctx, G, curr_indx_key)
-        f5c && interreduction!(ctx, G, R)
     end
 end
 
@@ -623,7 +606,11 @@ function core_loop!(ctx::SΓ,
                     kwargs...) where {I, M, SΓ <: SigPolynomialΓ{I, M}}
     
     @logmsg Verbose2 "" start_time_core = time()
-    @logmsg Verbose1 "" curr_index = index(ctx, first(pairs)[1]) sig_degree = degree(ctx, first(pairs)[1]) tag = tag(ctx, first(pairs)[1])
+    if mod_order(ctx) == :DPOT || mod_order(ctx) == :SCHREY
+        @logmsg Verbose1 curr_index = index(ctx, first(pairs)[1]) curr_degree = schrey_degree(ctx, first(pairs)[1])
+    else
+        @logmsg Verbose1 "" curr_index = index(ctx, first(pairs)[1]) sig_degree = degree(ctx, first(pairs)[1]) tag = tag(ctx, first(pairs)[1])
+    end
     @debug string("pairset:\n", [isnull(p[2]) ? "$((p[1], ctx))\n" : "$((p[1], ctx)), $((p[2], ctx))\n" for p in pairs]...)
     
     to_reduce, sig_degree, are_pairs = select!(ctx, koszul_q, pairs, Val(select), all_koszul; kwargs...)
