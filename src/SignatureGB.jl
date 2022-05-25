@@ -15,7 +15,7 @@ include("./reduction_better.jl")
 # include("./interreduction.jl")
 include("./gen_example_file.jl")
 
-export sgb, f5sat, nondegen_part, decomp
+export sgb, f5sat
 
 # build initial pairset, basis and syzygies
 function pairs_and_basis(ctx::SigPolynomialΓ,
@@ -73,109 +73,6 @@ function f5sat(I::Vector{P},
     [R(ctx, g) for g in G.sigs]
     # [R(ctx, g) for g in filter(g -> index(ctx, g) != maxindex(ctx), G.sigs)]
 end    
-
-# function f45sat(I::Vector{P},
-#                 to_sat::P;
-#                 verbose = 0,
-#                 kwargs...) where {P<:AA.MPolyElem}
-
-#     R = parent(first(I))
-#     ctx = setup(I; mod_rep_type = :highest_index,
-#                 mod_order = :DPOT,
-#                 track_module_tags = [:to_sat],
-#                 kwargs...)
-#     sat_indx_key = new_generator!(ctx, length(I) + 1, ctx.po(to_sat), :to_sat)
-#     G, H, koszul_q, pairs = pairs_and_basis(ctx, length(I))
-#     logger = SGBLogger(ctx, verbose = verbose, task = :f4sat; kwargs...)
-#     with_logger(logger) do
-#         f45sat_core!(ctx, G, H, koszul_q, pairs, R, [sat_indx_key]; kwargs...)
-#         verbose == 2 && printout(logger)
-#     end
-#     [R(ctx, g[1]) for g in G]
-# end
-
-# function nondegen_part(I::Vector{P};
-#                        verbose = 0,
-#                        kwargs...) where {P <: AA.MPolyElem}
-
-#     R = parent(first(I))
-#     if length(I) > Singular.nvars(parent(first(I)))
-#         error("Put in a number of polynomials less than or equal to the number of variables")
-#     end
-#     ctx = setup([I[1]]; mod_rep_type = :highest_index,
-#                 mod_order = :POT,
-#                 track_module_tags = [:f, :h, :zd],
-#                 kwargs...)
-#     G, H, koszul_q, _ = pairs_and_basis(ctx, 1, start_gen = 2)
-#     remaining = [ctx.po(f) for f in I[2:end]]
-#     logger = SGBLogger(ctx, verbose = verbose, task = :sat; kwargs...)
-#     with_logger(logger) do
-# 	nondegen_part_core!(ctx, G, H, koszul_q, remaining, R; kwargs...)
-#         verbose == 2 && printout(logger)
-#     end
-#     [R(ctx, g[1]) for g in G]
-# end
-
-# function regular_limit(I::Vector{P};
-#                        verbose = 0,
-#                        kwargs...) where {P <: AA.MPolyElem}
-
-#     R = parent(first(I))
-#     if length(I) > Singular.nvars(parent(first(I)))
-#         error("Put in a number of polynomials less than or equal to the number of variables")
-#     end
-#     ctx = setup(I; mod_rep_type = :random_lin_comb,
-#                 mod_order = :DPOT,
-#                 track_module_tags = [:f, :zd],
-#                 kwargs...)
-#     G, H, koszul_q, pairs = pairs_and_basis(ctx, length(I))
-#     logger = SGBLogger(ctx, verbose = verbose; kwargs...)
-#     with_logger(logger) do
-#         regular_limit_core!(ctx, G, H, koszul_q, pairs; kwargs...)
-#         verbose == 2 && printout(logger)
-#     end
-#     [R(ctx, g[1]) for g in G]
-# end
-
-# struct DecompResult{P}
-#     result::Vector{Tuple{Vector{P}, Int64, Symbol, Symbol}}
-# end
-
-# function Base.show(io::IO, res::DecompResult)
-#     for (comp, i, t, s) in res.result
-#         if s == :lower_dim
-#             if t == :lower_dim
-#                 println(io, "component obtained on level $(i) of lower dimension coming from component of lower dimension")
-#             else
-#                 println(io, "component obtained on level $(i) of lower dimension coming from nondegenerate part")
-#             end
-#         else
-#             println(io, "nondegenerate part")
-#         end
-#     end
-# end
-    
-# function decomp(I::Vector{P};
-#                 verbose = 0,
-#                 kwargs...) where {P <: AA.MPolyElem}
-
-#     if length(I) > Singular.nvars(parent(first(I)))
-#         error("Put in a number of polynomials less than or equal to the number of variables")
-#     end
-#     ctx = setup([I[1]]; mod_rep_type = :highest_index,
-#                 mod_order = :POT,
-#                 track_module_tags = [:f, :zd],
-#                 kwargs...)
-#     G, H, koszul_q, _ = pairs_and_basis(ctx, 1, start_gen = 2)
-#     remaining = [ctx.po(f) for f in I[2:end]]
-#     logger = SGBLogger(ctx, verbose = verbose, task = :decomp)
-#     with_logger(logger) do
-# 	components = decomp_core!(ctx, G, H, koszul_q, remaining; kwargs...)
-#         verbose == 2 && printout(logger)
-#         R = parent(first(I))
-#         return DecompResult([([R(ctx, g[1]) for g in G], i, t, s) for (ctx, G, i, t, s) in components])
-#     end
-# end
 
 function sgb_core!(ctx::SΓ,
                    G::Basis{I, M},
@@ -417,6 +314,226 @@ function f5sat_core!(ctx::SΓ,
     end
 end
 
+function core_loop!(ctx::SΓ,
+                    G::Basis{I, M},
+                    H::Syz{I, M},
+                    koszul_q::KoszulQueue{I, M, SΓ},
+                    pairs::PairSet{I, M, SΓ},
+                    select,
+                    all_koszul,
+                    curr_indx;
+                    kwargs...) where {I, M, SΓ <: SigPolynomialΓ{I, M}}
+    
+    @logmsg Verbose2 "" start_time_core = time()
+    @logmsg Verbose1 "" curr_index = index(ctx, first(pairs)[1]) sig_degree = degree(ctx, first(pairs)[1]) tag = tag(ctx, first(pairs)[1])
+    @logmsg Verbose1 "" sugar_deg = mod_order(ctx) in [:DPOT, :SCHREY] ? sugar_deg = schrey_degree(ctx, first(pairs)[1]) : sugar_deg = -1
+    @debug string("pairset:\n", [isnull(p[2]) ? "$((p[1], ctx))\n" : "$((p[1], ctx)), $((p[2], ctx))\n" for p in pairs]...)
+    
+    to_reduce, sig_degree, are_pairs = select!(ctx, koszul_q, pairs, Val(select), all_koszul; kwargs...)
+    if isempty(to_reduce)
+        return f5_matrix(ctx, easytable(M[]), easytable(M[]), Tuple{MonSigPair{I, M}, Polynomial{I, M}, Polynomial{I, eltype(ctx.mod_po.mo)}}[])
+    end
+    
+    @logmsg Verbose2 "" indx = mod_order(ctx) == :POT && !(isempty(to_reduce)) ? maximum(p -> index(ctx, p), to_reduce) : 0
+    @logmsg Verbose2 "" min_deg = minimum(p -> degree(ctx.po, ctx(p...).pol), to_reduce)
+    
+    table, module_table, sigpolys = symbolic_pp!(ctx, to_reduce, G, H, all_koszul, curr_indx,
+                                                 are_pairs = are_pairs; kwargs...)
+    mat = f5_matrix(ctx, table, module_table, sigpolys)
+    
+    @logmsg Verbose2 "" nz_entries = sum([length(rw) for rw in mat.rows]) mat_size = (length(mat.rows), length(mat.tbl))
+    
+    reduction!(mat)
+    return mat
+end
+
+function new_elems!(ctx::SΓ,
+                    G::Basis{I, M},
+                    H::Syz{I, M},
+                    pairs::PairSet{I, M, SΓ},
+                    mat::F5matrix,
+                    all_koszul,
+                    curr_indx::I;
+                    kwargs...) where {I, M, SΓ <: SigPolynomialΓ{I, M}}
+
+    for (i, (sig, row)) in enumerate(zip(mat.sigs, mat.rows))
+        # @debug "considering $((sig, ctx))"
+        if mod_order(ctx) == :POT
+            index(ctx, sig) < curr_indx && continue
+        end
+        new_sig = mul(ctx, sig...)
+        if isempty(row)
+            #@debug "old leading monomial $(gpair(ctx.po.mo, leadingmonomial(ctx, sig..., no_rewrite = true)))"
+            #@debug "syzygy $((sig, ctx))"
+            @logmsg Verbose2 "" new_syz = true
+            push!(H, new_sig)
+            if mod_rep_type(ctx) != nothing
+                q = unindexpolynomial(mat.module_tbl, mat.module_rows[i])
+                ctx(new_sig, zero(q), q)
+            else
+                ctx(new_sig, zero(eltype(ctx.po)))
+            end
+            new_rewriter!(ctx, pairs, new_sig)
+        else
+            p = unindexpolynomial(mat.tbl, row)
+            lm = leadingmonomial(p)
+            #@debug "old leading monomial $(gpair(ctx.po.mo, leadingmonomial(ctx, sig..., no_rewrite = true)))"
+            #@debug "new leading monomial $(gpair(ctx.po.mo, lm))"
+            if (isunitvector(ctx, new_sig) && !(new_sig in G.sigs)) || lt(ctx.po.mo, lm, leadingmonomial(ctx, sig..., no_rewrite = true))
+                @debug "adding $((sig, ctx))"
+                @logmsg Verbose2 "" new_basis = true
+                if mod_rep_type(ctx) == nothing
+                    q = zero(eltype(ctx.po))
+                else
+                    q = unindexpolynomial(mat.module_tbl, mat.module_rows[i])
+                end
+                ctx(new_sig, p, q)
+                new_rewriter!(ctx, pairs, new_sig)
+                # TODO: adapt to new basis struct
+                new_basis_elem!(G, new_sig, lm)
+                pairs!(ctx, pairs, new_sig, lm, G, H, all_koszul; kwargs...)
+            end
+        end
+    end
+end
+
+# TODO: adapt to new basis struct
+function interreduction!(ctx::SigPolynomialΓ{I, M},
+                         G::Basis{I, M},
+                         R) where {I, M}
+
+    @logmsg Verbose1 "" interred = true
+    basis = [R(ctx.po, ctx(g).pol) for g in G.sigs]
+    interred_basis = (g -> ctx.po(g)).(gens(interreduce(Singular.Ideal(R, basis))))
+    sigs = copy(G.sigs)
+    empty!(G.sigs)
+    sizehint!(G.sigs, length(interred_basis))
+    empty!(G.lms)
+    sizehint!(G.lms, length(interred_basis))
+    for i in keys(G.by_index)
+        empty!(G.by_index[i])
+    end
+    for (sig, p) in zip(sigs, interred_basis)
+        ctx(sig, p)
+        new_basis_elem!(G, sig, leadingmonomial(p))
+    end
+    @logmsg Verbose2 "" gb_size_aft_interred = gb_size(ctx, G)
+end
+
+function debug_sgb!(;io = stdout)
+    no_fmt(args...) = :normal, "", ""
+    logger = ConsoleLogger(io, Logging.LogLevel(-1000), meta_formatter = no_fmt)
+    global_logger(logger)
+    global_logger(logger)
+end
+
+end
+
+#----- UNUSED CODE -----#
+
+# function f45sat(I::Vector{P},
+#                 to_sat::P;
+#                 verbose = 0,
+#                 kwargs...) where {P<:AA.MPolyElem}
+
+#     R = parent(first(I))
+#     ctx = setup(I; mod_rep_type = :highest_index,
+#                 mod_order = :DPOT,
+#                 track_module_tags = [:to_sat],
+#                 kwargs...)
+#     sat_indx_key = new_generator!(ctx, length(I) + 1, ctx.po(to_sat), :to_sat)
+#     G, H, koszul_q, pairs = pairs_and_basis(ctx, length(I))
+#     logger = SGBLogger(ctx, verbose = verbose, task = :f4sat; kwargs...)
+#     with_logger(logger) do
+#         f45sat_core!(ctx, G, H, koszul_q, pairs, R, [sat_indx_key]; kwargs...)
+#         verbose == 2 && printout(logger)
+#     end
+#     [R(ctx, g[1]) for g in G]
+# end
+
+# function nondegen_part(I::Vector{P};
+#                        verbose = 0,
+#                        kwargs...) where {P <: AA.MPolyElem}
+
+#     R = parent(first(I))
+#     if length(I) > Singular.nvars(parent(first(I)))
+#         error("Put in a number of polynomials less than or equal to the number of variables")
+#     end
+#     ctx = setup([I[1]]; mod_rep_type = :highest_index,
+#                 mod_order = :POT,
+#                 track_module_tags = [:f, :h, :zd],
+#                 kwargs...)
+#     G, H, koszul_q, _ = pairs_and_basis(ctx, 1, start_gen = 2)
+#     remaining = [ctx.po(f) for f in I[2:end]]
+#     logger = SGBLogger(ctx, verbose = verbose, task = :sat; kwargs...)
+#     with_logger(logger) do
+# 	nondegen_part_core!(ctx, G, H, koszul_q, remaining, R; kwargs...)
+#         verbose == 2 && printout(logger)
+#     end
+#     [R(ctx, g[1]) for g in G]
+# end
+
+# function regular_limit(I::Vector{P};
+#                        verbose = 0,
+#                        kwargs...) where {P <: AA.MPolyElem}
+
+#     R = parent(first(I))
+#     if length(I) > Singular.nvars(parent(first(I)))
+#         error("Put in a number of polynomials less than or equal to the number of variables")
+#     end
+#     ctx = setup(I; mod_rep_type = :random_lin_comb,
+#                 mod_order = :DPOT,
+#                 track_module_tags = [:f, :zd],
+#                 kwargs...)
+#     G, H, koszul_q, pairs = pairs_and_basis(ctx, length(I))
+#     logger = SGBLogger(ctx, verbose = verbose; kwargs...)
+#     with_logger(logger) do
+#         regular_limit_core!(ctx, G, H, koszul_q, pairs; kwargs...)
+#         verbose == 2 && printout(logger)
+#     end
+#     [R(ctx, g[1]) for g in G]
+# end
+
+# struct DecompResult{P}
+#     result::Vector{Tuple{Vector{P}, Int64, Symbol, Symbol}}
+# end
+
+# function Base.show(io::IO, res::DecompResult)
+#     for (comp, i, t, s) in res.result
+#         if s == :lower_dim
+#             if t == :lower_dim
+#                 println(io, "component obtained on level $(i) of lower dimension coming from component of lower dimension")
+#             else
+#                 println(io, "component obtained on level $(i) of lower dimension coming from nondegenerate part")
+#             end
+#         else
+#             println(io, "nondegenerate part")
+#         end
+#     end
+# end
+    
+# function decomp(I::Vector{P};
+#                 verbose = 0,
+#                 kwargs...) where {P <: AA.MPolyElem}
+
+#     if length(I) > Singular.nvars(parent(first(I)))
+#         error("Put in a number of polynomials less than or equal to the number of variables")
+#     end
+#     ctx = setup([I[1]]; mod_rep_type = :highest_index,
+#                 mod_order = :POT,
+#                 track_module_tags = [:f, :zd],
+#                 kwargs...)
+#     G, H, koszul_q, _ = pairs_and_basis(ctx, 1, start_gen = 2)
+#     remaining = [ctx.po(f) for f in I[2:end]]
+#     logger = SGBLogger(ctx, verbose = verbose, task = :decomp)
+#     with_logger(logger) do
+# 	components = decomp_core!(ctx, G, H, koszul_q, remaining; kwargs...)
+#         verbose == 2 && printout(logger)
+#         R = parent(first(I))
+#         return DecompResult([([R(ctx, g[1]) for g in G], i, t, s) for (ctx, G, i, t, s) in components])
+#     end
+# end
+
 # function f45sat_core!(ctx::SΓ,
 #                       G::Basis{I,M},
 #                       H::Syz{I,M},
@@ -595,117 +712,3 @@ end
 #     return [(ctx, G, i, t, s) for (ctx, G, H, i, t, s) in components]
 # end
 
-function core_loop!(ctx::SΓ,
-                    G::Basis{I, M},
-                    H::Syz{I, M},
-                    koszul_q::KoszulQueue{I, M, SΓ},
-                    pairs::PairSet{I, M, SΓ},
-                    select,
-                    all_koszul,
-                    curr_indx;
-                    kwargs...) where {I, M, SΓ <: SigPolynomialΓ{I, M}}
-    
-    @logmsg Verbose2 "" start_time_core = time()
-    @logmsg Verbose1 "" curr_index = index(ctx, first(pairs)[1]) sig_degree = degree(ctx, first(pairs)[1]) tag = tag(ctx, first(pairs)[1])
-    @logmsg Verbose1 "" sugar_deg = mod_order(ctx) in [:DPOT, :SCHREY] ? sugar_deg = schrey_degree(ctx, first(pairs)[1]) : sugar_deg = -1
-    @debug string("pairset:\n", [isnull(p[2]) ? "$((p[1], ctx))\n" : "$((p[1], ctx)), $((p[2], ctx))\n" for p in pairs]...)
-    
-    to_reduce, sig_degree, are_pairs = select!(ctx, koszul_q, pairs, Val(select), all_koszul; kwargs...)
-    if isempty(to_reduce)
-        return f5_matrix(ctx, easytable(M[]), easytable(M[]), Tuple{MonSigPair{I, M}, Polynomial{I, M}, Polynomial{I, eltype(ctx.mod_po.mo)}}[])
-    end
-    
-    @logmsg Verbose2 "" indx = mod_order(ctx) == :POT && !(isempty(to_reduce)) ? maximum(p -> index(ctx, p), to_reduce) : 0
-    @logmsg Verbose2 "" min_deg = minimum(p -> degree(ctx.po, ctx(p...).pol), to_reduce)
-    
-    table, module_table, sigpolys = symbolic_pp!(ctx, to_reduce, G, H, all_koszul, curr_indx,
-                                                 are_pairs = are_pairs; kwargs...)
-    mat = f5_matrix(ctx, table, module_table, sigpolys)
-    
-    @logmsg Verbose2 "" nz_entries = sum([length(rw) for rw in mat.rows]) mat_size = (length(mat.rows), length(mat.tbl))
-    
-    reduction!(mat)
-    return mat
-end
-
-function new_elems!(ctx::SΓ,
-                    G::Basis{I, M},
-                    H::Syz{I, M},
-                    pairs::PairSet{I, M, SΓ},
-                    mat::F5matrix,
-                    all_koszul,
-                    curr_indx::I;
-                    kwargs...) where {I, M, SΓ <: SigPolynomialΓ{I, M}}
-
-    for (i, (sig, row)) in enumerate(zip(mat.sigs, mat.rows))
-        # @debug "considering $((sig, ctx))"
-        if mod_order(ctx) == :POT
-            index(ctx, sig) < curr_indx && continue
-        end
-        new_sig = mul(ctx, sig...)
-        if isempty(row)
-            #@debug "old leading monomial $(gpair(ctx.po.mo, leadingmonomial(ctx, sig..., no_rewrite = true)))"
-            #@debug "syzygy $((sig, ctx))"
-            @logmsg Verbose2 "" new_syz = true
-            push!(H, new_sig)
-            if mod_rep_type(ctx) != nothing
-                q = unindexpolynomial(mat.module_tbl, mat.module_rows[i])
-                ctx(new_sig, zero(q), q)
-            else
-                ctx(new_sig, zero(eltype(ctx.po)))
-            end
-            new_rewriter!(ctx, pairs, new_sig)
-        else
-            p = unindexpolynomial(mat.tbl, row)
-            lm = leadingmonomial(p)
-            #@debug "old leading monomial $(gpair(ctx.po.mo, leadingmonomial(ctx, sig..., no_rewrite = true)))"
-            #@debug "new leading monomial $(gpair(ctx.po.mo, lm))"
-            if (isunitvector(ctx, new_sig) && !(new_sig in G.sigs)) || lt(ctx.po.mo, lm, leadingmonomial(ctx, sig..., no_rewrite = true))
-                @debug "adding $((sig, ctx))"
-                @logmsg Verbose2 "" new_basis = true
-                if mod_rep_type(ctx) == nothing
-                    q = zero(eltype(ctx.po))
-                else
-                    q = unindexpolynomial(mat.module_tbl, mat.module_rows[i])
-                end
-                ctx(new_sig, p, q)
-                new_rewriter!(ctx, pairs, new_sig)
-                # TODO: adapt to new basis struct
-                new_basis_elem!(G, new_sig, lm)
-                pairs!(ctx, pairs, new_sig, lm, G, H, all_koszul; kwargs...)
-            end
-        end
-    end
-end
-
-# TODO: adapt to new basis struct
-function interreduction!(ctx::SigPolynomialΓ{I, M},
-                         G::Basis{I, M},
-                         R) where {I, M}
-
-    @logmsg Verbose1 "" interred = true
-    basis = [R(ctx.po, ctx(g).pol) for g in G.sigs]
-    interred_basis = (g -> ctx.po(g)).(gens(interreduce(Singular.Ideal(R, basis))))
-    sigs = copy(G.sigs)
-    empty!(G.sigs)
-    sizehint!(G.sigs, length(interred_basis))
-    empty!(G.lms)
-    sizehint!(G.lms, length(interred_basis))
-    for i in keys(G.by_index)
-        empty!(G.by_index[i])
-    end
-    for (sig, p) in zip(sigs, interred_basis)
-        ctx(sig, p)
-        new_basis_elem!(G, sig, leadingmonomial(p))
-    end
-    @logmsg Verbose2 "" gb_size_aft_interred = gb_size(ctx, G)
-end
-
-function debug_sgb!(;io = stdout)
-    no_fmt(args...) = :normal, "", ""
-    logger = ConsoleLogger(io, Logging.LogLevel(-1000), meta_formatter = no_fmt)
-    global_logger(logger)
-    global_logger(logger)
-end
-
-end
