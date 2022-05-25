@@ -56,18 +56,22 @@ function f5sat(I::Vector{P},
 
     R = parent(first(I))
     ctx = setup(I; mod_rep_type = :highest_index,
-                track_module_tags = [:to_sat],
+                track_module_tags = [],
                 kwargs...)
+    sat_tag = Symbol[]
     for (i, f) in enumerate(to_sat)
-        new_generator!(ctx, length(I) + i, ctx.po(f), :to_sat)
+        new_generator!(ctx, length(I) + i, ctx.po(f), Symbol("to_sat_$(i)"))
+        push!(sat_tag, Symbol("to_sat_$(i)"))
+        push!(ctx.track_module_tags, Symbol("to_sat_$(i)"))
     end
     G, H, koszul_q, pairs = pairs_and_basis(ctx, length(I) + length(to_sat); kwargs...)
     logger = SGBLogger(ctx, verbose = verbose, task = :sat; kwargs...)
     with_logger(logger) do
-        f5sat_core!(ctx, G, H, koszul_q, pairs, R; kwargs...)
+        f5sat_core!(ctx, G, H, koszul_q, pairs, R, sat_tag = sat_tag; kwargs...)
         verbose == 2 && printout(logger)
     end
-    [R(ctx, g) for g in filter(g -> index(ctx, g) != maxindex(ctx), G.sigs)]
+    [R(ctx, g) for g in G.sigs]
+    # [R(ctx, g) for g in filter(g -> index(ctx, g) != maxindex(ctx), G.sigs)]
 end    
 
 # function f45sat(I::Vector{P},
@@ -318,7 +322,7 @@ function f5sat_core!(ctx::SΓ,
                      pairs::PairSet{I,M,SΓ},
                      R;
                      max_remasks = 3,
-                     sat_tag = :to_sat,
+                     sat_tag = [:to_sat],
                      f5c = false,
                      just_colon = false,
                      kwargs...) where {I,M,SΓ<:SigPolynomialΓ{I,M}}
@@ -342,7 +346,7 @@ function f5sat_core!(ctx::SΓ,
     curr_indx = index(ctx, first(pairs)[1])
     old_gb_length = length(G)
     insert_index = minimum(key -> index(ctx, key),
-                           filter(key -> tag(ctx, key) == sat_tag, keys(ctx.f5_indices)))
+                           filter(key -> tag(ctx, key) in sat_tag, keys(ctx.f5_indices)))
     
     while !(isempty(pairs))
         # TODO: is this a good idea
@@ -371,7 +375,7 @@ function f5sat_core!(ctx::SΓ,
         max_sig = last(mat.sigs)
         curr_indx_key = max_sig[2][1]
         @logmsg Verbose2 "" indx = index(ctx, max_sig) tag = tag(ctx, max_sig)
-        if tag(ctx, max_sig) == sat_tag && !(just_colon)
+        if tag(ctx, max_sig) in sat_tag && !(just_colon)
             zero_red_row_indices = findall(row -> iszero(row), mat.rows)
             if !(isempty(zero_red_row_indices))
                 # zero divisors to insert
@@ -387,6 +391,7 @@ function f5sat_core!(ctx::SΓ,
                 for p in pols_to_insert
                     new_index_key = new_generator!(ctx, insert_index, p, :zd)
                     if isunit(ctx.po, p)
+                        println("Hello!")
                         new_basis_elem!(G, unitvector(ctx, new_index_key), one(ctx.po.mo))
                         return
                     end
@@ -394,6 +399,7 @@ function f5sat_core!(ctx::SΓ,
                 # syz_signatures = [g[2] for g in filter(g -> g[1] == curr_index_key, G)]
 
                 # rebuild pairset
+                collected_pairset = collect(pairs)
                 empty!(pairs)
                 filter_less_than_index!(ctx, G, insert_index)
                 for index_key in keys(ctx.f5_indices)
@@ -402,8 +408,14 @@ function f5sat_core!(ctx::SΓ,
                         pair!(ctx, pairs, sig)
                     end
                 end
+                # preserve the pairs for which the generators are not thrown out
+                for pair in collected_pairset
+                    if index(ctx, pair[1]) < insert_index
+                        push!(pairs, pair)
+                    end
+                end
                 insert_index = minimum(key -> index(ctx, key),
-                                       filter(key -> tag(ctx, key) == sat_tag, keys(ctx.f5_indices)))
+                                       filter(key -> tag(ctx, key) in sat_tag, keys(ctx.f5_indices)))
             end
         end
         @logmsg Verbose2 "" end_time_core = time()
