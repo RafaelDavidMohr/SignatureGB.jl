@@ -21,7 +21,21 @@ function filter_less_than_index!(ctx::SigPolynomialΓ{I, M},
             G.by_index[i] = M[]
         end
     end
-end 
+end
+
+function filter_by_tag!(ctx::SigPolynomialΓ{I, M},
+                        G::Basis{I, M},
+                        tag_name::Symbol) where {I, M}
+
+    to_delete = findall(sig -> tag(ctx, sig) == tag_name, G.sigs)
+    deleteat!(G.sigs, to_delete)
+    deleteat!(G.lms, to_delete)
+    for i in keys(G.by_index)
+        if tag(ctx, i) == tag_name
+            G.by_index[i] = M[]
+        end
+    end
+end
 
 struct MPairOrdering{SΓ <: SigPolynomialΓ}<:Base.Order.Ordering
     ord::SigOrdering{SΓ}

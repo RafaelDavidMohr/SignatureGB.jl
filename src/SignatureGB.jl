@@ -72,7 +72,29 @@ function f5sat(I::Vector{P},
     end
     [R(ctx, g) for g in G.sigs]
     # [R(ctx, g) for g in filter(g -> index(ctx, g) != maxindex(ctx), G.sigs)]
-end    
+end
+
+function nondegen_part(I::Vector{P};
+                       verbose = 0,
+                       kwargs...) where {P <: AA.MPolyElem}
+
+    R = parent(first(I))
+    if length(I) > Singular.nvars(parent(first(I)))
+        error("Put in a number of polynomials less than or equal to the number of variables")
+    end
+    ctx = setup([I[1]]; mod_rep_type = :highest_index,
+                mod_order = :POT,
+                track_module_tags = [:f, :h, :zd],
+                kwargs...)
+    G, H, koszul_q, _ = pairs_and_basis(ctx, 1, start_gen = 2)
+    remaining = [ctx.po(f) for f in I[2:end]]
+    logger = SGBLogger(ctx, verbose = verbose, task = :sat; kwargs...)
+    with_logger(logger) do
+	nondegen_part_core!(ctx, G, H, koszul_q, remaining, R; kwargs...)
+        verbose == 2 && printout(logger)
+    end
+    [R(ctx, g) for g in G.sigs]
+end
 
 function sgb_core!(ctx::SΓ,
                    G::Basis{I, M},
@@ -152,66 +174,6 @@ function sgb_core!(ctx::SΓ,
     end
 end
 
-# function regular_limit_core!(ctx::SΓ,
-#                              G::Basis{I,M},
-#                              H::Syz{I,M},
-#                              koszul_q::KoszulQueue{I,M,SΓ},
-#                              pairs::PairSet{I,M,SΓ};
-#                              kwargs...) where {I, M, SΓ<:SigPolynomialΓ{I,M}}
-    
-#     if !(extends_degree(termorder(ctx.po.mo)))
-#         error("I currently don't know how to deal with non-degree based monomial orderings...")
-#     end
-#     select = :schrey_deg
-#     all_koszul = true
-
-#     while !(isempty(pairs))
-        
-#         to_reduce, done = core_loop!(ctx, G, H, koszul_q, pairs, select, all_koszul, select_both = false; kwargs...)
-#         isempty(to_reduce) && continue
-#         mat = F5matrix(ctx, done, collect(to_reduce); kwargs...)
-#         @logmsg Verbose2 "" nz_entries = sum([length(rw) for rw in values(rows(mat))]) mat_size = (length(rows(mat)), length(tbl(mat)))
-#         reduction!(mat)
-#         rws = rows(mat)
-
-#         zero_red_all = filter(kv -> iszero(pol(mat, kv[2])), rws)
-#         zero_red = filter(kv -> !(iszero(module_pol(mat, kv[1]))), zero_red_all)
-#         if isempty(zero_red)
-#             new_elems!(ctx, G, H, pairs, mat, all_koszul; kwargs...)
-#             @logmsg Verbose2 "" gb_size = gb_size(ctx, G)
-#         else
-#             for (sig, _) in zero_red_all
-#                 push!(H, mul(ctx, sig...))
-#                 ctx(mul(ctx, sig...), zero(eltype(ctx.po)))
-#             end
-#             pols_to_insert = (sig -> unindexpolynomial(tbl(mat.module_matrix), module_pol(mat, sig))).(keys(zero_red))
-#             max_indx = maxindex(ctx)
-#             # insert zero divisors
-#             println("inserting stuff")
-#             for (i, p) in enumerate(pols_to_insert)
-#                 @logmsg Verbose2 "" new_syz = true
-#                 new_index_key = new_generator!(ctx, max_indx + i, p, :zd)
-#                 if isunit(ctx.po, p)
-#                     new_basis_elem!(G, unitvector(ctx, new_index_key), one(ctx.po.mo))
-#                     return
-#                 end
-#             end
-#             # rebuild basis and pairset
-#             pairs = pairset(ctx)
-#             filter!(g -> all(i -> lt(ctx, g[1], unitvector(ctx, max_indx + i)), 1:length(pols_to_insert)), G)
-#             for i in 1:length(pols_to_insert)
-#                 pair!(ctx, pairs, unitvector(ctx, max_indx + i))
-#             end
-#             for index_key in keys(ctx.f5_indices)
-#                 if any(i -> lt(ctx, unitvector(ctx, max_indx + i), unitvector(ctx, index_key)), 1:length(pols_to_insert))
-#                     pair!(ctx, pairs, unitvector(ctx, index_key))
-#                 end
-#             end
-#         end
-#         @logmsg Verbose2 "" end_time_core = time()
-#     end
-# end
-
 function f5sat_core!(ctx::SΓ,
                      G::Basis{I,M},
                      H::Syz{I,M},
@@ -221,6 +183,7 @@ function f5sat_core!(ctx::SΓ,
                      max_remasks = 3,
                      sat_tag = [:to_sat],
                      f5c = false,
+                     deg_bound = 0,
                      kwargs...) where {I,M,SΓ<:SigPolynomialΓ{I,M}}
 
     if !(extends_degree(termorder(ctx.po.mo)))
@@ -237,6 +200,9 @@ function f5sat_core!(ctx::SΓ,
         mod_order(ctx) != :POT && error("F5c only makes sense for position over term ordering.")
     end
 
+    if deg_bound > 0 && mod_order(ctx) != :DPOT
+        error("only put deg_bound > 0 if you use :DPOT as a module order")
+    end
     
     all_koszul = true
     curr_indx = index(ctx, first(pairs)[1])
@@ -313,6 +279,62 @@ function f5sat_core!(ctx::SΓ,
         @logmsg Verbose2 "" end_time_core = time()
     end
 end
+
+function nondegen_part_core!(ctx::SΓ,
+                             G::Basis{I, M},
+                             H::Syz{I, M},
+                             koszul_q::KoszulQueue{I, M, SΓ},
+                             remaining::Vector{P},
+                             R;
+                             max_remasks = 3,
+                             f5c = false,
+                             kwargs...) where {I, M, SΓ <: SigPolynomialΓ{I, M},
+                                               P <: Polynomial{M}}
+
+    ngens = length(ctx.f5_indices)
+    cleaning_info = eltype(ctx)[]
+    pairs = pairset(ctx)
+    
+    for (i, f) in enumerate(remaining)
+        last_index = maxindex(ctx)
+        indx_key = new_generator!(ctx, f)
+        pair!(ctx, pairs, unitvector(ctx, indx_key))
+        # last_index = maximum(g -> index(ctx, g[1]), G)
+        f5sat_core!(ctx, G, H, koszul_q, pairs, R,
+                    max_remasks = max_remasks - i, sat_tag = [:f]; f5c = f5c, kwargs...)
+        empty!(pairs)
+        f5c && interreduction!(ctx, G, R)
+        
+        curr_index = ctx.f5_indices[indx_key].index
+        gs = [k for (k, v) in ctx.f5_indices
+                  if v.tag == :zd && last_index < v.index < curr_index]
+        for k in gs
+            syz = filter(h -> index(ctx, h) == index(ctx, k), H)
+            isempty(syz) && continue
+            hs = [project(ctx, h) for h in syz]
+            # for h in hs
+            #     println("new cleaner $(R(ctx.po, h))")
+            # end
+            cleaner = random_lin_comb(ctx.po, [project(ctx, h) for h in syz])
+            new_indx_key = new_generator!(ctx, curr_index + 1, cleaner, :h)
+            push!(cleaning_info, unitvector(ctx, new_indx_key))
+        end
+
+        for (j, cleaner) in enumerate(cleaning_info)
+            if index(ctx, cleaner) < curr_index + 1
+                new_index!(ctx, cleaner[1], curr_index + j, :h)
+            end
+            pair!(ctx, pairs, cleaner)
+            f5sat_core!(ctx, G, H, koszul_q, pairs, R,
+                        max_remasks = max_remasks - i, sat_tag = [:h]; f5c = f5c, kwargs...)
+            empty!(pairs)
+            filter_by_tag!(ctx, G, :h)
+        end
+        
+        empty!(pairs)
+    end
+end
+
 
 function core_loop!(ctx::SΓ,
                     G::Basis{I, M},
@@ -451,28 +473,6 @@ end
 #     [R(ctx, g[1]) for g in G]
 # end
 
-# function nondegen_part(I::Vector{P};
-#                        verbose = 0,
-#                        kwargs...) where {P <: AA.MPolyElem}
-
-#     R = parent(first(I))
-#     if length(I) > Singular.nvars(parent(first(I)))
-#         error("Put in a number of polynomials less than or equal to the number of variables")
-#     end
-#     ctx = setup([I[1]]; mod_rep_type = :highest_index,
-#                 mod_order = :POT,
-#                 track_module_tags = [:f, :h, :zd],
-#                 kwargs...)
-#     G, H, koszul_q, _ = pairs_and_basis(ctx, 1, start_gen = 2)
-#     remaining = [ctx.po(f) for f in I[2:end]]
-#     logger = SGBLogger(ctx, verbose = verbose, task = :sat; kwargs...)
-#     with_logger(logger) do
-# 	nondegen_part_core!(ctx, G, H, koszul_q, remaining, R; kwargs...)
-#         verbose == 2 && printout(logger)
-#     end
-#     [R(ctx, g[1]) for g in G]
-# end
-
 # function regular_limit(I::Vector{P};
 #                        verbose = 0,
 #                        kwargs...) where {P <: AA.MPolyElem}
@@ -595,61 +595,6 @@ end
 #     end
 # end
 
-# function nondegen_part_core!(ctx::SΓ,
-#                              G::Basis{I, M},
-#                              H::Syz{I, M},
-#                              koszul_q::KoszulQueue{I, M, SΓ},
-#                              remaining::Vector{P},
-#                              R;
-#                              max_remasks = 3,
-#                              f5c = false,
-#                              kwargs...) where {I, M, SΓ <: SigPolynomialΓ{I, M},
-#                                                P <: Polynomial{M}}
-
-#     ngens = length(ctx.f5_indices)
-#     cleaning_info = eltype(ctx)[]
-#     pairs = pairset(ctx)
-    
-#     for (i, f) in enumerate(remaining)
-#         last_index = maxindex(ctx)
-#         indx_key = new_generator!(ctx, f)
-#         pair!(ctx, pairs, unitvector(ctx, indx_key))
-#         # last_index = maximum(g -> index(ctx, g[1]), G)
-#         f5sat_core!(ctx, G, H, koszul_q, pairs, R,
-#                     max_remasks = max_remasks - i, sat_tag = :f; f5c = f5c, kwargs...)
-#         empty!(pairs)
-#         f5c && interreduction!(ctx, G, R)
-        
-#         curr_index = ctx.f5_indices[indx_key].index
-#         gs = [k for (k, v) in ctx.f5_indices
-#                   if v.tag == :zd && last_index < v.index < curr_index]
-#         for k in gs
-#             syz = filter(h -> index(ctx, h) == index(ctx, k), H)
-#             isempty(syz) && continue
-#             hs = [project(ctx, h) for h in syz]
-#             for h in hs
-#                 println("new cleaner $(R(ctx.po, h))")
-#             end
-#             cleaner = random_lin_comb(ctx.po, [project(ctx, h) for h in syz])
-#             new_indx_key = new_generator!(ctx, curr_index + 1, cleaner, :h)
-#             push!(cleaning_info, unitvector(ctx, new_indx_key))
-#         end
-
-#         for (j, cleaner) in enumerate(cleaning_info)
-#             if index(ctx, cleaner) < curr_index + 1
-#                 new_index!(ctx, cleaner[1], curr_index + j, :h)
-#             end
-#             pair!(ctx, pairs, cleaner)
-#             f5sat_core!(ctx, G, H, koszul_q, pairs, R,
-#                         max_remasks = max_remasks - i, sat_tag = :h; f5c = f5c, kwargs...)
-#             empty!(pairs)
-#             filter!(g -> tag(ctx, g[1]) != :h, G)
-#         end
-        
-#         empty!(pairs)
-#     end
-# end
-
 # function decomp_core!(ctx::SΓ,
 #                       G::Basis{I, M},
 #                       H::Syz{I, M},
@@ -712,3 +657,62 @@ end
 #     return [(ctx, G, i, t, s) for (ctx, G, H, i, t, s) in components]
 # end
 
+# function regular_limit_core!(ctx::SΓ,
+#                              G::Basis{I,M},
+#                              H::Syz{I,M},
+#                              koszul_q::KoszulQueue{I,M,SΓ},
+#                              pairs::PairSet{I,M,SΓ};
+#                              kwargs...) where {I, M, SΓ<:SigPolynomialΓ{I,M}}
+    
+#     if !(extends_degree(termorder(ctx.po.mo)))
+#         error("I currently don't know how to deal with non-degree based monomial orderings...")
+#     end
+#     select = :schrey_deg
+#     all_koszul = true
+
+#     while !(isempty(pairs))
+        
+#         to_reduce, done = core_loop!(ctx, G, H, koszul_q, pairs, select, all_koszul, select_both = false; kwargs...)
+#         isempty(to_reduce) && continue
+#         mat = F5matrix(ctx, done, collect(to_reduce); kwargs...)
+#         @logmsg Verbose2 "" nz_entries = sum([length(rw) for rw in values(rows(mat))]) mat_size = (length(rows(mat)), length(tbl(mat)))
+#         reduction!(mat)
+#         rws = rows(mat)
+
+#         zero_red_all = filter(kv -> iszero(pol(mat, kv[2])), rws)
+#         zero_red = filter(kv -> !(iszero(module_pol(mat, kv[1]))), zero_red_all)
+#         if isempty(zero_red)
+#             new_elems!(ctx, G, H, pairs, mat, all_koszul; kwargs...)
+#             @logmsg Verbose2 "" gb_size = gb_size(ctx, G)
+#         else
+#             for (sig, _) in zero_red_all
+#                 push!(H, mul(ctx, sig...))
+#                 ctx(mul(ctx, sig...), zero(eltype(ctx.po)))
+#             end
+#             pols_to_insert = (sig -> unindexpolynomial(tbl(mat.module_matrix), module_pol(mat, sig))).(keys(zero_red))
+#             max_indx = maxindex(ctx)
+#             # insert zero divisors
+#             println("inserting stuff")
+#             for (i, p) in enumerate(pols_to_insert)
+#                 @logmsg Verbose2 "" new_syz = true
+#                 new_index_key = new_generator!(ctx, max_indx + i, p, :zd)
+#                 if isunit(ctx.po, p)
+#                     new_basis_elem!(G, unitvector(ctx, new_index_key), one(ctx.po.mo))
+#                     return
+#                 end
+#             end
+#             # rebuild basis and pairset
+#             pairs = pairset(ctx)
+#             filter!(g -> all(i -> lt(ctx, g[1], unitvector(ctx, max_indx + i)), 1:length(pols_to_insert)), G)
+#             for i in 1:length(pols_to_insert)
+#                 pair!(ctx, pairs, unitvector(ctx, max_indx + i))
+#             end
+#             for index_key in keys(ctx.f5_indices)
+#                 if any(i -> lt(ctx, unitvector(ctx, max_indx + i), unitvector(ctx, index_key)), 1:length(pols_to_insert))
+#                     pair!(ctx, pairs, unitvector(ctx, index_key))
+#                 end
+#             end
+#         end
+#         @logmsg Verbose2 "" end_time_core = time()
+#     end
+# end
