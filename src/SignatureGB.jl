@@ -186,8 +186,11 @@ function f5sat_core!(ctx::SΓ,
                      deg_bound = 0,
                      use_non_zero_conditions = false,
                      non_zero_conditions = SigHash{I, M}[],
+                     excluded_tags = Symbol[],
                      kwargs...) where {I,M,SΓ<:SigPolynomialΓ{I,M}}
 
+    mod_order(ctx) != :POT && error("The experimental modifications will currently only work with POT")
+    
     if !(extends_degree(termorder(ctx.po.mo)))
         error("I currently don't know how to deal with non-degree based monomial orderings...")
     end
@@ -232,9 +235,11 @@ function f5sat_core!(ctx::SΓ,
                 syz = filter(h -> h[1] == curr_indx_key, H)
                 isempty(syz) && continue
                 hs = [project(ctx, h) for h in syz]
-                cleaner = random_lin_comb(ctx.po, [project(ctx, h) for h in syz])
+                cleaner = first(hs)
+                # cleaner = random_lin_comb(ctx.po, [project(ctx, h) for h in syz])
                 new_indx_key = new_generator!(ctx, maxindex(ctx) + 1, cleaner, :h)
                 println("Found non-zero condition $(R(ctx.po, cleaner))")
+                # TODO: sort these by degree
                 push!(non_zero_conditions, unitvector(ctx, new_indx_key))
             end
             # EXPERIMENTAL END -------
@@ -269,33 +274,41 @@ function f5sat_core!(ctx::SΓ,
                     # EXPERIMENTAL -------
                     check_if_contained_in = filter(sig -> index(ctx, sig) < indx, G.sigs)
                     if use_non_zero_conditions && any(h -> iszero(poly_reduce(ctx, check_if_contained_in, R(ctx, h) * R(ctx.po, p), R)), non_zero_conditions)
-                        new_index_key = new_generator!(ctx, indx + 1 + inserted_below, p, :zd)
+                        new_index_key = new_generator!(ctx, indx + 1 + inserted_below, p, :zd_irrel)
                     else
                         new_index_key = new_generator!(ctx, indx, p, :zd)
                         inserted_below += 1
                     end
+                    pair!(ctx, pairs, unitvector(ctx, new_index_key))
                     # EXPERIMENTAL END -------
                     if isunit(ctx.po, p)
                         new_basis_elem!(G, unitvector(ctx, new_index_key), one(ctx.po.mo))
                         return
                     end
                 end
+                if iszero(inserted_below)
+                    println("everything inserted above!")
+                end
                 # syz_signatures = [g[2] for g in filter(g -> g[1] == curr_index_key, G)]
 
-                # rebuild pairset
-                collected_pairset = collect(pairs)
-                empty!(pairs)
-                filter_less_than_index!(ctx, G, min_new_index)
-                for index_key in keys(ctx.f5_indices)
-                    sig = unitvector(ctx, index_key)
-                    if index(ctx, sig) >= min_new_index && tag(ctx, sig) != :h
-                        pair!(ctx, pairs, sig)
+                # rebuild pairset and basis if something was inserted below
+                if !(iszero(inserted_below))
+                    collected_pairset = collect(pairs)
+                    empty!(pairs)
+                    # filter stuff out of basis that might reduce further
+                    filter_less_than_index!(ctx, G, min_new_index)
+                    # rebuild pairset
+                    for index_key in keys(ctx.f5_indices)
+                        sig = unitvector(ctx, index_key)
+                        if index(ctx, sig) >= min_new_index && !(tag(ctx, sig) in excluded_tags)
+                            pair!(ctx, pairs, sig)
+                        end
                     end
-                end
-                # preserve the pairs for which the generators are not thrown out
-                for pair in collected_pairset
-                    if index(ctx, pair[1]) < min_new_index
-                        push!(pairs, pair)
+                    # preserve the pairs for which the generators are not thrown out
+                    for pair in collected_pairset
+                        if index(ctx, pair[1]) < min_new_index
+                            push!(pairs, pair)
+                        end
                     end
                 end
                 curr_indx_key = first(pairs)[1][2][1]
@@ -328,12 +341,14 @@ function nondegen_part_core!(ctx::SΓ,
         f5sat_core!(ctx, G, H, koszul_q, pairs, R,
                     max_remasks = max_remasks - i, sat_tag = [:f]; f5c = f5c,
                     use_non_zero_conditions = true,
-                    non_zero_conditions = non_zero_conditions, kwargs...)
+                    non_zero_conditions = non_zero_conditions,
+                    excluded_tags = [:h], kwargs...)
         empty!(pairs)
         f5c && interreduction!(ctx, G, R)
         
         for cleaner in non_zero_conditions
             pair!(ctx, pairs, cleaner)
+            println("cleaning up...")
             f5sat_core!(ctx, G, H, koszul_q, pairs, R,
                         max_remasks = max_remasks - i, sat_tag = [:h]; f5c = f5c, kwargs...)
             empty!(pairs)
