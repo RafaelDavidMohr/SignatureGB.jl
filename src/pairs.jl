@@ -9,15 +9,29 @@ struct Basis{I, M}
 end
 const Syz{I, M} = Vector{SigHash{I, M}}
 
+function poly_reduce(ctx::SigPolynomialΓ{I, M},
+                     G_sigs::Vector{SigHash{I, M}},
+                     p::P,
+                     R) where {I, M, P <: AA.MPolyElem}
+
+    J = Singular.Ideal(R, [R(ctx, g) for g in G_sigs])
+    J.isGB = true
+    q = reduce(p, J)
+    return ctx.po(q)
+end
+
 function poly_reduce(ctx::SigPolynomialΓ{I, M, MM, T},
-                     G::Basis{I, M},
+                     G_sigs::Vector{SigHash{I, M}},
                      p::Polynomial{M, T},
                      R) where {I, M, MM, T}
 
-    J = Singular.Ideal(R, [R(ctx, g) for g in G.sigs])
-    J.isGB = true
-    q = reduce(R(ctx.po, p), J)
-    return ctx.po(q)
+    poly_reduce(ctx, G_sigs, R(ctx.po, p), R)
+end
+
+function poly_reduce(ctx::SigPolynomialΓ{I, M, MM, T},
+                     G::Basis{I, M},
+                     p::Polynomial{M, T}, R) where {I, M, MM, T}
+    poly_reduce(ctx, G.sigs, p, R)
 end
 
 function filter_less_than_index!(ctx::SigPolynomialΓ{I, M},

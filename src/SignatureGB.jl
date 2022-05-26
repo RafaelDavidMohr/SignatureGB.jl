@@ -15,7 +15,7 @@ include("./reduction_better.jl")
 # include("./interreduction.jl")
 include("./gen_example_file.jl")
 
-export sgb, f5sat
+export sgb, f5sat, nondegen_part
 
 # build initial pairset, basis and syzygies
 function pairs_and_basis(ctx::SigPolynomialΓ,
@@ -184,6 +184,8 @@ function f5sat_core!(ctx::SΓ,
                      sat_tag = [:to_sat],
                      f5c = false,
                      deg_bound = 0,
+                     use_non_zero_conditions = false,
+                     non_zero_conditions = SigHash{I, M}[],
                      kwargs...) where {I,M,SΓ<:SigPolynomialΓ{I,M}}
 
     if !(extends_degree(termorder(ctx.po.mo)))
@@ -206,6 +208,7 @@ function f5sat_core!(ctx::SΓ,
     
     all_koszul = true
     curr_indx = index(ctx, first(pairs)[1])
+    curr_indx_key = first(pairs)[1][2][1]
     old_gb_length = length(G)
     
     while !(isempty(pairs))
@@ -224,7 +227,19 @@ function f5sat_core!(ctx::SΓ,
                 end
                 old_gb_length = length(G)
             end
+            # EXPERIMENTAL -------
+            if use_non_zero_conditions && tag(ctx, curr_indx_key) == :zd
+                syz = filter(h -> h[1] == curr_indx_key, H)
+                isempty(syz) && continue
+                hs = [project(ctx, h) for h in syz]
+                cleaner = random_lin_comb(ctx.po, [project(ctx, h) for h in syz])
+                new_indx_key = new_generator!(ctx, maxindex(ctx) + 1, cleaner, :h)
+                println("Found non-zero condition $(R(ctx.po, cleaner))")
+                push!(non_zero_conditions, unitvector(ctx, new_indx_key))
+            end
+            # EXPERIMENTAL END -------
             curr_indx = next_index
+            curr_indx_key = first(pairs)[1][2][1]
         end
 
         mat = core_loop!(ctx, G, H, koszul_q, pairs, select, all_koszul, curr_indx, select_both = false, f5c = f5c)
@@ -233,7 +248,6 @@ function f5sat_core!(ctx::SΓ,
         @logmsg Verbose2 "" gb_size = gb_size(ctx, G)
         
         max_sig = last(mat.sigs)
-        curr_indx_key = max_sig[2][1]
         @logmsg Verbose2 "" indx = index(ctx, max_sig) tag = tag(ctx, max_sig)
         if tag(ctx, max_sig) in sat_tag
             zero_red_row_indices = findall(row -> iszero(row), mat.rows)
@@ -249,8 +263,18 @@ function f5sat_core!(ctx::SΓ,
                 end
 
                 # insert the zero divisors
+                inserted_below = 0
                 for (p, indx) in insert_data
-                    new_index_key = new_generator!(ctx, indx, p, :zd)
+                    # CAREFUL: will only work with POT
+                    # EXPERIMENTAL -------
+                    check_if_contained_in = filter(sig -> index(ctx, sig) < indx, G.sigs)
+                    if use_non_zero_conditions && any(h -> iszero(poly_reduce(ctx, check_if_contained_in, R(ctx, h) * R(ctx.po, p), R)), non_zero_conditions)
+                        new_index_key = new_generator!(ctx, indx + 1 + inserted_below, p, :zd)
+                    else
+                        new_index_key = new_generator!(ctx, indx, p, :zd)
+                        inserted_below += 1
+                    end
+                    # EXPERIMENTAL END -------
                     if isunit(ctx.po, p)
                         new_basis_elem!(G, unitvector(ctx, new_index_key), one(ctx.po.mo))
                         return
@@ -264,7 +288,7 @@ function f5sat_core!(ctx::SΓ,
                 filter_less_than_index!(ctx, G, min_new_index)
                 for index_key in keys(ctx.f5_indices)
                     sig = unitvector(ctx, index_key)
-                    if index(ctx, sig) >= min_new_index
+                    if index(ctx, sig) >= min_new_index && tag(ctx, sig) != :h
                         pair!(ctx, pairs, sig)
                     end
                 end
@@ -274,6 +298,7 @@ function f5sat_core!(ctx::SΓ,
                         push!(pairs, pair)
                     end
                 end
+                curr_indx_key = first(pairs)[1][2][1]
             end
         end
         @logmsg Verbose2 "" end_time_core = time()
@@ -292,7 +317,7 @@ function nondegen_part_core!(ctx::SΓ,
                                                P <: Polynomial{M}}
 
     ngens = length(ctx.f5_indices)
-    cleaning_info = eltype(ctx)[]
+    non_zero_conditions = eltype(ctx)[]
     pairs = pairset(ctx)
     
     for (i, f) in enumerate(remaining)
@@ -301,34 +326,19 @@ function nondegen_part_core!(ctx::SΓ,
         pair!(ctx, pairs, unitvector(ctx, indx_key))
         # last_index = maximum(g -> index(ctx, g[1]), G)
         f5sat_core!(ctx, G, H, koszul_q, pairs, R,
-                    max_remasks = max_remasks - i, sat_tag = [:f]; f5c = f5c, kwargs...)
+                    max_remasks = max_remasks - i, sat_tag = [:f]; f5c = f5c,
+                    use_non_zero_conditions = true,
+                    non_zero_conditions = non_zero_conditions, kwargs...)
         empty!(pairs)
         f5c && interreduction!(ctx, G, R)
         
-        curr_index = ctx.f5_indices[indx_key].index
-        gs = [k for (k, v) in ctx.f5_indices
-                  if v.tag == :zd && last_index < v.index < curr_index]
-        for k in gs
-            syz = filter(h -> index(ctx, h) == index(ctx, k), H)
-            isempty(syz) && continue
-            hs = [project(ctx, h) for h in syz]
-            # for h in hs
-            #     println("new cleaner $(R(ctx.po, h))")
-            # end
-            cleaner = random_lin_comb(ctx.po, [project(ctx, h) for h in syz])
-            new_indx_key = new_generator!(ctx, curr_index + 1, cleaner, :h)
-            push!(cleaning_info, unitvector(ctx, new_indx_key))
-        end
-
-        for (j, cleaner) in enumerate(cleaning_info)
-            if index(ctx, cleaner) < curr_index + 1
-                new_index!(ctx, cleaner[1], curr_index + j, :h)
-            end
+        for cleaner in non_zero_conditions
             pair!(ctx, pairs, cleaner)
             f5sat_core!(ctx, G, H, koszul_q, pairs, R,
                         max_remasks = max_remasks - i, sat_tag = [:h]; f5c = f5c, kwargs...)
             empty!(pairs)
             filter_by_tag!(ctx, G, :h)
+            f5c && interreduction!(ctx, G, R)
         end
         
         empty!(pairs)
