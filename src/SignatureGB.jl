@@ -235,10 +235,12 @@ function f5sat_core!(ctx::SΓ,
                 syz = filter(h -> h[1] == curr_indx_key, H)
                 isempty(syz) && continue
                 hs = [project(ctx, h) for h in syz]
+                for h in hs
+                    println("potential cleaner: $(R(ctx.po, h))")
+                end
                 cleaner = first(hs)
                 # cleaner = random_lin_comb(ctx.po, [project(ctx, h) for h in syz])
                 new_indx_key = new_generator!(ctx, maxindex(ctx) + 1, cleaner, :h)
-                println("Found non-zero condition $(R(ctx.po, cleaner))")
                 # TODO: sort these by degree
                 push!(non_zero_conditions, unitvector(ctx, new_indx_key))
             end
@@ -286,16 +288,13 @@ function f5sat_core!(ctx::SΓ,
                         return
                     end
                 end
-                if iszero(inserted_below)
-                    println("everything inserted above!")
-                end
                 # syz_signatures = [g[2] for g in filter(g -> g[1] == curr_index_key, G)]
 
                 # rebuild pairset and basis if something was inserted below
                 if !(iszero(inserted_below))
                     collected_pairset = collect(pairs)
                     empty!(pairs)
-                    # filter stuff out of basis that might reduce further
+                    # filter stuff out of basis that might reduce further with the new generators
                     filter_less_than_index!(ctx, G, min_new_index)
                     # rebuild pairset
                     for index_key in keys(ctx.f5_indices)
@@ -335,7 +334,6 @@ function nondegen_part_core!(ctx::SΓ,
     insert_above =  maximum(g -> index(ctx, g), G.sigs)
     
     for (i, f) in enumerate(remaining)
-        println("treating equation $(i+1)")
         indx_key = new_generator!(ctx, insert_above + 1, f)
         pair!(ctx, pairs, unitvector(ctx, indx_key))
         # last_index = maximum(g -> index(ctx, g[1]), G)
@@ -375,7 +373,7 @@ function core_loop!(ctx::SΓ,
                     kwargs...) where {I, M, SΓ <: SigPolynomialΓ{I, M}}
     
     @logmsg Verbose2 "" start_time_core = time()
-    @logmsg Verbose1 "" curr_index = first(pairs)[1][2][1] sig_degree = degree(ctx, first(pairs)[1]) tag = tag(ctx, first(pairs)[1])
+    @logmsg Verbose1 "" curr_index = index(ctx, first(pairs)[1]) curr_index_hash = first(pairs)[1][2][1] sig_degree = degree(ctx, first(pairs)[1]) tag = tag(ctx, first(pairs)[1])
     @logmsg Verbose1 "" sugar_deg = mod_order(ctx) in [:DPOT, :SCHREY] ? sugar_deg = schrey_degree(ctx, first(pairs)[1]) : sugar_deg = -1
     @debug string("pairset:\n", [isnull(p[2]) ? "$((p[1], ctx))\n" : "$((p[1], ctx)), $((p[2], ctx))\n" for p in pairs]...)
     
@@ -447,7 +445,6 @@ function new_elems!(ctx::SΓ,
     end
 end
 
-# TODO: adapt to new basis struct
 function interreduction!(ctx::SigPolynomialΓ{I, M},
                          G::Basis{I, M},
                          R) where {I, M}

@@ -107,6 +107,7 @@ function Logging.handle_message(logger::SGBLogger, level, message, _module, grou
                                 add_row = false,
                                 defaults = [],
                                 curr_index = 0,
+                                curr_index_hash = 0,
                                 interred = false,
                                 sig_degree = -1,
                                 sugar_deg = -1,
@@ -129,7 +130,7 @@ function Logging.handle_message(logger::SGBLogger, level, message, _module, grou
 
     if level == Verbose1
         if curr_index != 0
-            println("index $(curr_index), sig degree $(sig_degree), tag $(tag)")
+            println("index $(curr_index), index hash $(curr_index_hash), sig degree $(sig_degree), tag $(tag)")
         end
         if interred
             println("Interreducing...")
