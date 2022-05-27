@@ -332,10 +332,11 @@ function nondegen_part_core!(ctx::SΓ,
     ngens = length(ctx.f5_indices)
     non_zero_conditions = eltype(ctx)[]
     pairs = pairset(ctx)
+    insert_above =  maximum(g -> index(ctx, g), G.sigs)
     
     for (i, f) in enumerate(remaining)
-        last_index = maxindex(ctx)
-        indx_key = new_generator!(ctx, f)
+        println("treating equation $(i+1)")
+        indx_key = new_generator!(ctx, insert_above + 1, f)
         pair!(ctx, pairs, unitvector(ctx, indx_key))
         # last_index = maximum(g -> index(ctx, g[1]), G)
         f5sat_core!(ctx, G, H, koszul_q, pairs, R,
@@ -344,6 +345,7 @@ function nondegen_part_core!(ctx::SΓ,
                     non_zero_conditions = non_zero_conditions,
                     excluded_tags = [:h], kwargs...)
         empty!(pairs)
+        insert_above = maximum(g -> index(ctx, g), G.sigs) + 1
         f5c && interreduction!(ctx, G, R)
         
         for cleaner in non_zero_conditions
@@ -353,6 +355,7 @@ function nondegen_part_core!(ctx::SΓ,
                         max_remasks = max_remasks - i, sat_tag = [:h]; f5c = f5c, kwargs...)
             empty!(pairs)
             filter_by_tag!(ctx, G, :h)
+            insert_above = maximum(g -> index(ctx, g), G.sigs) + 1
             f5c && interreduction!(ctx, G, R)
         end
         
@@ -372,7 +375,7 @@ function core_loop!(ctx::SΓ,
                     kwargs...) where {I, M, SΓ <: SigPolynomialΓ{I, M}}
     
     @logmsg Verbose2 "" start_time_core = time()
-    @logmsg Verbose1 "" curr_index = index(ctx, first(pairs)[1]) sig_degree = degree(ctx, first(pairs)[1]) tag = tag(ctx, first(pairs)[1])
+    @logmsg Verbose1 "" curr_index = first(pairs)[1][2][1] sig_degree = degree(ctx, first(pairs)[1]) tag = tag(ctx, first(pairs)[1])
     @logmsg Verbose1 "" sugar_deg = mod_order(ctx) in [:DPOT, :SCHREY] ? sugar_deg = schrey_degree(ctx, first(pairs)[1]) : sugar_deg = -1
     @debug string("pairset:\n", [isnull(p[2]) ? "$((p[1], ctx))\n" : "$((p[1], ctx)), $((p[2], ctx))\n" for p in pairs]...)
     
