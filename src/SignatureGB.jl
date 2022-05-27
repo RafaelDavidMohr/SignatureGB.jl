@@ -345,7 +345,7 @@ function nondegen_part_core!(ctx::SΓ,
                     non_zero_conditions = non_zero_conditions,
                     excluded_tags = [:h], kwargs...)
         empty!(pairs)
-        insert_above = maximum(g -> index(ctx, g), G.sigs) + 1
+        insert_above = maximum(g -> index(ctx, g), G.sigs)
         f5c && interreduction!(ctx, G, R)
         
         for cleaner in non_zero_conditions
@@ -355,7 +355,7 @@ function nondegen_part_core!(ctx::SΓ,
                         max_remasks = max_remasks - i, sat_tag = [:h]; f5c = f5c, kwargs...)
             empty!(pairs)
             filter_by_tag!(ctx, G, :h)
-            insert_above = maximum(g -> index(ctx, g), G.sigs) + 1
+            insert_above = maximum(g -> index(ctx, g), G.sigs)
             f5c && interreduction!(ctx, G, R)
         end
         
