@@ -184,32 +184,33 @@ end
     @test SG.mat_show(mat) == [1 0 0; 0 1 1; 0 0 1]
 end
 
-# @testset "small groebner" begin
-#     R, (x, y) = Singular.PolynomialRing(Singular.Fp(101), ["x", "y"])
-#     I = [x^2, x*y + y^2]
-#     gb_2 = SG.sgb(I)
-#     gb = vcat(I, [-y^3])
-#     @test all(p -> p in gb, gb_2)
-# end
+@testset "small groebner" begin
+    R, (x, y) = Singular.PolynomialRing(Singular.Fp(101), ["x", "y"])
+    I = [x^2, x*y + y^2]
+    gb_2 = SG.sgb(I)
+    gb = vcat(I, [y^3])
+    @test all(p -> p in gb, gb_2)
+end
 
-# @testset "small groebner schreyer" begin
-#     R, (x, y) = Singular.PolynomialRing(Singular.Fp(101), ["x", "y"])
-#     I = [x^2, x*y + y^2]
-#     gb_2 = SG.sgb(I, mod_order = :SCHREY)
-#     gb = vcat(I, [-y^3])
-#     @test all(p -> p in gb, gb_2)
-# end
+@testset "small groebner schreyer" begin
+    R, (x, y) = Singular.PolynomialRing(Singular.Fp(101), ["x", "y"])
+    I = [x^2, x*y + y^2]
+    gb_2 = SG.sgb(I, mod_order = :SCHREY)
+    gb = vcat(I, [y^3])
+    @test all(p -> p in gb, gb_2)
+end
 
-# @testset "module rep" begin
-#     R, (x, y), ctx, basis, syz = small_example(mod_rep_type = :highest_index)
-#     pair_sig = (ctx.po.mo(x), ctx(2, R(1)))
-#     pairset = SG.mpairset(ctx)
-#     push!(pairset, pair_sig)
-#     mons = SG.symbolic_pp!(ctx, pairset, basis, syz, false, are_pairs = false)
-#     mat = SG.F5matrixHighestIndex(ctx, mons, collect(pairset))
-#     SG.reduction!(mat)
-#     println(SG.mat_show(mat.module_matrix))
-# end
+@testset "module rep" begin
+    R, (x, y), ctx, basis, syz = small_example(mod_rep_type = :highest_index, track_module_tags = [:f])
+    pair_sig = (ctx.po.mo(x), ctx(2, R(1)))
+    pairset = SG.mpairset(ctx)
+    push!(pairset, pair_sig)
+    tbl, module_tbl, sigpolys = SG.symbolic_pp!(ctx, pairset, basis, syz, false, 2, are_pairs = false)
+    println(length(module_tbl))
+    mat = SG.f5_matrix(ctx, tbl, module_tbl, sigpolys)
+    SG.reduction!(mat)
+    @test SG.module_mat_show(mat) = [0 0; 0 1; 100 1]
+end
 
 # @testset "small groebner 2" begin
 #     R, (x, y, z, t) = Singular.PolynomialRing(Singular.Fp(7), ["x", "y", "z", "t"])

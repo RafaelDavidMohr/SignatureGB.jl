@@ -61,7 +61,17 @@ function mat_show(mat::F5matrix)
     end
     mat_vis
 end
-        
+
+function module_mat_show(mat::F5matrix)
+    mat_vis = zeros(Int, length(mat.module_rows), length(mat.module_tbl))
+    for (i, row) in enumerate(mat.module_rows)
+        for (j, c) in row
+            mat_vis[i, j] = Int(c)
+        end
+    end
+    mat_vis
+end
+
 function f5_matrix(ctx::SigPolynomialΓ{I, M, MM, T},
                    tbl::EasyTable{M, J},
                    module_tbl::EasyTable{MM, K},
