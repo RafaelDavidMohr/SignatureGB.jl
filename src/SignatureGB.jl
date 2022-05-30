@@ -187,6 +187,7 @@ function f5sat_core!(ctx::SΓ,
                      use_non_zero_conditions = false,
                      non_zero_conditions = SigHash{I, M}[],
                      excluded_tags = Symbol[],
+                     excluded_index_keys = I[],
                      kwargs...) where {I,M,SΓ<:SigPolynomialΓ{I,M}}
 
     mod_order(ctx) != :POT && error("The experimental modifications will currently only work with POT")
@@ -235,11 +236,9 @@ function f5sat_core!(ctx::SΓ,
                 syz = filter(h -> h[1] == curr_indx_key, H)
                 isempty(syz) && continue
                 hs = [project(ctx, h) for h in syz]
-                for h in hs
-                    println("potential cleaner: $(R(ctx.po, h))")
-                end
                 # cleaner = first(hs)
                 cleaner = random_lin_comb(ctx.po, [project(ctx, h) for h in syz])
+                println("new cleaner: $(R(ctx.po, cleaner))")
                 new_indx_key = new_generator!(ctx, maxindex(ctx) + 1, cleaner, :h)
                 # TODO: sort these by degree
                 push!(non_zero_conditions, unitvector(ctx, new_indx_key))
@@ -299,7 +298,7 @@ function f5sat_core!(ctx::SΓ,
                     # rebuild pairset
                     for index_key in keys(ctx.f5_indices)
                         sig = unitvector(ctx, index_key)
-                        if index(ctx, sig) >= min_new_index && !(tag(ctx, sig) in excluded_tags)
+                        if index(ctx, sig) >= min_new_index && !(tag(ctx, sig) in excluded_tags) && !(index_key in excluded_index_keys)
                             pair!(ctx, pairs, sig)
                         end
                     end
@@ -351,9 +350,12 @@ function nondegen_part_core!(ctx::SΓ,
 
     for cleaner in non_zero_conditions
         pair!(ctx, pairs, cleaner)
+        @assert !(isempty(pairs))
         println("cleaning up...")
+        excluded_index_keys = [sig[1] for sig in non_zero_conditions if sig[1] != cleaner[1]]        
         f5sat_core!(ctx, G, H, koszul_q, pairs, R,
-                    max_remasks = max_remasks - i, sat_tag = [:h]; f5c = f5c, kwargs...)
+                    max_remasks = 0, sat_tag = [:h], f5c = f5c,
+                    excluded_index_keys = excluded_index_keys; kwargs...)
         empty!(pairs)
         filter_by_tag!(ctx, G, :h)
         insert_above = maximum(g -> index(ctx, g), G.sigs)

@@ -39,7 +39,7 @@ function reduction!(mat::F5matrix)
 
         first_non_zero, new_row = unbuffer!(buffer, mat.ctx.po.co, ind_type(mat.tbl))
         _, new_module_row = unbuffer!(module_buffer, mat.ctx.po.co, ind_type(mat.module_tbl))
-        
+
         if !(iszero(first_non_zero))
             pivots[first_non_zero] = i
             mult = inv(mat.ctx.po.co, first(new_row.co))

@@ -194,6 +194,7 @@ function ixmonomialctx(moctx=nothing; indices=UInt32, mask_type=UInt32, remask_a
     if isnothing(moctx)
         moctx = monomialctx(;kwargs...)
     end
+    @assert nvars(moctx) <= sizeof(mask_type) * 8 "bitmask type not sufficiently large for number of variables. choose a larger type using the keyword 'mask_type'."
     idxmoctx = IxMonomialΓ{indices, params(moctx)..., mask_type, typeof(moctx)}(moctx, MonomialHashTable{params(moctx)..., indices, mask_type}(deg_bound = deg_bound))
     idxmoctx
 end
