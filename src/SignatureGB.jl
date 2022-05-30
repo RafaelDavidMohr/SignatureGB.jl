@@ -349,7 +349,9 @@ function nondegen_part_core!(ctx::SΓ,
         empty!(pairs)
     end
 
+    sort!(non_zero_conditions, by = sig -> degree(ctx.po, ctx(sig).pol))
     for cleaner in non_zero_conditions
+        new_index!(ctx, cleaner[1], maximum(g -> index(ctx, g), G.sigs) + 1, :h)
         pair!(ctx, pairs, cleaner)
         @assert !(isempty(pairs))
         excluded_index_keys = [sig[1] for sig in non_zero_conditions if sig[1] != cleaner[1]]        
