@@ -53,8 +53,8 @@ function reduction!(mat::F5matrix)
 end
 
 function mat_show(mat::F5matrix)
-    mat_vis = zeros(Int, length(rows(mat)), length(tbl(mat)))
-    for (i, (sig, row)) in enumerate(rows(mat))
+    mat_vis = zeros(Int, length(mat.rows), length(mat.tbl))
+    for (i, row) in enumerate(mat.rows)
         for (j, c) in row
             mat_vis[i, j] = Int(c)
         end

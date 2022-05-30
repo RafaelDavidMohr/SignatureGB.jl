@@ -3,7 +3,7 @@ function find_reducer(ctx::SigPolynomialΓ{I, M},
                       H::Syz{I, M},
                       m::M,
                       all_koszul,
-                      curr_indx::I,
+                      curr_indx,
                       sig_degree::E;
                       # interreduction_step = false,
                       f5c = false,
