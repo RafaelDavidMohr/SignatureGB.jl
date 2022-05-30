@@ -172,6 +172,7 @@ function sgb_core!(ctx::SΓ,
         @logmsg Verbose2 "" end_time_core = time()
         @logmsg Verbose2 "" gb_size = gb_size(ctx, G)
     end
+    f5c && interreduction!(ctx, G, R)
 end
 
 function f5sat_core!(ctx::SΓ,
@@ -351,7 +352,6 @@ function nondegen_part_core!(ctx::SΓ,
     for cleaner in non_zero_conditions
         pair!(ctx, pairs, cleaner)
         @assert !(isempty(pairs))
-        println("cleaning up...")
         excluded_index_keys = [sig[1] for sig in non_zero_conditions if sig[1] != cleaner[1]]        
         f5sat_core!(ctx, G, H, koszul_q, pairs, R,
                     max_remasks = 0, sat_tag = [:h], f5c = f5c,

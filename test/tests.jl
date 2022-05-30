@@ -274,8 +274,9 @@ end
          x2^2+2*x1*x3+2*x2*x4+2*x3*x5+2*x4*x6-x3,
          2*x2*x3+2*x1*x4+2*x2*x5+2*x3*x6-x4,
          x3^2+2*x2*x4+2*x1*x5+2*x2*x6-x5]
-    gb = SG.sgb(I, interreduction = true)
-    @test length(gb) == 22
+    gb = SG.sgb(I, f5c = true, all_koszul = true)
+    gb_2 = std(Ideal(R, I), complete_reduction = true)
+    @test length(gb) == length(gens(gb_2))
 end
 
 @testset "small-decomp" begin
