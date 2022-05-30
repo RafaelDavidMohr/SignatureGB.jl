@@ -238,8 +238,8 @@ function f5sat_core!(ctx::SΓ,
                 for h in hs
                     println("potential cleaner: $(R(ctx.po, h))")
                 end
-                cleaner = first(hs)
-                # cleaner = random_lin_comb(ctx.po, [project(ctx, h) for h in syz])
+                # cleaner = first(hs)
+                cleaner = random_lin_comb(ctx.po, [project(ctx, h) for h in syz])
                 new_indx_key = new_generator!(ctx, maxindex(ctx) + 1, cleaner, :h)
                 # TODO: sort these by degree
                 push!(non_zero_conditions, unitvector(ctx, new_indx_key))
@@ -345,20 +345,21 @@ function nondegen_part_core!(ctx::SΓ,
         empty!(pairs)
         insert_above = maximum(g -> index(ctx, g), G.sigs)
         f5c && interreduction!(ctx, G, R)
-        
-        for cleaner in non_zero_conditions
-            pair!(ctx, pairs, cleaner)
-            println("cleaning up...")
-            f5sat_core!(ctx, G, H, koszul_q, pairs, R,
-                        max_remasks = max_remasks - i, sat_tag = [:h]; f5c = f5c, kwargs...)
-            empty!(pairs)
-            filter_by_tag!(ctx, G, :h)
-            insert_above = maximum(g -> index(ctx, g), G.sigs)
-            f5c && interreduction!(ctx, G, R)
-        end
-        
+                
         empty!(pairs)
     end
+
+    for cleaner in non_zero_conditions
+        pair!(ctx, pairs, cleaner)
+        println("cleaning up...")
+        f5sat_core!(ctx, G, H, koszul_q, pairs, R,
+                    max_remasks = max_remasks - i, sat_tag = [:h]; f5c = f5c, kwargs...)
+        empty!(pairs)
+        filter_by_tag!(ctx, G, :h)
+        insert_above = maximum(g -> index(ctx, g), G.sigs)
+        f5c && interreduction!(ctx, G, R)
+    end
+
 end
 
 
