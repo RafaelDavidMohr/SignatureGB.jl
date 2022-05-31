@@ -25,7 +25,7 @@ end
 
 function printout(logger::SGBLogger)
 
-    show(logger.core_info, show_row_number = false, allrows = true)
+    show(logger.core_info, show_row_number = false, allrows = true, allcols = true)
     print("\n")
     arit_ops = 0
     for row in eachrow(logger.core_info)
