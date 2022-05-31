@@ -270,18 +270,15 @@ function f5sat_core!(ctx::SΓ,
                 end
 
                 # insert the zero divisors
-                inserted_below = 0
                 for (p, indx) in insert_data
                     # CAREFUL: will only work with POT
                     # EXPERIMENTAL -------
                     check_if_contained_in = filter(sig -> index(ctx, sig) < indx, G.sigs)
                     if use_non_zero_conditions && any(h -> iszero(poly_reduce(ctx, check_if_contained_in, R(ctx, h) * R(ctx.po, p), R)), non_zero_conditions)
-                        new_index_key = new_generator!(ctx, indx + 1 + inserted_below, p, :zd_irrel)
+                        new_generator!(ctx, indx, p, :zd_irrel)
                     else
-                        new_index_key = new_generator!(ctx, indx, p, :zd)
-                        inserted_below += 1
+                        new_generator!(ctx, indx, p, :zd)
                     end
-                    pair!(ctx, pairs, unitvector(ctx, new_index_key))
                     # EXPERIMENTAL END -------
                     if isunit(ctx.po, p)
                         new_basis_elem!(G, unitvector(ctx, new_index_key), one(ctx.po.mo))
@@ -291,23 +288,21 @@ function f5sat_core!(ctx::SΓ,
                 # syz_signatures = [g[2] for g in filter(g -> g[1] == curr_index_key, G)]
 
                 # rebuild pairset and basis if something was inserted below
-                if !(iszero(inserted_below))
-                    collected_pairset = collect(pairs)
-                    empty!(pairs)
-                    # filter stuff out of basis that might reduce further with the new generators
-                    filter_less_than_index!(ctx, G, min_new_index)
-                    # rebuild pairset
-                    for index_key in keys(ctx.f5_indices)
-                        sig = unitvector(ctx, index_key)
-                        if index(ctx, sig) >= min_new_index && !(tag(ctx, sig) in excluded_tags) && !(index_key in excluded_index_keys)
-                            pair!(ctx, pairs, sig)
-                        end
+                collected_pairset = collect(pairs)
+                empty!(pairs)
+                # filter stuff out of basis that might reduce further with the new generators
+                filter_less_than_index!(ctx, G, min_new_index)
+                # rebuild pairset
+                for index_key in keys(ctx.f5_indices)
+                    sig = unitvector(ctx, index_key)
+                    if index(ctx, sig) >= min_new_index && !(tag(ctx, sig) in excluded_tags) && !(index_key in excluded_index_keys)
+                        pair!(ctx, pairs, sig)
                     end
-                    # preserve the pairs for which the generators are not thrown out
-                    for pair in collected_pairset
-                        if index(ctx, pair[1]) < min_new_index
-                            push!(pairs, pair)
-                        end
+                end
+                # preserve the pairs for which the generators are not thrown out
+                for pair in collected_pairset
+                    if index(ctx, pair[1]) < min_new_index
+                        push!(pairs, pair)
                     end
                 end
                 curr_indx_key = first(pairs)[1][2][1]
