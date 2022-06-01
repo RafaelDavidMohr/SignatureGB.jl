@@ -230,19 +230,6 @@ function f5sat_core!(ctx::SΓ,
                 end
                 old_gb_length = length(G)
             end
-            # EXPERIMENTAL -------
-            # if use_non_zero_conditions && tag(ctx, curr_indx_key) == :zd
-            #     syz = filter(h -> h[1] == curr_indx_key, H)
-            #     isempty(syz) && continue
-            #     hs = [project(ctx, h) for h in syz]
-            #     # cleaner = first(hs)
-            #     cleaner = random_lin_comb(ctx.po, [project(ctx, h) for h in syz])
-            #     println("new cleaner: $(R(ctx.po, cleaner))")
-            #     new_indx_key = new_generator!(ctx, maxindex(ctx) + 1, cleaner, :h)
-            #     # TODO: sort these by degree
-            #     push!(non_zero_conditions, unitvector(ctx, new_indx_key))
-            # end
-            # EXPERIMENTAL END -------
             curr_indx = next_index
             curr_indx_key = first(pairs)[1][2][1]
         end
@@ -269,6 +256,7 @@ function f5sat_core!(ctx::SΓ,
 
                 # insert the zero divisors
                 for (p, indx) in insert_data
+                    # could be something like new_generator!(ctx, before current equation, p, :zd)
                     new_index_key = new_generator!(ctx, indx, p, :zd)
                     if isunit(ctx.po, p)
                         new_basis_elem!(G, unitvector(ctx, new_index_key), one(ctx.po.mo))
@@ -277,7 +265,7 @@ function f5sat_core!(ctx::SΓ,
                 end
                 # syz_signatures = [g[2] for g in filter(g -> g[1] == curr_index_key, G)]
 
-                # rebuild pairset and basis if something was inserted below
+                # rebuild pairset and basis
                 collected_pairset = collect(pairs)
                 empty!(pairs)
                 # filter stuff out of basis that might reduce further with the new generators
@@ -323,8 +311,8 @@ function nondegen_part_core!(ctx::SΓ,
         pair!(ctx, pairs, unitvector(ctx, indx_key))
         last_index = maximum(g -> index(ctx, g), G.sigs)
         f5sat_core!(ctx, G, H, koszul_q, pairs, R,
-                    max_remasks = max_remasks - i, sat_tag = [:f]; f5c = f5c,
-                    excluded_tags = [:h], kwargs...)
+                    max_remasks = max_remasks - i, sat_tag = [:f], f5c = f5c,
+                    excluded_tags = [:h]; kwargs...)
         f_index = index(ctx, indx_key)
 
         newly_inserted = [key for key in keys(ctx.f5_indices) if last_index < index(ctx, key) < f_index && tag(ctx, key) == :zd]
@@ -349,9 +337,9 @@ function nondegen_part_core!(ctx::SΓ,
         f5c && interreduction!(ctx, G, R)                
     end
 
-    sort!(non_zero_conditions, by = sig -> degree(ctx.po, ctx(sig).pol))
+    # sort!(non_zero_conditions, by = sig -> degree(ctx.po, ctx(sig).pol))
     for cleaner in non_zero_conditions
-        new_index!(ctx, cleaner[1], maximum(g -> index(ctx, g), G.sigs) + 1, :h)
+        # new_index!(ctx, cleaner[1], maximum(g -> index(ctx, g), G.sigs) + 1, :h)
         pair!(ctx, pairs, cleaner)
         @assert !(isempty(pairs))
         excluded_index_keys = [sig[1] for sig in non_zero_conditions if sig[1] != cleaner[1]]        
@@ -360,7 +348,6 @@ function nondegen_part_core!(ctx::SΓ,
                     excluded_index_keys = excluded_index_keys; kwargs...)
         empty!(pairs)
         filter_by_tag!(ctx, G, :h)
-        insert_above = maximum(g -> index(ctx, g), G.sigs)
         f5c && interreduction!(ctx, G, R)
     end
 
