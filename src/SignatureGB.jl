@@ -185,8 +185,6 @@ function f5sat_core!(ctx::SΓ,
                      sat_tag = [:to_sat],
                      f5c = false,
                      deg_bound = 0,
-                     use_non_zero_conditions = false,
-                     non_zero_conditions = SigHash{I, M}[],
                      excluded_tags = Symbol[],
                      excluded_index_keys = I[],
                      kwargs...) where {I,M,SΓ<:SigPolynomialΓ{I,M}}
@@ -233,17 +231,17 @@ function f5sat_core!(ctx::SΓ,
                 old_gb_length = length(G)
             end
             # EXPERIMENTAL -------
-            if use_non_zero_conditions && tag(ctx, curr_indx_key) == :zd
-                syz = filter(h -> h[1] == curr_indx_key, H)
-                isempty(syz) && continue
-                hs = [project(ctx, h) for h in syz]
-                # cleaner = first(hs)
-                cleaner = random_lin_comb(ctx.po, [project(ctx, h) for h in syz])
-                println("new cleaner: $(R(ctx.po, cleaner))")
-                new_indx_key = new_generator!(ctx, maxindex(ctx) + 1, cleaner, :h)
-                # TODO: sort these by degree
-                push!(non_zero_conditions, unitvector(ctx, new_indx_key))
-            end
+            # if use_non_zero_conditions && tag(ctx, curr_indx_key) == :zd
+            #     syz = filter(h -> h[1] == curr_indx_key, H)
+            #     isempty(syz) && continue
+            #     hs = [project(ctx, h) for h in syz]
+            #     # cleaner = first(hs)
+            #     cleaner = random_lin_comb(ctx.po, [project(ctx, h) for h in syz])
+            #     println("new cleaner: $(R(ctx.po, cleaner))")
+            #     new_indx_key = new_generator!(ctx, maxindex(ctx) + 1, cleaner, :h)
+            #     # TODO: sort these by degree
+            #     push!(non_zero_conditions, unitvector(ctx, new_indx_key))
+            # end
             # EXPERIMENTAL END -------
             curr_indx = next_index
             curr_indx_key = first(pairs)[1][2][1]
@@ -271,15 +269,7 @@ function f5sat_core!(ctx::SΓ,
 
                 # insert the zero divisors
                 for (p, indx) in insert_data
-                    # CAREFUL: will only work with POT
-                    # EXPERIMENTAL -------
-                    check_if_contained_in = filter(sig -> index(ctx, sig) < indx, G.sigs)
-                    if use_non_zero_conditions && any(h -> iszero(poly_reduce(ctx, check_if_contained_in, R(ctx, h) * R(ctx.po, p), R)), non_zero_conditions)
-                        new_generator!(ctx, indx, p, :zd_irrel)
-                    else
-                        new_generator!(ctx, indx, p, :zd)
-                    end
-                    # EXPERIMENTAL END -------
+                    new_index_key = new_generator!(ctx, indx, p, :zd)
                     if isunit(ctx.po, p)
                         new_basis_elem!(G, unitvector(ctx, new_index_key), one(ctx.po.mo))
                         return
@@ -326,22 +316,37 @@ function nondegen_part_core!(ctx::SΓ,
     ngens = length(ctx.f5_indices)
     non_zero_conditions = eltype(ctx)[]
     pairs = pairset(ctx)
-    insert_above =  maximum(g -> index(ctx, g), G.sigs)
     
     for (i, f) in enumerate(remaining)
+        insert_above =  maximum(g -> index(ctx, g), G.sigs)
         indx_key = new_generator!(ctx, insert_above + 1, f)
         pair!(ctx, pairs, unitvector(ctx, indx_key))
-        # last_index = maximum(g -> index(ctx, g[1]), G)
+        last_index = maximum(g -> index(ctx, g), G.sigs)
         f5sat_core!(ctx, G, H, koszul_q, pairs, R,
                     max_remasks = max_remasks - i, sat_tag = [:f]; f5c = f5c,
-                    use_non_zero_conditions = true,
-                    non_zero_conditions = non_zero_conditions,
                     excluded_tags = [:h], kwargs...)
+        f_index = index(ctx, indx_key)
+
+        newly_inserted = [key for key in keys(ctx.f5_indices) if last_index < index(ctx, key) < f_index && tag(ctx, key) == :zd]
+        g_h_pairs = Tuple{I, eltype(ctx.po)}[]
+        for key in newly_inserted
+            syz = filter(h -> h[1] == key, H)
+            isempty(syz) && continue
+            hs = [project(ctx, h) for h in syz]
+            cleaner = random_lin_comb(ctx.po, [project(ctx, h) for h in syz])
+            push!(g_h_pairs, (key, cleaner))
+        end
+        check_if_contained_in = filter(sig -> index(ctx, sig) <= last_index, G.sigs)
+        for (key, cleaner) in sort(g_h_pairs, by = g_h_pair -> degree(ctx.po, g_h_pair[2]))
+            if any(h -> iszero(poly_reduce(ctx, check_if_contained_in, R(ctx, h) * R(ctx, unitvector(ctx, key)), R)), non_zero_conditions)
+                continue
+            end
+            new_indx_key = new_generator!(ctx, maxindex(ctx) + 1, cleaner, :h)
+            push!(non_zero_conditions, unitvector(ctx, new_indx_key))
+        end
+        
         empty!(pairs)
-        insert_above = maximum(g -> index(ctx, g), G.sigs)
-        f5c && interreduction!(ctx, G, R)
-                
-        empty!(pairs)
+        f5c && interreduction!(ctx, G, R)                
     end
 
     sort!(non_zero_conditions, by = sig -> degree(ctx.po, ctx(sig).pol))
