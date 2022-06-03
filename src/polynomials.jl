@@ -342,7 +342,11 @@ function (ctx :: PolynomialΓ)(p :: AA.MPolyElem)
     if typeof(p) <: Singular.spoly
         co = [ctx.co(Int(c)) for c in Singular.coefficients(p)]
     else
-        co = [ctx.co(AA.coeff(p, i)) for i in 1:length(p)]
+        try
+	    co = [ctx.co(AA.coeff(p, i).data) for i in 1:length(p)]
+        catch
+            error("incompatible computer algebra engine")
+        end
     end
     p = ctx(mo, co)
     sort!(p, rev=true, order=order(ctx))
