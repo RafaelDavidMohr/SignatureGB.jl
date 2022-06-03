@@ -133,6 +133,7 @@ function sgb_core!(ctx::SΓ,
     end
 
     if f5c
+        typeof(R) <: GFPMPolyRing && error("f5c currently only works with singular rings.")
         !(all_koszul) && error("Something is currently breaking when using f5c and not checking against all koszul syzygies. We are working hard to fix it :-)")
         mod_order(ctx) != :POT && error("F5c only makes sense for position over term ordering.")
     end
