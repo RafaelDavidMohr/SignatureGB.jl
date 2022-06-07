@@ -60,8 +60,9 @@ function symbolic_pp!(ctx::SΓ,
         sig_degree = maximum(p -> degree(ctx, p), pairs)
     end
 
-    tbl = easytable(M[])
-    module_tbl = easytable(eltype(ctx.mod_po.mo)[])
+    # TODO: make this work without monomial table
+    tbl = easytable(M[], eltype(ctx.po.mo))
+    module_tbl = easytable(eltype(ctx.mod_po.mo)[], eltype(ctx.po.mo))
     sigpolys = Tuple{MonSigPair{I, M}, eltype(ctx.po), eltype(ctx.mod_po)}[]
     sizehint!(sigpolys, length(pairs))
     done = Set{M}()
