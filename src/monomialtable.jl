@@ -58,7 +58,7 @@ mutable struct MonomialHashTable{N, E, I <: Unsigned, B <: Unsigned}
     val::Vector{Monomial{N, E}}
     bitmasks::Vector{B}
     idx::Vector{I}
-
+    
     max_powers::MVector{N, E}
     min_powers::MVector{N, E}
     bitmask_powers::Dict{Int, Vector{E}}
@@ -68,7 +68,9 @@ mutable struct MonomialHashTable{N, E, I <: Unsigned, B <: Unsigned}
     hits::Int
     totaldivs::Int
 
-    function MonomialHashTable{N, E, I, B}(; deg_bound = 0) where {N, E, I, B}
+    max_remasks::Int
+    
+    function MonomialHashTable{N, E, I, B}(; deg_bound = 0, max_remasks = 3) where {N, E, I, B}
         tsize = 16
         @assert 2*tsize <= typemax(I)
         nbits = ndigits(typemax(B), base = 2)
@@ -79,7 +81,7 @@ mutable struct MonomialHashTable{N, E, I <: Unsigned, B <: Unsigned}
         [bitmask_powers[i] = even_between(min_powers[i], max_powers[i], length(bitmask_powers[i]))
          for i in 1:N]
         new(Monomial{N, E}[], B[], zeros(Int, 2*tsize),
-            max_powers, min_powers, bitmask_powers, tsize-1, 0, 4, 0, 0)
+            max_powers, min_powers, bitmask_powers, tsize-1, 0, 4, 0, 0, max_remasks)
     end
 end
 
@@ -170,9 +172,12 @@ end
 
 function remask!(table::MonomialHashTable{N, E, I, B}) where {N, E, I, B}
 
-    [table.bitmask_powers[i] = even_between(table.min_powers[i], table.max_powers[i], length(table.bitmask_powers[i]))
-     for i in 1:N]
-    table.bitmasks = broadcast(v -> bitmask(v, table.bitmask_powers), table.val)
+    if table.max_remasks > 0 && rand() < max(1/max_remasks, 1/3)    
+        [table.bitmask_powers[i] = even_between(table.min_powers[i], table.max_powers[i], length(table.bitmask_powers[i]))
+         for i in 1:N]
+        table.bitmasks = broadcast(v -> bitmask(v, table.bitmask_powers), table.val)
+        table.max_remasks -= 1
+    end
 end
 
 #. INDEXED MONOMIALS

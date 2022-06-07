@@ -128,7 +128,6 @@ function sgb_core!(ctx::SΓ,
                    R;
                    select = nothing,
                    all_koszul = false,
-                   max_remasks = 3,
                    f5c = false,
                    deg_bound = 0,
                    exit_upon_zero_reduction = false,
@@ -185,11 +184,7 @@ function sgb_core!(ctx::SΓ,
             curr_indx = next_index
         end
         
-        # TODO: is this a good idea? -> move to sigpolynomialctx
-        if max_remasks > 0 && rand() < max(1/max_remasks, 1/3)
-            max_remasks -= 1
-            remask!(ctx.po.mo.table)
-        end
+        remask!(ctx.po.mo.table)
         mat = core_loop!(ctx, G, H, koszul_q, pairs, select, all_koszul, curr_indx,
                          f5c = f5c, select_both = select_both)
         
@@ -206,7 +201,6 @@ function f5sat_core!(ctx::SΓ,
                      koszul_q::KoszulQueue{I,M,SΓ},
                      pairs::PairSet{I,M,SΓ},
                      R;
-                     max_remasks = 3,
                      sat_tag = [:to_sat],
                      f5c = false,
                      deg_bound = 0,
@@ -241,10 +235,7 @@ function f5sat_core!(ctx::SΓ,
     
     while !(isempty(pairs))
         # TODO: is this a good idea? -> move this into sigpolynomialctx
-        if max_remasks > 0 && rand() < max(1 / max_remasks, 1 / 3)
-            max_remasks -= 1
-            remask!(ctx.po.mo.table)
-        end
+        remask!(ctx.po.mo.table)
 
         next_index = index(ctx, first(pairs)[1])
         if next_index != curr_indx
@@ -260,6 +251,8 @@ function f5sat_core!(ctx::SΓ,
         end
 
         mat = core_loop!(ctx, G, H, koszul_q, pairs, select, all_koszul, curr_indx, select_both = false, f5c = f5c)
+
+
         @logmsg Verbose2 "" nz_entries = sum([length(row) for row in values(mat.rows)]) mat_size = (length(mat.rows), length(mat.tbl))
         new_elems!(ctx, G, H, pairs, mat, all_koszul, curr_indx, f5c = f5c; kwargs...)
         @logmsg Verbose2 "" gb_size = gb_size(ctx, G)
@@ -321,7 +314,6 @@ function f5sat_by_multiple_core!(ctx::SΓ,
                                  koszul_q::KoszulQueue{I,M,SΓ},
                                  index_keys::Vector{I},
                                  R;
-                                 max_remasks = 3,
                                  zero_divisor_tag = :zd,
                                  kwargs...) where {I,M,SΓ<:SigPolynomialΓ{I,M}}
 
@@ -333,7 +325,7 @@ function f5sat_by_multiple_core!(ctx::SΓ,
         # first round: compute (I + g) and (I : g)
         @assert tag(ctx, to_sat) in ctx.track_module_tags
         pair!(ctx, pairs, unitvector(ctx, to_sat))
-        sgb_core!(ctx, components[i], H, koszul_q, pairs, R, max_remasks = max_remasks, all_koszul = true; kwargs...)
+        sgb_core!(ctx, components[i], H, koszul_q, pairs, R, all_koszul = true; kwargs...)
 
         copy_of_to_sat_key = i == length(index_keys) ? to_sat : copy_index!(ctx, to_sat)
         if i != length(index_keys)
@@ -353,7 +345,7 @@ function f5sat_by_multiple_core!(ctx::SΓ,
         while true
             empty!(pairs)
             pair!(ctx, pairs, unitvector(ctx, copy_of_to_sat_key))
-            sgb_core!(ctx, components[i], H, koszul_q, pairs, R, max_remasks = max_remasks, all_koszul = true; kwargs...)
+            sgb_core!(ctx, components[i], H, koszul_q, pairs, R, all_koszul = true; kwargs...)
             filter_less_than_index!(ctx, components[i], index(ctx, copy_of_to_sat_key))
             zero_divisor_sigs = filter(sig -> sig[1] == copy_of_to_sat_key, H)
             filter!(sig -> sig[1] != copy_of_to_sat_key, H)
@@ -374,7 +366,6 @@ function nondegen_part_core!(ctx::SΓ,
                              koszul_q::KoszulQueue{I, M, SΓ},
                              remaining::Vector{P},
                              R;
-                             max_remasks = 3,
                              f5c = false,
                              kwargs...) where {I, M, SΓ <: SigPolynomialΓ{I, M},
                                                P <: Polynomial{M}}
@@ -389,7 +380,7 @@ function nondegen_part_core!(ctx::SΓ,
         pair!(ctx, pairs, unitvector(ctx, indx_key))
         last_index = maximum(g -> index(ctx, g), G.sigs)
         f5sat_core!(ctx, G, H, koszul_q, pairs, R,
-                    max_remasks = max_remasks - i, sat_tag = [:f], f5c = f5c,
+                    sat_tag = [:f], f5c = f5c,
                     excluded_tags = [:h]; kwargs...)
         f_index = index(ctx, indx_key)
 
@@ -422,7 +413,7 @@ function nondegen_part_core!(ctx::SΓ,
         @assert !(isempty(pairs))
         excluded_index_keys = [sig[1] for sig in non_zero_conditions if sig[1] != cleaner[1]]        
         f5sat_core!(ctx, G, H, koszul_q, pairs, R,
-                    max_remasks = 0, sat_tag = [:h], f5c = f5c,
+                    sat_tag = [:h], f5c = f5c,
                     excluded_index_keys = excluded_index_keys; kwargs...)
         empty!(pairs)
         filter_by_tag!(ctx, G, :h)
