@@ -34,6 +34,19 @@ struct SigOrdering{SΓ <: SigPolynomialΓ}<:Base.Order.Ordering
     ctx::SΓ
 end
 
+function copy_index!(ctx::SigPolynomialΓ{I},
+                     index_hash::I) where I
+
+    elem_to_copy = ctx(unitvector(ctx, index_hash))
+    new_index_key = new_generator!(ctx, index(ctx, index_hash) + 1, pol, tag(ctx, index_hash))
+    for key in keys(ctx.tbl)
+        key[1] != index_hash && continue
+        elem_to_copy = ctx(key)
+        ctx((new_index_key, key[2]), elem_to_copy.pol, elem_to_copy.module_pol)
+    end
+    return new_index_key
+end
+
 function sigpolynomialctx(coefficients,
                           ngens;
                           polynomials=nothing,

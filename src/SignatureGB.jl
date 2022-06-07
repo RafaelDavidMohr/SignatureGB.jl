@@ -74,6 +74,30 @@ function f5sat(I::Vector{P},
     # [R(ctx, g) for g in filter(g -> index(ctx, g) != maxindex(ctx), G.sigs)]
 end
 
+function  f5sat_by_multiple(I::Vector{P},
+                            to_sat::Vector{P};
+                            verbose = 0,
+                            kwargs...) where {P<:AA.MPolyElem}
+    
+    R = parent(first(I))
+    ctx = setup(I; mod_rep_type = :highest_index,
+                track_module_tags = [],
+                kwargs...)
+    to_sat_index_keys = pos_type(ctx)
+    for (i, f) in enumerate(to_sat)
+        new_key = new_generator!(ctx, length(I) + i, ctx.po(f), Symbol("to_sat_$(i)"))
+        push!(to_sat_index_keys, new_key)
+        push!(ctx.track_module_tags, Symbol("to_sat_$(i)"))
+    end
+    G, H, koszul_q, pairs = pairs_and_basis(ctx, length(I) + length(to_sat); kwargs...)
+    logger = SGBLogger(ctx, verbose = verbose, task = :sat; kwargs...)
+    with_logger(logger) do
+        components = f5sat_by_multiple_core!(ctx, G, H, koszul_q, to_sat_index_keys, R; kwargs...)
+        verbose == 2 && printout(logger)
+    end
+    [[R(ctx, g) for g in G.sigs] for G in components]
+end
+
 function nondegen_part(I::Vector{P};
                        verbose = 0,
                        kwargs...) where {P <: AA.MPolyElem}
@@ -161,7 +185,7 @@ function sgb_core!(ctx::SΓ,
             curr_indx = next_index
         end
         
-        # TODO: is this a good idea?
+        # TODO: is this a good idea? -> move to sigpolynomialctx
         if max_remasks > 0 && rand() < max(1/max_remasks, 1/3)
             max_remasks -= 1
             remask!(ctx.po.mo.table)
@@ -216,7 +240,7 @@ function f5sat_core!(ctx::SΓ,
     old_gb_length = length(G)
     
     while !(isempty(pairs))
-        # TODO: is this a good idea
+        # TODO: is this a good idea? -> move this into sigpolynomialctx
         if max_remasks > 0 && rand() < max(1 / max_remasks, 1 / 3)
             max_remasks -= 1
             remask!(ctx.po.mo.table)
@@ -289,6 +313,59 @@ function f5sat_core!(ctx::SΓ,
         end
         @logmsg Verbose2 "" end_time_core = time()
     end
+end
+
+function f5sat_by_multiple_core!(ctx::SΓ,
+                                 G::Basis{I,M},
+                                 H::Syz{I,M},
+                                 koszul_q::KoszulQueue{I,M,SΓ},
+                                 index_keys::Vector{I},
+                                 R;
+                                 max_remasks = 3,
+                                 zero_divisor_tag = :zd,
+                                 kwargs...) where {I,M,SΓ<:SigPolynomialΓ{I,M}}
+
+    isempty(index_keys) && return
+    pairs = pairset(ctx)
+    components = [G]
+    # TODO: sort by degree?
+    for (i, to_sat) in enumerate(index_keys)
+        # first round: compute (I + g) and (I : g)
+        @assert tag(ctx, to_sat) in ctx.track_module_tags
+        pair!(ctx, pairs, unitvector(ctx, to_sat))
+        sgb_core!(ctx, components[i], H, koszul_q, pairs, R, max_remasks = max_remasks; kwargs...)
+        
+        if i != length(index_keys)
+            copy_of_to_sat_key = copy_index!(ctx, to_sat)
+            new_component = copy(components[i])
+            push!(components, new_component)
+            filter_less_than_index!(ctx, components[i], index(ctx, to_sat))
+        end
+        
+        zero_divisor_sigs = filter(sig -> sig[1] == to_sat, H)
+        # TODO: make the zero divisor insertion a function
+        for sig in zero_divisor_sigs
+            p = project(ctx, sig; kwargs...)
+            new_key = new_generator!(ctx, index(ctx, copy_of_to_sat_key), p, zero_divisor_tag)
+            new_basis_elem!(components[i], unitvector(ctx, new_key), leadingmonomial(p))
+        end
+        
+        while true
+            empty!(pairs)
+            pair!(ctx, pairs, unitvector(ctx, copy_of_to_sat_key))
+            sgb_core!(ctx, components[i], H, koszul_q, pairs, R, max_remasks = max_remasks; kwargs...)
+            zero_divisor_sigs = filter(sig -> sig[1] == copy_of_to_sat_key, H)
+            isempty(zero_divisor_sigs) && break
+            for sig in zero_divisor_sigs
+                p = project(ctx, sig; kwargs...)
+                new_key = new_generator!(ctx, index(ctx, to_sat), p, zero_divisor_tag)
+                new_basis_elem!(components[i], unitvector(ctx, new_key), leadingmonomial(p))
+            end
+            filter_less_than_index!(ctx, components[i], index(ctx, copy_of_to_sat_key))
+            filter!(sig -> sig[1] != copy_of_to_sat_key, H)
+        end
+    end
+    return components
 end
 
 function nondegen_part_core!(ctx::SΓ,
