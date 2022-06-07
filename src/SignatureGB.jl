@@ -74,28 +74,28 @@ function f5sat(I::Vector{P},
     # [R(ctx, g) for g in filter(g -> index(ctx, g) != maxindex(ctx), G.sigs)]
 end
 
-function  f5sat_by_multiple(I::Vector{P},
-                            to_sat::Vector{P};
-                            verbose = 0,
-                            kwargs...) where {P<:AA.MPolyElem}
+function f5sat_by_multiple(I::Vector{P},
+                           to_sat::Vector{P};
+                           verbose = 0,
+                           kwargs...) where {P<:AA.MPolyElem}
     
     R = parent(first(I))
     ctx = setup(I; mod_rep_type = :highest_index,
                 track_module_tags = [],
                 kwargs...)
-    to_sat_index_keys = pos_type(ctx)
+    to_sat_index_keys = pos_type(ctx)[]
     for (i, f) in enumerate(to_sat)
         new_key = new_generator!(ctx, length(I) + i, ctx.po(f), Symbol("to_sat_$(i)"))
         push!(to_sat_index_keys, new_key)
         push!(ctx.track_module_tags, Symbol("to_sat_$(i)"))
     end
-    G, H, koszul_q, pairs = pairs_and_basis(ctx, length(I) + length(to_sat); kwargs...)
+    G, H, koszul_q, pairs = pairs_and_basis(ctx, length(I) + length(to_sat), start_gen = length(I) + 1; kwargs...)
     logger = SGBLogger(ctx, verbose = verbose, task = :sat; kwargs...)
     with_logger(logger) do
         components = f5sat_by_multiple_core!(ctx, G, H, koszul_q, to_sat_index_keys, R; kwargs...)
         verbose == 2 && printout(logger)
+        return [[R(ctx, g) for g in G.sigs] for G in components]
     end
-    [[R(ctx, g) for g in G.sigs] for G in components]
 end
 
 function nondegen_part(I::Vector{P};
@@ -333,14 +333,14 @@ function f5sat_by_multiple_core!(ctx::SΓ,
         # first round: compute (I + g) and (I : g)
         @assert tag(ctx, to_sat) in ctx.track_module_tags
         pair!(ctx, pairs, unitvector(ctx, to_sat))
-        sgb_core!(ctx, components[i], H, koszul_q, pairs, R, max_remasks = max_remasks; kwargs...)
-        
+        sgb_core!(ctx, components[i], H, koszul_q, pairs, R, max_remasks = max_remasks, all_koszul = true; kwargs...)
+
+        copy_of_to_sat_key = i == length(index_keys) ? to_sat : copy_index!(ctx, to_sat)
         if i != length(index_keys)
-            copy_of_to_sat_key = copy_index!(ctx, to_sat)
             new_component = copy(components[i])
             push!(components, new_component)
-            filter_less_than_index!(ctx, components[i], index(ctx, to_sat))
         end
+        filter_less_than_index!(ctx, components[i], index(ctx, to_sat))
         
         zero_divisor_sigs = filter(sig -> sig[1] == to_sat, H)
         # TODO: make the zero divisor insertion a function
@@ -353,16 +353,16 @@ function f5sat_by_multiple_core!(ctx::SΓ,
         while true
             empty!(pairs)
             pair!(ctx, pairs, unitvector(ctx, copy_of_to_sat_key))
-            sgb_core!(ctx, components[i], H, koszul_q, pairs, R, max_remasks = max_remasks; kwargs...)
+            sgb_core!(ctx, components[i], H, koszul_q, pairs, R, max_remasks = max_remasks, all_koszul = true; kwargs...)
+            filter_less_than_index!(ctx, components[i], index(ctx, copy_of_to_sat_key))
             zero_divisor_sigs = filter(sig -> sig[1] == copy_of_to_sat_key, H)
+            filter!(sig -> sig[1] != copy_of_to_sat_key, H)
             isempty(zero_divisor_sigs) && break
             for sig in zero_divisor_sigs
                 p = project(ctx, sig; kwargs...)
                 new_key = new_generator!(ctx, index(ctx, to_sat), p, zero_divisor_tag)
                 new_basis_elem!(components[i], unitvector(ctx, new_key), leadingmonomial(p))
             end
-            filter_less_than_index!(ctx, components[i], index(ctx, copy_of_to_sat_key))
-            filter!(sig -> sig[1] != copy_of_to_sat_key, H)
         end
     end
     return components
