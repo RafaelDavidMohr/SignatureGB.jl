@@ -172,7 +172,7 @@ end
 
 function remask!(table::MonomialHashTable{N, E, I, B}) where {N, E, I, B}
 
-    if table.max_remasks > 0 && rand() < max(1/max_remasks, 1/3)    
+    if table.max_remasks > 0 && rand() < max(1/table.max_remasks, 1/3)    
         [table.bitmask_powers[i] = even_between(table.min_powers[i], table.max_powers[i], length(table.bitmask_powers[i]))
          for i in 1:N]
         table.bitmasks = broadcast(v -> bitmask(v, table.bitmask_powers), table.val)
@@ -195,12 +195,12 @@ end
 # need to change this?
 const IxPolynomialΓ{I, T, moΓ <: IxMonomialΓ{I}, coΓ} = PolynomialΓ{I, T, moΓ, coΓ}
 
-function ixmonomialctx(moctx=nothing; indices=UInt32, mask_type=UInt32, remask_after=1, deg_bound = 0, kwargs...)
+function ixmonomialctx(moctx=nothing; table_indices=UInt32, mask_type=UInt32, remask_after=1, deg_bound = 0, kwargs...)
     if isnothing(moctx)
         moctx = monomialctx(;kwargs...)
     end
     @assert nvars(moctx) <= sizeof(mask_type) * 8 "bitmask type not sufficiently large for number of variables. choose a larger type using the keyword 'mask_type'."
-    idxmoctx = IxMonomialΓ{indices, params(moctx)..., mask_type, typeof(moctx)}(moctx, MonomialHashTable{params(moctx)..., indices, mask_type}(deg_bound = deg_bound))
+    idxmoctx = IxMonomialΓ{table_indices, params(moctx)..., mask_type, typeof(moctx)}(moctx, MonomialHashTable{params(moctx)..., table_indices, mask_type}(deg_bound = deg_bound))
     idxmoctx
 end
 
