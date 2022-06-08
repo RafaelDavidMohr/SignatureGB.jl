@@ -114,10 +114,10 @@ function nondegen_part(I::Vector{P};
     remaining = [ctx.po(f) for f in I[2:end]]
     logger = SGBLogger(ctx, verbose = verbose, task = :sat; kwargs...)
     with_logger(logger) do
-	nondegen_part_core!(ctx, G, H, koszul_q, remaining, R; kwargs...)
+	result = nondegen_part_core!(ctx, G, H, koszul_q, remaining, R; kwargs...)
         verbose == 2 && printout(logger)
+        [[R(ctx, sig) for sig in component.sigs] for component in result]
     end
-    [R(ctx, g) for g in G.sigs]
 end
 
 function sgb_core!(ctx::SΓ,
@@ -317,8 +317,10 @@ function f5sat_by_multiple_core!(ctx::SΓ,
                                  zero_divisor_tag = :zd,
                                  kwargs...) where {I,M,SΓ<:SigPolynomialΓ{I,M}}
 
-    isempty(index_keys) && return
+    # Careful: this modifies index_keys
+    isempty(index_keys) && return [G]
     pairs = pairset(ctx)
+    superflous = Int[]
     components = [G]
     # TODO: sort by degree?
     for (i, to_sat) in enumerate(index_keys)
@@ -338,13 +340,21 @@ function f5sat_by_multiple_core!(ctx::SΓ,
         # TODO: make the zero divisor insertion a function
         for sig in zero_divisor_sigs
             p = project(ctx, sig; kwargs...)
+            println("inserting $(R(ctx.po, p))")
             new_key = new_generator!(ctx, index(ctx, copy_of_to_sat_key), p, zero_divisor_tag)
             new_basis_elem!(components[i], unitvector(ctx, new_key), leadingmonomial(p))
         end
+        # TODO: this might break things: might use later a reducer with syzygy signature?
+        filter!(sig -> sig[1] != to_sat, H)
         
         while true
             empty!(pairs)
             pair!(ctx, pairs, unitvector(ctx, copy_of_to_sat_key))
+            # TODO: this is not a good way to check whether 1 is contained in the ideal
+            if isempty(pairs)
+                push!(superflous, i)
+                break
+            end
             sgb_core!(ctx, components[i], H, koszul_q, pairs, R, all_koszul = true; kwargs...)
             filter_less_than_index!(ctx, components[i], index(ctx, copy_of_to_sat_key))
             zero_divisor_sigs = filter(sig -> sig[1] == copy_of_to_sat_key, H)
@@ -352,11 +362,14 @@ function f5sat_by_multiple_core!(ctx::SΓ,
             isempty(zero_divisor_sigs) && break
             for sig in zero_divisor_sigs
                 p = project(ctx, sig; kwargs...)
+                println("inserting $(R(ctx.po, p))")
                 new_key = new_generator!(ctx, index(ctx, to_sat), p, zero_divisor_tag)
                 new_basis_elem!(components[i], unitvector(ctx, new_key), leadingmonomial(p))
             end
         end
+        index_keys[i] = copy_of_to_sat_key
     end
+    deleteat!(index_keys, superflous)
     return components
 end
 
@@ -366,59 +379,81 @@ function nondegen_part_core!(ctx::SΓ,
                              koszul_q::KoszulQueue{I, M, SΓ},
                              remaining::Vector{P},
                              R;
-                             f5c = false,
                              kwargs...) where {I, M, SΓ <: SigPolynomialΓ{I, M},
                                                P <: Polynomial{M}}
 
     ngens = length(ctx.f5_indices)
-    non_zero_conditions = eltype(ctx)[]
+    # non_zero_conditions = eltype(ctx)[]
+    non_zero_conditions = Vector{I}[]
     pairs = pairset(ctx)
-    
-    for (i, f) in enumerate(remaining)
-        insert_above =  maximum(g -> index(ctx, g), G.sigs)
-        indx_key = new_generator!(ctx, insert_above + 1, f)
-        pair!(ctx, pairs, unitvector(ctx, indx_key))
-        last_index = maximum(g -> index(ctx, g), G.sigs)
-        f5sat_core!(ctx, G, H, koszul_q, pairs, R,
-                    sat_tag = [:f], f5c = f5c,
-                    excluded_tags = [:h]; kwargs...)
-        f_index = index(ctx, indx_key)
+    result = [G]
 
-        newly_inserted = [key for key in keys(ctx.f5_indices) if last_index < index(ctx, key) < f_index && tag(ctx, key) == :zd]
-        g_h_pairs = Tuple{I, eltype(ctx.po)}[]
-        for key in newly_inserted
-            syz = filter(h -> h[1] == key, H)
-            isempty(syz) && continue
-            hs = [project(ctx, h) for h in syz]
-            cleaner = random_lin_comb(ctx.po, [project(ctx, h) for h in syz])
-            push!(g_h_pairs, (key, cleaner))
-        end
-        check_if_contained_in = filter(sig -> index(ctx, sig) <= last_index, G.sigs)
-        for (key, cleaner) in sort(g_h_pairs, by = g_h_pair -> degree(ctx.po, g_h_pair[2]))
-            if any(h -> iszero(poly_reduce(ctx, check_if_contained_in, R(ctx, h) * R(ctx, unitvector(ctx, key)), R)), non_zero_conditions)
-                continue
+    for (i, f) in enumerate(remaining)
+        for component in result 
+            insert_above =  maximum(g -> index(ctx, g), component.sigs)
+            indx_key = new_generator!(ctx, insert_above + 1, f)
+            pair!(ctx, pairs, unitvector(ctx, indx_key))
+            last_index = maximum(g -> index(ctx, g), component.sigs)
+            f5sat_core!(ctx, component, H, koszul_q, pairs, R,
+                        sat_tag = [:f],
+                        excluded_tags = [:h]; kwargs...)
+            f_index = index(ctx, indx_key)
+            
+            newly_inserted = [key for key in keys(ctx.f5_indices) if last_index < index(ctx, key) < f_index && tag(ctx, key) == :zd]
+            
+            # g_h_pairs = Tuple{I, eltype(ctx.po)}[]
+            
+            for key in newly_inserted
+                syz = filter(h -> h[1] == key, H)
+                isempty(syz) && continue
+                hs = [project(ctx, h) for h in syz]
+                keys = [new_generator!(ctx, maxindex(ctx) + 1, cleaner, :h) for cleaner in hs]
+                push!(non_zero_conditions, keys)
+                # cleaner = random_lin_comb(ctx.po, [project(ctx, h) for h in syz])
+                # push!(g_h_pairs, (key, cleaner))
             end
-            new_indx_key = new_generator!(ctx, maxindex(ctx) + 1, cleaner, :h)
-            push!(non_zero_conditions, unitvector(ctx, new_indx_key))
         end
-        
-        empty!(pairs)
-        f5c && interreduction!(ctx, G, R)                
+
+        results = Vector{typeof(G)}[]
+        for component in result
+            comps = [component]
+            for cleaners in non_zero_conditions
+                comps = vcat([f5sat_by_multiple_core!(ctx, comp, H, koszul_q, cleaners, R, zero_divisor_tag = :p; kwargs...)
+                              for comp in comps]...)
+            end
+            push!(results, comps)
+        end
+        result = vcat(results...)
+        filter!(component -> !(contains_unit(ctx, component)), result)
+        filter!(cleaners -> !(isempty(cleaners)), non_zero_conditions)
     end
+    return result    
+        # check_if_contained_in = filter(sig -> index(ctx, sig) <= last_index, G.sigs)
+        # for (key, cleaner) in sort(g_h_pairs, by = g_h_pair -> degree(ctx.po, g_h_pair[2]))
+        #     if any(h -> iszero(poly_reduce(ctx, check_if_contained_in, R(ctx, h) * R(ctx, unitvector(ctx, key)), R)), non_zero_conditions)
+        #         continue
+        #     end
+        #     new_indx_key = new_generator!(ctx, maxindex(ctx) + 1, cleaner, :h)
+        #     push!(non_zero_conditions, unitvector(ctx, new_indx_key))
+        # end
+        
+        # empty!(pairs)
+        # f5c && interreduction!(ctx, G, R)                
+    # end
 
     # sort!(non_zero_conditions, by = sig -> degree(ctx.po, ctx(sig).pol))
-    for cleaner in non_zero_conditions
+    # for cleaner in non_zero_conditions
         # new_index!(ctx, cleaner[1], maximum(g -> index(ctx, g), G.sigs) + 1, :h)
-        pair!(ctx, pairs, cleaner)
-        @assert !(isempty(pairs))
-        excluded_index_keys = [sig[1] for sig in non_zero_conditions if sig[1] != cleaner[1]]        
-        f5sat_core!(ctx, G, H, koszul_q, pairs, R,
-                    sat_tag = [:h], f5c = f5c,
-                    excluded_index_keys = excluded_index_keys; kwargs...)
-        empty!(pairs)
-        filter_by_tag!(ctx, G, :h)
-        f5c && interreduction!(ctx, G, R)
-    end
+        # pair!(ctx, pairs, cleaner)
+        # @assert !(isempty(pairs))
+        # excluded_index_keys = [sig[1] for sig in non_zero_conditions if sig[1] != cleaner[1]]        
+        # f5sat_core!(ctx, component, H, koszul_q, pairs, R,
+        #             sat_tag = [:h], f5c = f5c,
+    #                 excluded_index_keys = excluded_index_keys; kwargs...)
+    #     empty!(pairs)
+    #     filter_by_tag!(ctx, component, :h)
+    #     f5c && interreduction!(ctx, component, R)
+    # end
 
 end
 

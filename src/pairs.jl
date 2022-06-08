@@ -9,6 +9,10 @@ struct Basis{I, M}
 end
 const Syz{I, M} = Vector{SigHash{I, M}}
 
+function contains_unit(ctx::SigPolynomialΓ{I, M}, G::Basis{I, M}) where {I, M}
+    any(lm -> degree(ctx.po.mo, lm) == 0, G.lms)
+end
+
 function Base.copy(G::Basis)
     Basis(copy(G.sigs), copy(G.lms), copy(G.by_index))
 end

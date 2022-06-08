@@ -54,6 +54,7 @@ function gcd(ctx::MonomialContext{T}, x::T, y::T) where {T}
     ctx(min.(exponents(ctx, x), exponents(ctx, y)))
 end
 
+degree(ctx::MonomialContext{T}, x::T) where T = sum(exponents(ctx, x))
 
 #.. Monomial type
 
