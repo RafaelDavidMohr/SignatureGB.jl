@@ -38,11 +38,12 @@ function copy_index!(ctx::SigPolynomialΓ{I},
                      index_hash::I) where I
 
     elem_to_copy = ctx(unitvector(ctx, index_hash))
-    new_index_key = new_generator!(ctx, index(ctx, index_hash) + 1, elem_to_copy.pol, tag(ctx, index_hash))
-    for key in keys(ctx.tbl)
-        key[1] != index_hash && continue
-        elem_to_copy = ctx(key)
-        ctx((new_index_key, key[2]), elem_to_copy.pol, elem_to_copy.module_rep)
+    new_index_key = new_generator!(ctx, index(ctx, index_hash) + 1, elem_to_copy.pol,
+                                   tag(ctx, index_hash), module_rep = elem_to_copy.module_rep)
+    for (ind_hash, mon) in keys(ctx.tbl)
+        ind_hash != index_hash && continue
+        elem_to_copy = ctx((ind_hash, mon))
+        ctx((new_index_key, mon), copy(elem_to_copy.pol), copy(elem_to_copy.module_rep))
     end
     return new_index_key
 end
@@ -149,7 +150,8 @@ end
 function new_generator!(ctx::SigPolynomialΓ{I, M, MM, T},
                         index,
                         pol::Polynomial{M, T},
-                        tag = :f) where {I, M, MM, T}
+                        tag = :f;
+                        module_rep = ctx.po([one(ctx.po.mo)], [one(eltype(ctx.po.co))])) where {I, M, MM, T}
 
     if !(isempty(keys(ctx.f5_indices)))
         new_index_key = maximum(keys(ctx.f5_indices)) + 1
@@ -162,7 +164,7 @@ function new_generator!(ctx::SigPolynomialΓ{I, M, MM, T},
     if mod_order(ctx) in [:SCHREY, :DPOT]
         ctx.lms[new_index_key] = leadingmonomial(pol)
     end
-    ctx(sighash, pol, ctx.po([one(ctx.po.mo)], [one(eltype(ctx.po.co))]))
+    ctx(sighash, pol, module_rep)
     return I(new_index_key)
 end
 

@@ -162,7 +162,8 @@ function sgb_core!(ctx::SΓ,
     end
 
     # TEMP: temporary solution to not correctly symbolically preproc. the unit vectors
-    select_both = mod_order(ctx) == :POT
+    # TODO: get rid of this somehow
+    select_both = false
 
     curr_indx = index(ctx, first(pairs)[1])
     old_gb_length = length(G)
@@ -327,9 +328,11 @@ function f5sat_by_multiple_core!(ctx::SΓ,
         # first round: compute (I + g) and (I : g)
         @assert tag(ctx, to_sat) in ctx.track_module_tags
         pair!(ctx, pairs, unitvector(ctx, to_sat))
+        isempty(pairs) && continue
         sgb_core!(ctx, components[i], H, koszul_q, pairs, R, all_koszul = true; kwargs...)
 
         copy_of_to_sat_key = i == length(index_keys) ? to_sat : copy_index!(ctx, to_sat)
+        
         if i != length(index_keys)
             new_component = copy(components[i])
             push!(components, new_component)
@@ -340,8 +343,7 @@ function f5sat_by_multiple_core!(ctx::SΓ,
         # TODO: make the zero divisor insertion a function
         for sig in zero_divisor_sigs
             p = project(ctx, sig; kwargs...)
-            println("inserting $(R(ctx.po, p))")
-            new_key = new_generator!(ctx, index(ctx, copy_of_to_sat_key), p, zero_divisor_tag)
+            new_key = new_generator!(ctx, index(ctx, to_sat), p, zero_divisor_tag)
             new_basis_elem!(components[i], unitvector(ctx, new_key), leadingmonomial(p))
         end
         # TODO: this might break things: might use later a reducer with syzygy signature?
@@ -358,18 +360,18 @@ function f5sat_by_multiple_core!(ctx::SΓ,
             sgb_core!(ctx, components[i], H, koszul_q, pairs, R, all_koszul = true; kwargs...)
             filter_less_than_index!(ctx, components[i], index(ctx, copy_of_to_sat_key))
             zero_divisor_sigs = filter(sig -> sig[1] == copy_of_to_sat_key, H)
-            filter!(sig -> sig[1] != copy_of_to_sat_key, H)
             isempty(zero_divisor_sigs) && break
             for sig in zero_divisor_sigs
                 p = project(ctx, sig; kwargs...)
-                println("inserting $(R(ctx.po, p))")
                 new_key = new_generator!(ctx, index(ctx, to_sat), p, zero_divisor_tag)
                 new_basis_elem!(components[i], unitvector(ctx, new_key), leadingmonomial(p))
             end
+            filter!(sig -> sig[1] != copy_of_to_sat_key, H)
+            @assert is_gb([R(ctx, sig) for sig in components[i].sigs])
         end
         index_keys[i] = copy_of_to_sat_key
     end
-    deleteat!(index_keys, superflous)
+    # deleteat!(index_keys, superflous)
     return components
 end
 
@@ -409,6 +411,8 @@ function nondegen_part_core!(ctx::SΓ,
                 hs = [project(ctx, h) for h in syz]
                 keys = [new_generator!(ctx, maxindex(ctx) + 1, cleaner, :h) for cleaner in hs]
                 push!(non_zero_conditions, keys)
+                println("new set of cleaners: $([R(ctx, unitvector(ctx, key)) for key in keys])")
+                println("------")
                 # cleaner = random_lin_comb(ctx.po, [project(ctx, h) for h in syz])
                 # push!(g_h_pairs, (key, cleaner))
             end

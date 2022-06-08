@@ -50,7 +50,7 @@ function filter_less_than_index!(ctx::SigPolynomialΓ{I, M},
     deleteat!(G.sigs, to_delete)
     deleteat!(G.lms, to_delete)
     for i in keys(G.by_index)
-        if index(ctx, i) > indx
+        if index(ctx, i) >= indx
             G.by_index[i] = M[]
         end
     end
@@ -246,7 +246,11 @@ function pairs!(ctx::SΓ,
         m = lcm(ctx.po.mo, lm, lm_sig)
         m == mul(ctx.po.mo, lm, lm_sig) && continue
         a = div(ctx.po.mo, m, lm_sig)
-        rewriteable_syz(ctx, a, sig, G, H, all_koszul) && continue
+        @debug "considering pair $(gpair(ctx.po.mo, a)), $(index(ctx, sig))"
+        if rewriteable_syz(ctx, a, sig, G, H, all_koszul)
+            @debug "rewritten by syz criterion"
+            continue
+        end
         b = div(ctx.po.mo, m, lm)
         if !(f5c) || g[1] == index_key
             rewriteable(ctx, b, g, j, G, H, all_koszul) && continue
@@ -292,7 +296,10 @@ function rewriteable_syz(ctx::SigPolynomialΓ{I, M},
             index(ctx, i) >= index(ctx, sig) && continue
             if i in keys(G.by_index)
                 for lm in G.by_index[i]
-                    divides(ctx.po.mo, lm, msig[2]) && return true
+                    if divides(ctx.po.mo, lm, msig[2])
+                        @debug "by koszul criterion"
+                        return true
+                    end
                 end
             end
         end
