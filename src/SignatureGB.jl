@@ -3,9 +3,9 @@ using Combinatorics
 
 include("./useful.jl")
 include("./context.jl")
-include("./sgbtree.jl")
 include("./termorder.jl")
 include("./polynomials.jl")
+include("./sgbtree.jl")
 include("./coefficients.jl")
 include("./monomialtable.jl")
 include("./sigtable.jl")

@@ -116,10 +116,10 @@ function new_generator_before!(ctx::SigPolynomialΓ{I, M, MM, T},
                                tag = :f;
                                module_rep = ctx.po([one(ctx.po.mo)], [one(eltype(ctx.po.co))])) where {I, M, MM, T}
     
-    new_node = insert_before!(before, pol, ctx.f5_indices, tag)
-    sighash = unitvector(ctx, new_index_key)
+    new_node = insert_before!(before, pol, ctx.sgb_nodes, tag)
+    sighash = unitvector(ctx, new_node.ID)
     if mod_order(ctx) in [:SCHREY, :DPOT]
-        ctx.lms[new_index_key] = leadingmonomial(pol)
+        ctx.lms[new_node.ID] = leadingmonomial(pol)
     end
     ctx(sighash, pol, module_rep)
     return new_node.ID
@@ -130,6 +130,8 @@ end
 function (ctx::SigPolynomialΓ{I, M, MM, T})(sig::SigHash{I, M},
                                             pol::Polynomial{M, T},
                                             module_rep::Polynomial{MM, T}) where {I, M, MM, T}
+    # TODO: maybe temporary
+    @assert sig[1] in keys(ctx.sgb_nodes)
     if iszero(pol)
         ratio = one(ctx.po.mo)
     else
@@ -220,7 +222,7 @@ end
             if a[1] == b[1]
                 return lt(ctx.po.mo, a[2], b[2])
             end
-            return is_branch_before(ctx.sgb_nodes[a[1]], ctx.sgb_nodes[b[1]])
+            return in_branch_before(ctx.sgb_nodes[a[1]], ctx.sgb_nodes[b[1]])
         end
     elseif MORD == :DPOT
         quote
@@ -230,14 +232,14 @@ end
                 if a[1] == b[1]
                     return lt(ctx.po.mo, a[2], b[2])
                 end
-                return is_branch_before(ctx.sgb_nodes[a[1]], ctx.sgb_nodes[b[1]])
+                return in_branch_before(ctx.sgb_nodes[a[1]], ctx.sgb_nodes[b[1]])
             end
             return d1 < d2
         end
     elseif MORD == :TOP
         quote
             if a[2] == b[2]
-                return is_branch_before(ctx.sgb_nodes[a[1]], ctx.sgb_nodes[b[1]])
+                return in_branch_before(ctx.sgb_nodes[a[1]], ctx.sgb_nodes[b[1]])
             end
             return lt(ctx.po.mo, a[2], b[2])
         end
@@ -246,7 +248,7 @@ end
             c1 = mul(ctx.po.mo, a[2], ctx.lms[a[1]])
             c2 = mul(ctx.po.mo, b[2], ctx.lms[b[1]])
             if c1 == c2
-                return is_branch_before(ctx.sgb_nodes[a[1]], ctx.sgb_nodes[b[1]])
+                return in_branch_before(ctx.sgb_nodes[a[1]], ctx.sgb_nodes[b[1]])
             end
             return lt(ctx.po.mo, c1, c2)
         end
@@ -307,8 +309,9 @@ function setup(I::Vector{P};
         end
     end
     if mod_order == :SCHREY || mod_order == :DPOT
+        # TODO: iterating over the keys is not ideal
         ctx.lms = Dict([(pos_type(ctx)(i), leadingmonomial(ctx, unitvector(ctx, i)))
-                        for i in 1:Base.length(I)])
+                        for i in keys(ctx.sgb_nodes) if !isone(i)])
     end
     ctx
 end

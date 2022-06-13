@@ -42,7 +42,7 @@ function new_node!(parent_id::I,
                    tag::Symbol;
                    is_branch_node = false) where {I, M, T}
 
-    id = maximum(keys(ID_dict)) + 1
+    id = isempty(keys(ID_dict)) ? one(I) : maximum(keys(ID_dict)) + 1
     if !(iszero(parent_id))
         node = SGBNode{I, M, T}(id, vcat(ID_dict[parent_id].path_to, [parent_id]),
                                 pol, is_branch_node, tag, Set(I[]),
@@ -71,8 +71,13 @@ function insert_before!(before::SGBNode{I, M, T},
     end
     node = new_node!(before.parent_id, pol, ID_dict, tag)
     before.parent_id = node.ID
-    before.path_to[end] = node.ID
-    set_path_subtree!(before)
+    push!(node.children_id, before.ID)
+    if isempty(before.path_to)
+        push!(before.path_to, node.ID)
+    else
+        before.path_to[end] = node.ID
+    end
+    set_path_subtree!(before, ID_dict)
     return node
 end
 
