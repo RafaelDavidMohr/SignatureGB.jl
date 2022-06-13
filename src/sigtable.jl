@@ -5,7 +5,8 @@ struct SigPolynomial{M, MM, T, MODT}
     module_rep::Polynomial{MM, T}
     sigratio::M
 end
-    
+
+# TODO: no longer needed
 mutable struct F5Index{I}
     index::I
     tag::Symbol
@@ -14,8 +15,6 @@ end
 const SigHash{I, M} = Tuple{I, M}
 const SigTable{I, M, MM, T, MODT} = Dict{SigHash{I, M}, SigPolynomial{M, MM, T, MODT}}
 
-# TODO: Important!!!! swap T and MM in all the methods
-# TODO: Include additional field for which tags we want to track the module?
 mutable struct SigPolynomialΓ{I, M, MM, T, MODT,
                               MΓ<:Context{M}, TΓ<:Context{T},
                               MMΓ<:Context{MM},
@@ -24,7 +23,8 @@ mutable struct SigPolynomialΓ{I, M, MM, T, MODT,
     po::PΓ
     mod_po::PPΓ
     tbl::SigTable{I, M, MM, T, MODT}
-    f5_indices::Dict{I, F5Index{I}}
+    sgb_nodes::Dict{I, SGBNode{I, M, T}}
+    # need a simpler caching mechanism
     cashed_sigs::Vector{SigHash{I, M}}
     track_module_tags::Vector{Symbol}
     lms::Dict{I, M}
@@ -34,22 +34,7 @@ struct SigOrdering{SΓ <: SigPolynomialΓ}<:Base.Order.Ordering
     ctx::SΓ
 end
 
-function copy_index!(ctx::SigPolynomialΓ{I},
-                     index_hash::I) where I
-
-    elem_to_copy = ctx(unitvector(ctx, index_hash))
-    new_index_key = new_generator!(ctx, index(ctx, index_hash) + 1, elem_to_copy.pol,
-                                   tag(ctx, index_hash), module_rep = elem_to_copy.module_rep)
-    for (ind_hash, mon) in keys(ctx.tbl)
-        ind_hash != index_hash && continue
-        elem_to_copy = ctx((ind_hash, mon))
-        ctx((new_index_key, mon), copy(elem_to_copy.pol), copy(elem_to_copy.module_rep))
-    end
-    return new_index_key
-end
-
-function sigpolynomialctx(coefficients,
-                          ngens;
+function sigpolynomialctx(coefficients;
                           polynomials=nothing,
                           mod_polynomials=nothing,
                           pos_type=UInt16,
@@ -70,17 +55,16 @@ function sigpolynomialctx(coefficients,
         mod_polynomials = polynomials
         mod_monomials = monomials
     end
-
     eltpe = SigHash{pos_type, eltype(monomials)}
     mon_type = eltype(monomials)
     tbl = SigTable{pos_type, mon_type, mon_type, eltype(coefficients), mod_rep_type}()
-    f5_indices = Dict([(i, F5Index(i, :f)) for i in one(pos_type):pos_type(ngens)])
+    sgb_nodes = Dict{pos_type, SGBNode{pos_type, eltype(monomials), eltype(coefficients)}}()
     SigPolynomialΓ{pos_type, eltype(monomials),
                    eltype(monomials), eltype(coefficients),
                    mod_rep_type, typeof(monomials),
                    typeof(coefficients), typeof(monomials),
                    typeof(polynomials), typeof(mod_polynomials),
-                   mod_order}(polynomials, mod_polynomials, tbl, f5_indices,
+                   mod_order}(polynomials, mod_polynomials, tbl, sgb_nodes,
                               eltpe[], track_module_tags, Dict{pos_type, mon_type}())
 end
 
@@ -123,76 +107,22 @@ end
 unitvector(ctx::SigPolynomialΓ, i) = (pos_type(ctx)(i), one(ctx.po.mo))
 isunitvector(ctx::SigPolynomialΓ{I, M}, a::SigHash{I, M}) where {I, M} = isone(a[2])
 
-function index(ctx::SigPolynomialΓ{I},
-               i) where {I}
-
-    iszero(i) && return zero(I)
-    ctx.f5_indices[i].index
-end
 tag(ctx::SigPolynomialΓ{I}, i::I) where {I} = ctx.f5_indices[i].tag
-
-index(ctx::SigPolynomialΓ{I, M}, p::SigHash{I, M}) where {I, M} = index(ctx, p[1])
 tag(ctx::SigPolynomialΓ{I, M}, p::SigHash{I, M}) where {I, M} = tag(ctx, p[1])
 
-function new_index!(ctx::SigPolynomialΓ,
-                    index_key,
-                    ind,
-                    tag = :f)
-
-    for i in keys(ctx.f5_indices)
-        if index(ctx, i) >= ind
-            ctx.f5_indices[i].index += 1
-        end
-    end
-    ctx.f5_indices[index_key] = F5Index(pos_type(ctx)(ind), tag)
-end
-
-function new_generator!(ctx::SigPolynomialΓ{I, M, MM, T},
-                        index,
-                        pol::Polynomial{M, T},
-                        tag = :f;
-                        module_rep = ctx.po([one(ctx.po.mo)], [one(eltype(ctx.po.co))])) where {I, M, MM, T}
-
-    if !(isempty(keys(ctx.f5_indices)))
-        new_index_key = maximum(keys(ctx.f5_indices)) + 1
-    else
-        new_index_key = 1
-    end
-    new_index!(ctx, new_index_key, index, tag)
+function new_generator_before!(ctx::SigPolynomialΓ{I, M, MM, T},
+                               before::SGBNode{I, M, T},
+                               pol::Polynomial{M, T},
+                               tag = :f;
+                               module_rep = ctx.po([one(ctx.po.mo)], [one(eltype(ctx.po.co))])) where {I, M, MM, T}
+    
+    new_node = insert_before!(before, pol, ctx.f5_indices, tag)
     sighash = unitvector(ctx, new_index_key)
-    # TODO: take care of other module reps
     if mod_order(ctx) in [:SCHREY, :DPOT]
         ctx.lms[new_index_key] = leadingmonomial(pol)
     end
     ctx(sighash, pol, module_rep)
-    return I(new_index_key)
-end
-
-function new_generator!(ctx::SigPolynomialΓ{I, M, MM, T},
-                        pol::Polynomial{M, T},
-                        tag = :f) where {I, M, MM, T}
-    
-    new_generator!(ctx, maxindex(ctx) + 1, pol, tag)
-end
-    
-# find maximal index
-function maxindex(ctx::SigPolynomialΓ{I, M}) where {I, M}
-
-    maximum(v -> v.index, values(ctx.f5_indices))
-end
-
-# return original generator of higher index than pos if it exists
-function orginal_gen_left(ctx::SigPolynomialΓ{I}, index::I) where I
-
-    result = zero(I)
-    for (i, v) in ctx.f5_indices
-        if v.tag == :f && v.index > index
-            if iszero(result) || v.index < ctx.f5_indices[result].index
-                result = i
-            end
-        end
-    end
-    return result
+    return new_node.ID
 end
 
 # registration functions
@@ -284,12 +214,13 @@ end
                                a::SigHash{I, M},
                                b::SigHash{I, M}) where {I, M, MM, T, MODT, MΓ, MMΓ, TΓ, PΓ, PPΓ, MORD}
 
+    # TODO: temporarily do a prefix check somewhere here for debugging purposes
     if MORD == :POT
         quote
             if a[1] == b[1]
                 return lt(ctx.po.mo, a[2], b[2])
             end
-            return index(ctx, a[1]) < index(ctx, b[1])
+            return is_branch_before(ctx.sgb_nodes[a[1]], ctx.sgb_nodes[b[1]])
         end
     elseif MORD == :DPOT
         quote
@@ -299,14 +230,14 @@ end
                 if a[1] == b[1]
                     return lt(ctx.po.mo, a[2], b[2])
                 end
-                return index(ctx, a[1]) < index(ctx, b[1])
+                return is_branch_before(ctx.sgb_nodes[a[1]], ctx.sgb_nodes[b[1]])
             end
             return d1 < d2
         end
     elseif MORD == :TOP
         quote
             if a[2] == b[2]
-                return index(ctx, a[1]) < index(ctx, b[1])
+                return is_branch_before(ctx.sgb_nodes[a[1]], ctx.sgb_nodes[b[1]])
             end
             return lt(ctx.po.mo, a[2], b[2])
         end
@@ -315,7 +246,7 @@ end
             c1 = mul(ctx.po.mo, a[2], ctx.lms[a[1]])
             c2 = mul(ctx.po.mo, b[2], ctx.lms[b[1]])
             if c1 == c2
-                return index(ctx, a[1]) < index(ctx, b[1])
+                return is_branch_before(ctx.sgb_nodes[a[1]], ctx.sgb_nodes[b[1]])
             end
             return lt(ctx.po.mo, c1, c2)
         end
@@ -359,18 +290,20 @@ function setup(I::Vector{P};
         error("choose a buffer bitsize of either 64 or 128")
     end
     buffer == 64 ? coefficients = Nmod32Γ(char) : coefficients = Nmod32xΓ(char)
-    ctx = sigpolynomialctx(coefficients, Base.length(I); mod_order = mod_order,
+    ctx = sigpolynomialctx(coefficients; mod_order = mod_order,
                            order=order, kwargs...)
     T = eltype(coefficients)
+    root = new_root!(ctx.sgb_nodes)
     if mod_rep_type(ctx) in [nothing, :highest_index]
-        for (i, f) in enumerate(I)
-            ctx(unitvector(ctx, i), ctx.po(f), ctx.po(R(1)))
+        for f in reverse(I)
+            f_id = new_generator_before!(ctx, root, ctx.po(f))
+            root = ctx.sgb_nodes[f_id]
         end
     elseif mod_rep_type(ctx) == :random_lin_comb
         coeffs = rand(zero(T):T(char - 1), Base.length(I))
-        for (i, f) in enumerate(I)
-            println(Int(coeffs[i]))
-            ctx(unitvector(ctx, i), ctx.po(f), ctx.po(R(1)))
+        for (i, f) in enumerate(reverse(I))
+            f_id = new_generator_before!(ctx, root, ctx.po(f), module_rep = ctx.po(R(coeffs[i])))
+            root = ctx.sgb_nodes[f_id]
         end
     end
     if mod_order == :SCHREY || mod_order == :DPOT
@@ -378,4 +311,35 @@ function setup(I::Vector{P};
                         for i in 1:Base.length(I)])
     end
     ctx
+end
+
+
+#- UNUSED CODE -#
+
+function copy_index!(ctx::SigPolynomialΓ{I},
+                     index_hash::I) where I
+
+    elem_to_copy = ctx(unitvector(ctx, index_hash))
+    new_index_key = new_generator!(ctx, index(ctx, index_hash) + 1, elem_to_copy.pol,
+                                   tag(ctx, index_hash), module_rep = elem_to_copy.module_rep)
+    for (ind_hash, mon) in keys(ctx.tbl)
+        ind_hash != index_hash && continue
+        elem_to_copy = ctx((ind_hash, mon))
+        ctx((new_index_key, mon), copy(elem_to_copy.pol), copy(elem_to_copy.module_rep))
+    end
+    return new_index_key
+end
+
+# return original generator of higher index than pos if it exists
+function orginal_gen_left(ctx::SigPolynomialΓ{I}, index::I) where I
+
+    result = zero(I)
+    for (i, v) in ctx.f5_indices
+        if v.tag == :f && v.index > index
+            if iszero(result) || v.index < ctx.f5_indices[result].index
+                result = i
+            end
+        end
+    end
+    return result
 end

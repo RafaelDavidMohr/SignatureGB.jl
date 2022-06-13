@@ -3,6 +3,7 @@ using Combinatorics
 
 include("./useful.jl")
 include("./context.jl")
+include("./sgbtree.jl")
 include("./termorder.jl")
 include("./polynomials.jl")
 include("./coefficients.jl")
@@ -12,7 +13,6 @@ include("./logging.jl")
 include("./pairs.jl")
 include("./symbolicpp.jl")
 include("./reduction_better.jl")
-# include("./interreduction.jl")
 include("./gen_example_file.jl")
 
 export sgb, f5sat, nondegen_part
