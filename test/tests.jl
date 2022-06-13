@@ -128,14 +128,18 @@ end
     @test ctx.sgb_nodes[g_id].children_id == Set([f_id])
     @test ctx.sgb_nodes[f_id].parent_id == g_id
     @test ctx.sgb_nodes[root.ID].parent_id == f_id
+    @test ctx.sgb_nodes[root.ID].path_to == [g_id, f_id]
+    @test ctx.sgb_nodes[f_id].path_to == [g_id]
+
+    # UNFINISHED
+    h =  x^4*y
+    h_node = SG.new_node!(g_id, ctx.po(h), ctx.sgb_nodes, :f)
     
     sig1, sig2 = ctx(f_id, R(1)), ctx(g_id, R(1))
-    ctx(sig1, f), ctx(sig2, g)
     m1 = ctx.po.mo(x)
     @test Set(collect(keys(ctx.tbl))) == Set([sig1, sig2])
     @test R(ctx.po, ctx(sig1).pol) == f
     @test R(ctx.po, ctx(m1, sig1).pol) == x*f
-    @test SG.mod_order(ctx) == :POT
     @test SG.lt(ctx, sig2, sig1)
 end
 
