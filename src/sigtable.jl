@@ -1,4 +1,3 @@
-# TODO: Maybe introduce a type parameter to have specialized methods for different kinds
 # of module reps
 struct SigPolynomial{M, MM, T, MODT}
     pol::Polynomial{M, T}
@@ -42,7 +41,6 @@ function sigpolynomialctx(coefficients;
                           mod_order=:POT,
                           track_module_tags=Symbol[],
                           kwargs...)
-    # TODO: what does 'deg_bound' do?
     # here we need to possibly build a seperate module_moctx
     if isnothing(polynomials)
         polynomials = polynomialctx(coefficients; kwargs...)
@@ -126,7 +124,6 @@ function new_generator_before!(ctx::SigPolynomialΓ{I, M, MM, T},
 end
 
 # registration functions
-# TODO: generalize type signature
 function (ctx::SigPolynomialΓ{I, M, MM, T})(sig::SigHash{I, M},
                                             pol::Polynomial{M, T},
                                             module_rep::Polynomial{MM, T}) where {I, M, MM, T}
@@ -155,7 +152,6 @@ Base.getindex(ctx::SigPolynomialΓ{I, M}, sig::SigHash{I, M}) where {I, M} = get
     ctx.tbl[sig]
 end
 
-# TODO: look at this
 function (ctx::SigPolynomialΓ{I, M})(m::M, sig::Tuple{I, M}; no_rewrite = false) where {I, M}
     
     key = mul(ctx, m, sig)
@@ -267,7 +263,6 @@ function (R :: AA.MPolyRing)(ctx::SigPolynomialΓ{I, M},
 end
 
 # converting a vector of singular polynomials into our own data structures
-# TODO: rework constructors
 function setup(I::Vector{P};
                mod_order=:POT,
                mon_order=:GREVLEX,

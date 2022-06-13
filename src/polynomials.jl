@@ -71,7 +71,7 @@ makehash(m::SVector{N}) where N = makehash(Val(N), m)
 
 # Monomial in N variables with exponent type E
 # We require E to be signed because it makes grevlex easier.
-# [TODO is that a good reason?]
+# [is that a good reason?]
 struct Monomial{N, E<:Signed}
     exponents::SVector{N, E}
     hash :: UInt

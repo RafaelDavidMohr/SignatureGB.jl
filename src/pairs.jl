@@ -147,7 +147,6 @@ function Base.Order.lt(porder::MPairOrdering{SΓ},
                        b::MonSigPair{I, M}) where {I, M, SΓ <: SigPolynomialΓ{I, M}}
     amul, bmul = mul(porder.ord.ctx, a...), mul(porder.ord.ctx, b...)
     if amul == bmul
-        # TODO: this might break stuff
         return a[2][2] < b[2][2]
     end
     Base.Order.lt(porder.ord, amul, bmul)

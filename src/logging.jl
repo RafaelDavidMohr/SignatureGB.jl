@@ -17,7 +17,6 @@ new_info() = Info([0 for _ in 1:9]...)
 mutable struct SGBLogger{I, L <: AbstractLogger} <: AbstractLogger
     logger::L
     verbose_level::Logging.LogLevel
-    # TODO: data to record
     core_info::DataFrame
     stop_watch_start::Float64
     timings::Timings
@@ -34,7 +33,6 @@ function printout(logger::SGBLogger)
     println("arithmetic operations: $(arit_ops)")
 end
 
-# TODO: change dataframe based on a task variable
 function SGBLogger(ctx::SigPolynomialΓ{I};
                    task = :sgb,
                    verbose = 0,
@@ -101,9 +99,7 @@ function inc_row!(logger::SGBLogger,
     inc_row!(logger, name, 1)
 end
 
-# TODO: simplify this using the column names
 function Logging.handle_message(logger::SGBLogger, level, message, _module, group, id, file, line;
-                                # TODO: put relevant key value pairs
                                 add_row = false,
                                 defaults = [],
                                 curr_index = 0,
@@ -139,7 +135,6 @@ function Logging.handle_message(logger::SGBLogger, level, message, _module, grou
             println("current degree $(sugar_deg)")
         end
     elseif level == Verbose2
-        # TODO: record data, format message
         if add_row
             add_info_row!(logger, defaults...)
         end

@@ -235,7 +235,6 @@ function f5sat_core!(ctx::SΓ,
     old_gb_length = length(G)
     
     while !(isempty(pairs))
-        # TODO: is this a good idea? -> move this into sigpolynomialctx
         remask!(ctx.po.mo.table)
 
         next_index = index(ctx, first(pairs)[1])
@@ -323,7 +322,6 @@ function f5sat_by_multiple_core!(ctx::SΓ,
     pairs = pairset(ctx)
     superflous = Int[]
     components = [G]
-    # TODO: sort by degree?
     for (i, to_sat) in enumerate(index_keys)
         # first round: compute (I + g) and (I : g)
         @assert tag(ctx, to_sat) in ctx.track_module_tags
@@ -537,7 +535,6 @@ function new_elems!(ctx::SΓ,
                 end
                 ctx(new_sig, p, q)
                 new_rewriter!(ctx, pairs, new_sig)
-                # TODO: adapt to new basis struct
                 new_basis_elem!(G, new_sig, lm)
                 pairs!(ctx, pairs, new_sig, lm, G, H, all_koszul; kwargs...)
             end
