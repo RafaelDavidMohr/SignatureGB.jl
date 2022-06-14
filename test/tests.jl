@@ -111,7 +111,7 @@ end
 #     @test SG.divides(idx, j, k)
 # end
 
-@testset "sig polynomials" begin
+@testset "sig polynomials and trees" begin
     R, (x, y) = Singular.PolynomialRing(Singular.Fp(101), ["x", "y"])
     f, g = x + y, x^2 + x*y + y^2
     
@@ -131,16 +131,27 @@ end
     @test ctx.sgb_nodes[root.ID].path_to == [g_id, f_id]
     @test ctx.sgb_nodes[f_id].path_to == [g_id]
 
-    # UNFINISHED
+    # new leaf with parent as g
     h =  x^4*y
-    h_node = SG.new_node!(g_id, ctx.po(h), ctx.sgb_nodes, :f)
+    h_node = SG.new_leaf!(g_id, ctx.po(h), ctx.sgb_nodes, :f)
+    h_id = h_node.ID
+    sig_h = SG.unitvector(ctx, h_id)
+    ctx(sig_h, ctx.po(h))
     
-    sig1, sig2 = ctx(f_id, R(1)), ctx(g_id, R(1))
+    sig_f, sig_g = ctx(f_id, R(1)), ctx(g_id, R(1))
     m1 = ctx.po.mo(x)
-    @test Set(collect(keys(ctx.tbl))) == Set([sig1, sig2])
-    @test R(ctx.po, ctx(sig1).pol) == f
-    @test R(ctx.po, ctx(m1, sig1).pol) == x*f
-    @test SG.lt(ctx, sig2, sig1)
+    println("sort ids:")
+    println("g: $(ctx.sgb_nodes[g_id].sort_ID)")
+    println("f: $(ctx.sgb_nodes[f_id].sort_ID)")
+    println("h: $(ctx.sgb_nodes[h_id].sort_ID)")
+    @test Set(collect(keys(ctx.tbl))) == Set([sig_f, sig_g, sig_h])
+    @test R(ctx.po, ctx(sig_f).pol) == f
+    @test R(ctx.po, ctx(m1, sig_f).pol) == x*f
+    @test SG.lt(ctx, sig_g, sig_f)
+    @test SG.lt(ctx, sig_f, sig_h)
+    @test SG.lt(ctx, sig_g, sig_h)
+    @test !(SG.are_compatible(ctx.sgb_nodes[f_id], ctx.sgb_nodes[h_id]))
+    @test SG.are_compatible(ctx.sgb_nodes[h_id], ctx.sgb_nodes[g_id])
 end
 
 @testset "setup" begin
