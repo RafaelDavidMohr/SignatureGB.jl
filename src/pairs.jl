@@ -9,12 +9,9 @@ struct Basis{I, M}
 end
 const Syz{I, M} = Vector{SigHash{I, M}}
 
+# TODO: this is no longer useful
 function contains_unit(ctx::SigPolynomialΓ{I, M}, G::Basis{I, M}) where {I, M}
     any(lm -> degree(ctx.po.mo, lm) == 0, G.lms)
-end
-
-function Base.copy(G::Basis)
-    Basis(copy(G.sigs), copy(G.lms), copy(G.by_index))
 end
 
 function poly_reduce(ctx::SigPolynomialΓ{I, M},
@@ -42,11 +39,12 @@ function poly_reduce(ctx::SigPolynomialΓ{I, M, MM, T},
     poly_reduce(ctx, G.sigs, p, R)
 end
 
-function filter_less_than_index!(ctx::SigPolynomialΓ{I, M},
-                                 G::Basis{I, M},
-                                 indx::I) where {I, M}
 
-    to_delete = findall(sig -> index(ctx, sig) >= indx, G.sigs)
+function filter_by_index!(ctx::SigPolynomialΓ{I, M},
+                          G::Basis{I, M},
+                          node_ids::I) where {I, M}
+
+    to_delete = findall(sig -> !(sig[1] in node_ids), G.sigs)
     deleteat!(G.sigs, to_delete)
     deleteat!(G.lms, to_delete)
     for i in keys(G.by_index)
@@ -90,9 +88,10 @@ Base.length(G::Basis) = Base.length(G.sigs)
 
 new_syz(ctx::SigPolynomialΓ{I, M}) where {I, M} = SigHash{I, M}[]
 
-function gb_size(ctx::SigPolynomialΓ{I, M}, G::Basis{I, M}) where {I, M}
 
-    isempty(G.sigs) ? 0 : sum([length(ctx(g).pol) for g in G.sigs])
+function gb_size(ctx::SigPolynomialΓ{I, M}, G_sigs::Vector{SigHash{I, M}}) where {I, M}
+
+    isempty(G.sigs) ? 0 : sum([length(ctx(g).pol) for g in G_sigs])
 end
 
 function new_basis_elem!(basis::Basis{I, M},
@@ -119,7 +118,7 @@ function Base.show(io::IO,
     pair = a[1]
     ctx = a[2]
     print(io, (convert(Vector{Int}, exponents(ctx.po.mo, pair[1])),
-               (Int(index(ctx, pair)), convert(Vector{Int}, exponents(ctx.po.mo, pair[2][2])))))
+               (Int(pair[2][1]), convert(Vector{Int}, exponents(ctx.po.mo, pair[2][2])))))
 end
 
 function degree(ctx::SigPolynomialΓ{I, M}, p::MonSigPair{I, M}) where {I, M}
@@ -129,8 +128,6 @@ end
 function schrey_degree(ctx::SigPolynomialΓ{I, M}, p::MonSigPair{I, M}) where {I, M}
     degree(ctx.po.mo, p[1]) + degree(ctx.po.mo, p[2][2]) + degree(ctx.po.mo, ctx.lms[p[2][1]])
 end
-
-index(ctx::SigPolynomialΓ{I, M}, p::MonSigPair{I, M}) where {I, M} = index(ctx, p[2])
 
 tag(ctx::SigPolynomialΓ{I, M}, p::MonSigPair{I, M}) where {I, M} = tag(ctx, p[2])
 
@@ -142,6 +139,7 @@ isnull(p::MonSigPair) = iszero(p[2][1])
 
 mpairordering(ctx::SΓ) where SΓ = MPairOrdering{SΓ}(sigordering(ctx))
 
+# TODO: check if this is used outside the matrix constructor anywhere
 function Base.Order.lt(porder::MPairOrdering{SΓ},
                        a::MonSigPair{I, M},
                        b::MonSigPair{I, M}) where {I, M, SΓ <: SigPolynomialΓ{I, M}}

@@ -124,8 +124,8 @@ end
 
     # tree should be g -- f -- root
     # TODO: maybe write a seperate tree test
-    @test ctx.sgb_nodes[f_id].children_id == Set([root.ID])
-    @test ctx.sgb_nodes[g_id].children_id == Set([f_id])
+    @test ctx.sgb_nodes[f_id].children_id == [root.ID]
+    @test ctx.sgb_nodes[g_id].children_id == [f_id]
     @test ctx.sgb_nodes[f_id].parent_id == g_id
     @test ctx.sgb_nodes[root.ID].parent_id == f_id
     @test ctx.sgb_nodes[root.ID].path_to == [g_id, f_id]

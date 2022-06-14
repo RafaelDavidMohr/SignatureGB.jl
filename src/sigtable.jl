@@ -212,13 +212,13 @@ end
                                a::SigHash{I, M},
                                b::SigHash{I, M}) where {I, M, MM, T, MODT, MΓ, MMΓ, TΓ, PΓ, PPΓ, MORD}
 
-    # TODO: temporarily do a prefix check somewhere here for debugging purposes
+    # TODO: check if a total ordering on the nodes is a good idea
     if MORD == :POT
         quote
             if a[1] == b[1]
                 return lt(ctx.po.mo, a[2], b[2])
             end
-            return in_branch_before(ctx.sgb_nodes[a[1]], ctx.sgb_nodes[b[1]])
+            return ctx.sgb_nodes[a[1]].sort_ID < ctx.sgb_nodes[b[1]].sort_ID
         end
     elseif MORD == :DPOT
         quote
@@ -228,14 +228,14 @@ end
                 if a[1] == b[1]
                     return lt(ctx.po.mo, a[2], b[2])
                 end
-                return in_branch_before(ctx.sgb_nodes[a[1]], ctx.sgb_nodes[b[1]])
+                return ctx.sgb_nodes[a[1]].sort_ID < ctx.sgb_nodes[b[1]].sort_ID
             end
             return d1 < d2
         end
     elseif MORD == :TOP
         quote
             if a[2] == b[2]
-                return in_branch_before(ctx.sgb_nodes[a[1]], ctx.sgb_nodes[b[1]])
+                return ctx.sgb_nodes[a[1]].sort_ID < ctx.sgb_nodes[b[1]].sort_ID
             end
             return lt(ctx.po.mo, a[2], b[2])
         end
@@ -244,7 +244,7 @@ end
             c1 = mul(ctx.po.mo, a[2], ctx.lms[a[1]])
             c2 = mul(ctx.po.mo, b[2], ctx.lms[b[1]])
             if c1 == c2
-                return in_branch_before(ctx.sgb_nodes[a[1]], ctx.sgb_nodes[b[1]])
+                return ctx.sgb_nodes[a[1]].sort_ID < ctx.sgb_nodes[b[1]].sort_ID
             end
             return lt(ctx.po.mo, c1, c2)
         end

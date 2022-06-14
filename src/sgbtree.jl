@@ -12,6 +12,7 @@ end
 # How to handle the root nodes?
 mutable struct SGBNode{I, M, T}
     ID::I
+    sort_ID::I
     # path to node by ID excluding node itself
     path_to::Vector{I}
     # should we hold this explicitly?
@@ -19,9 +20,10 @@ mutable struct SGBNode{I, M, T}
     is_branch_node::Bool
     tag::Symbol
     # hold children and parent by ID
-    children_id::Set{I}
+    children_id::Vector{I}
     parent_id::I
 end
+
 
 function are_compatible(node1::SGBNode{I, M, T},
                         node2::SGBNode{I, M, T}) where {I, M, T}
@@ -30,12 +32,40 @@ function are_compatible(node1::SGBNode{I, M, T},
     is_prefix_vector(vcat(node1.path_to, [node1.ID]), node2.path_to)
 end
 
-function in_branch_before(node1::SGBNode{I, M, T},
-                          node2::SGBNode{I, M, T}) where {I, M, T}
+function compare(ID_dict::Dict{I, SGBNode{I, M, T}},
+                 node1::SGBNode{I, M, T},
+                 node2::SGBNode{I, M, T}) where {I, M, T}
 
-    length(node1.path_to) < length(node2.path_to) && are_compatible(node1, node2)
+    fullpath1 = vcat(node1.path_to, [node1.ID])
+    fullpath2 = vcat(node2.path_to, [node2.ID])
+    common_ancestor_index = findlast(index_and_entry -> index_and_entry[1] > length(fullpath2) ? false : fullpath2[index_and_entry[1]] == index_and_entry[2],
+                                     collect(enumerate(fullpath1)))[1]
+    
+    if fullpath1[common_ancestor_index] == node1.ID
+        # node1 is an ancestor of node2
+        return true
+    elseif fullpath1[common_ancestor_index] == node2.ID
+        # node2 is an ancestor of node1
+        return false
+    else
+        # two different branches -> compare "left" to "right"
+        common_ancestor = ID_dict[fullpath1[common_ancestor_index]]
+        next_in_path1 = fullpath1[common_ancestor_index + 1]
+        next_in_path2 = fullpath2[common_ancestor_index + 1]
+        return findfirst(id -> id == next_in_path1, common_ancestor.children_id) < findfirst(id -> id == next_in_path2, common_ancestor.children_id)
+    end
 end
 
+function assign_sort_ids!(ID_dict::Dict{I, SGBNode{I, M, T}}) where {I, M, T}
+
+    ids = collect(keys(ID_dict))
+    sorted = sortperm(ids, by = id -> ID_dict[id],
+                      lt = (node1, node2) -> compare(ID_dict, node1, node2))
+    for (i, id) in enumerate(ids)
+        ID_dict[id].sort_ID = sorted[i]
+    end
+end
+        
 function new_node!(parent_id::I,
                    pol::Polynomial{M, T},
                    ID_dict::Dict{I, SGBNode{I, M, T}},
@@ -44,13 +74,13 @@ function new_node!(parent_id::I,
 
     id = isempty(keys(ID_dict)) ? one(I) : maximum(keys(ID_dict)) + 1
     if !(iszero(parent_id))
-        node = SGBNode{I, M, T}(id, vcat(ID_dict[parent_id].path_to, [parent_id]),
-                                pol, is_branch_node, tag, Set(I[]),
+        node = SGBNode{I, M, T}(id, zero(I), vcat(ID_dict[parent_id].path_to, [parent_id]),
+                                pol, is_branch_node, tag, I[],
                                 parent_id)
         push!(ID_dict[parent_id].children_id, id)
     else
-        node = SGBNode{I, M, T}(id, I[],
-                                pol, is_branch_node, tag, Set(I[]),
+        node = SGBNode{I, M, T}(id, zero(I), I[],
+                                pol, is_branch_node, tag, I[],
                                 zero(I))
     end
     ID_dict[id] = node
@@ -60,6 +90,17 @@ end
 function new_root!(ID_dict::Dict{I, SGBNode{I, M, T}}) where {I, M, T}
     new_node!(zero(I), zero(Polynomial{M, T}), ID_dict, :root, is_branch_node = true)
 end  
+
+function new_leaf!(parent_id::I,
+                   pol::Polynomial{M, T},
+                   ID_dict::Dict{I, SGBNode{I, M, T}},
+                   tag::Symbol;
+                   is_branch_node = false) where {I, M, T}
+    
+    node = new_node!(parend_id, pol, ID_dict, tag, is_branch_node = is_branch_node)
+    assign_sort_ids!(ID_dict)
+    return node
+end
 
 function insert_before!(before::SGBNode{I, M, T},
                         pol::Polynomial{M, T},
@@ -78,6 +119,7 @@ function insert_before!(before::SGBNode{I, M, T},
         before.path_to[end] = node.ID
     end
     set_path_subtree!(before, ID_dict)
+    assign_sort_ids!(ID_dict)
     return node
 end
 
