@@ -208,6 +208,14 @@ end
 @inline leadingmonomial(ctx::SigPolynomialΓ{I, M}, m::M, sig::SigHash{I, M}; no_rewrite = false) where {I, M} = leadingmonomial(ctx(m, sig, no_rewrite = no_rewrite).pol)
 
 # sorting
+
+function are_compatible(ctx::SigPolynomialΓ{I, M},
+                        a::SigHash{I, M},
+                        b::SigHash{I, M}) where {I, M}
+
+    are_compatible(ctx.sgb_nodes[a[1]], ctx.sgb_nodes[b[1]])
+end
+
 @inline @generated function lt(ctx::SigPolynomialΓ{I, M, MM, T, MODT, MΓ, MMΓ, TΓ, PΓ, PPΓ, MORD},
                                a::SigHash{I, M},
                                b::SigHash{I, M}) where {I, M, MM, T, MODT, MΓ, MMΓ, TΓ, PΓ, PPΓ, MORD}

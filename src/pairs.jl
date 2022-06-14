@@ -238,6 +238,7 @@ function pairs!(ctx::SΓ,
 
     index_key = sig[1]
     for (j, g) in enumerate(G.sigs)
+        !(are_compatible(ctx, sig, g)) && continue
         lm = G.lms[j]
         index_key == g[1] && ctx(sig).sigratio == ctx(g).sigratio && continue
         m = lcm(ctx.po.mo, lm, lm_sig)
@@ -289,8 +290,9 @@ function rewriteable_syz(ctx::SigPolynomialΓ{I, M},
     end
 
     if all_koszul
-        for i in keys(ctx.f5_indices)
-            index(ctx, i) >= index(ctx, sig) && continue
+        for i in keys(G.by_index)
+            !(are_compatible(ctx, sig, unitvector(ctx, i))) && continue
+            ctx.sgb_nodes[i].sort_ID >= ctx.sgb_nodes[sig[1]].sort_ID && continue
             if i in keys(G.by_index)
                 for lm in G.by_index[i]
                     if divides(ctx.po.mo, lm, msig[2])
@@ -336,6 +338,7 @@ function new_rewriter!(ctx::SΓ,
     end
 end
 
+# TODO: rewrite this function to work for any module order with F5 tree
 function select!(ctx::SΓ,
                  K::KoszulQueue{I, M, SΓ},
                  pairs::PairSet{I, M, SΓ},

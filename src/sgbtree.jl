@@ -44,6 +44,8 @@ function compare(ID_dict::Dict{I, SGBNode{I, M, T}},
                  node1::SGBNode{I, M, T},
                  node2::SGBNode{I, M, T}) where {I, M, T}
 
+    node1.ID == node2.ID && return false
+    
     if in_path_to(node1, node2)
         return true
     end
