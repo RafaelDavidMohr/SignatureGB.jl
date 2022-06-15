@@ -185,17 +185,17 @@ end
     @test length(pairset) == 1
 end
 
-# @testset "symbolic-pp" begin
-#     R, (x, y), ctx, basis, syz = small_example()
-#     pair_sig = (ctx.po.mo(x), ctx(2, R(1)))
-#     pair_sig_2 = (ctx.po.mo(y), ctx(1, R(1)))
-#     pairset = SG.mpairset(ctx, [pair_sig, pair_sig_2])
-#     tbl, module_tbl, sigpolys = SG.symbolic_pp!(ctx, pairset, basis, syz, false, 2)
-#     result_sigs = [first(tup) for tup in sigpolys]
-#     test_sig_2 = (ctx.po.mo(y), ctx(2, R(1)))
-#     test_sigs = [pair_sig, pair_sig_2, test_sig_2]
-#     @test all(sig -> sig in result_sigs, test_sigs) && all(sig -> sig in test_sigs, result_sigs)
-# end
+@testset "symbolic-pp" begin
+    R, (x, y), ctx, basis, syz = small_example()
+    pair_sig = (ctx.po.mo(x), ctx(2, R(1)))
+    pair_sig_2 = (ctx.po.mo(y), ctx(1, R(1)))
+    pairset = SG.mpairset(ctx, [pair_sig, pair_sig_2])
+    tbl, module_tbl, sigpolys = SG.symbolic_pp!(ctx, pairset, basis, syz, false, 2)
+    result_sigs = [first(tup) for tup in sigpolys]
+    test_sig_2 = (ctx.po.mo(y), ctx(2, R(1)))
+    test_sigs = [pair_sig, pair_sig_2, test_sig_2]
+    @test all(sig -> sig in result_sigs, test_sigs) && all(sig -> sig in test_sigs, result_sigs)
+end
 
 # @testset "small-reduction" begin
 #     R, (x, y), ctx, basis, syz = small_example()

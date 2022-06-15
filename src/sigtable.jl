@@ -141,6 +141,12 @@ function new_generator!(ctx::SigPolynomialΓ{I, M, MM, T},
     return new_node.ID
 end
 
+function sort_id(ctx::SigPolynomialΓ{I, M},
+                 a::SigHash{I, M}) where {I, M}
+
+    ctx.sgb_nodes[a[1]].sort_ID
+end
+
 # registration functions
 function (ctx::SigPolynomialΓ{I, M, MM, T})(sig::SigHash{I, M},
                                             pol::Polynomial{M, T},

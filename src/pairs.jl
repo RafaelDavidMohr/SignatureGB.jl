@@ -121,6 +121,10 @@ function Base.show(io::IO,
                (Int(pair[2][1]), convert(Vector{Int}, exponents(ctx.po.mo, pair[2][2])))))
 end
 
+function sort_id(ctx::SigPolynomialΓ{I, M}, p::MonSigPair{I, M}) where {I, M}
+    sort_id(ctx, p[2])
+end
+
 function degree(ctx::SigPolynomialΓ{I, M}, p::MonSigPair{I, M}) where {I, M}
     degree(ctx.po.mo, p[1]) + degree(ctx.po.mo, p[2][2])
 end

@@ -3,7 +3,8 @@ function find_reducer(ctx::SigPolynomialΓ{I, M},
                       H::Syz{I, M},
                       m::M,
                       all_koszul,
-                      curr_indx,
+                      curr_sort_id,
+                      compatibility_check_id::I,
                       sig_degree::E;
                       # interreduction_step = false,
                       f5c = false,
@@ -12,9 +13,9 @@ function find_reducer(ctx::SigPolynomialΓ{I, M},
     if mod_order(ctx) == :SCHREY
         cond = p -> schrey_degree(ctx, p) <= sig_degree
     elseif mod_order(ctx) == :DPOT
-        cond = p -> index(ctx, p) <= curr_indx
+        cond = p -> sort_id(ctx, p) <= curr_sort_id
     elseif mod_order(ctx) == :POT
-        cond = p -> index(ctx, p) < curr_indx || degree(ctx, p) <= sig_degree
+        cond = p -> sort_id(ctx, p) < curr_sort_id || degree(ctx, p) <= sig_degree
     else
         cond = p -> degree(ctx, p) <= sig_degree
     end
@@ -23,15 +24,16 @@ function find_reducer(ctx::SigPolynomialΓ{I, M},
     mpairord = mpairordering(ctx)
     for (j, lm) in enumerate(G.lms)
         if divides(ctx.po.mo, lm, m)
+            !(are_compatible(ctx.sgb_nodes[compatibility_check_id], ctx.sgb_nodes[G.sigs[j][1]])) && continue
             delta = div(ctx.po.mo, m, lm)
             g = G.sigs[j]
             !(cond((delta, g))) && continue
-            if !(f5c) || index(ctx, g) == curr_indx
+            if !(f5c) || sort_id(ctx, g) == curr_sort_id
                 rewriteable(ctx, delta, g, j, G, H, all_koszul) && continue
             end
             if isnull(reducer) || Base.Order.lt(mpairord, (delta, g), reducer)
                 reducer = (delta, g)
-                f5c && index(ctx, g) < curr_indx && break
+                f5c && sort_id(ctx, g) < curr_sort_id && break
             end
         end
     end    
@@ -43,23 +45,26 @@ function symbolic_pp!(ctx::SΓ,
                       G::Basis{I, M},
                       H::Syz{I, M},
                       all_koszul,
-                      curr_indx;
+                      curr_sort_id;
                       are_pairs = true,
                       f5c = false,
                       kwargs...) where {I, M,
                                         MS <: Union{MonSigSet{I, M}, Set{MonSigPair{I, M}}},
                                         SΓ <: SigPolynomialΓ{I, M}}
 
+    # TODO: get this to work without the (now missing) index function
     @debug "symbolic preprocessing..."
-    get_orig_elem = p -> f5c && index(ctx, p) < curr_indx
+    get_orig_elem = p -> f5c && sort_id(ctx, p) < curr_sort_id
     if mod_order(ctx) == :SCHREY || mod_order(ctx) == :DPOT
         sig_degree = maximum(p -> schrey_degree(ctx, p), pairs)
     elseif mod_order(ctx) == :POT
-        sig_degree = maximum(p -> degree(ctx, p), filter(p -> index(ctx, p) == curr_indx, pairs))
+        sig_degree = maximum(p -> degree(ctx, p), filter(p -> sort_id(ctx, p) == curr_sort_id, pairs))
     else
         sig_degree = maximum(p -> degree(ctx, p), pairs)
     end
 
+    compatibility_check_id = first(pairs)[2][1]
+    
     # TODO: make this work without monomial table
     tbl = easytable(M[], eltype(ctx.po.mo))
     module_tbl = easytable(eltype(ctx.mod_po.mo)[], eltype(ctx.po.mo))
@@ -69,7 +74,7 @@ function symbolic_pp!(ctx::SΓ,
     are_pairs && sizehint!(done, length(pairs) >> 1)
     for (i, p) in enumerate(pairs)
         pol = ctx(p..., no_rewrite = get_orig_elem(p)).pol
-        if mod_rep_type(ctx) == :highest_index && tag(ctx, p) in ctx.track_module_tags && index(ctx, p) == curr_indx
+        if mod_rep_type(ctx) == :highest_index && tag(ctx, p) in ctx.track_module_tags && sort_id(ctx, p) == curr_sort_id
             module_pol = project(ctx, p..., no_rewrite = get_orig_elem(p))
         else
             module_pol = zero(eltype(ctx.mod_po))
@@ -86,12 +91,13 @@ function symbolic_pp!(ctx::SΓ,
         
     for m in tbl.val
         m in done && continue
-        red = find_reducer(ctx, G, H, m, all_koszul, curr_indx, sig_degree,
+        red = find_reducer(ctx, G, H, m, all_koszul, curr_sort_id,
+                           compatibility_check_id, sig_degree,
                            f5c = f5c;
                            kwargs...)
         isnull(red) && continue
         pol = ctx(red..., no_rewrite = get_orig_elem(red)).pol
-        if mod_rep_type(ctx) == :highest_index && tag(ctx, red) in ctx.track_module_tags && index(ctx, red) == curr_indx
+        if mod_rep_type(ctx) == :highest_index && tag(ctx, red) in ctx.track_module_tags && sort_id(ctx, red) == curr_sort_id
             module_pol = project(ctx, red..., no_rewrite = get_orig_elem(red))
         else
             module_pol = zero(eltype(ctx.mod_po))
