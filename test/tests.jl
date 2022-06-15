@@ -170,15 +170,19 @@ end
     R, (x, y), ctx, basis, syz = small_example()
     h_id = SG.new_generator!(ctx, SG.pos_type(ctx)(1), ctx.po(x*y))
     new_sig = ctx(2, x)
+    new_sig_2 = ctx(h_id, y)
     koszul_syz = ctx(2, x^2)
     ctx(new_sig, y^3)
+    ctx(new_sig_2, x*y^2)
     koszul_q = SG.koszul_queue(ctx)
     push!(koszul_q, koszul_syz)
     pairset = SG.pairset(ctx)
     SG.pairs!(ctx, pairset, new_sig, ctx.po.mo(y^3), basis, syz, false)
-    SG.pairs!(ctx, pairset, SG.unitvector(ctx, h_id), ctx.po.mo(x*y), basis, syz, false)
+    SG.pairs!(ctx, pairset, new_sig_2, ctx.po.mo(x*y^2), basis, syz, false)
     @test length(pairset) == 2
     @test SG.check!(koszul_q, first(pairset))
+    SG.select!(ctx, koszul_q, pairset, Val(:deg), false)
+    @test length(pairset) == 1
 end
 
 # @testset "symbolic-pp" begin

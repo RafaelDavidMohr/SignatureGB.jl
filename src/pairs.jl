@@ -338,7 +338,6 @@ function new_rewriter!(ctx::SΓ,
     end
 end
 
-# TODO: rewrite this function to work for any module order with F5 tree
 function select!(ctx::SΓ,
                  K::KoszulQueue{I, M, SΓ},
                  pairs::PairSet{I, M, SΓ},
@@ -352,7 +351,7 @@ function select!(ctx::SΓ,
     nselected = 0
     npairs = length(pairs)
     pair = first(pairs)
-    indx = index(ctx, pair[1])
+    node_id = pair[1][2][1]
     sig_degree = degree(ctx, pair[1])
     are_pairs = false
     selected = mpairset(ctx)
@@ -361,19 +360,19 @@ function select!(ctx::SΓ,
         # cond = p -> nselected == 0
         error("selecting one pair at a time is currently not supported. Select must be one of :deg_and_pos or :pos")
     elseif S == :deg_and_pos
-        cond = p -> index(ctx, p[1]) == indx && degree(ctx, p[1]) == sig_degree
+        cond = p -> p[1][2][1] == node_id && degree(ctx, p[1]) == sig_degree
     elseif S == :pos
-        cond = p -> index(ctx, p[1]) == indx
+        cond = p -> p[1][2][1] == node_id
     elseif S == :deg
-        cond = p -> degree(ctx, p[1]) == sig_degree
+        cond = p -> are_compatible(ctx.sgb_nodes[p[1][2][1]], ctx.sgb_nodes[node_id]) && degree(ctx, p[1]) == sig_degree
     elseif S == :schrey_deg
         schrey_deg = schrey_degree(ctx, pair[1])
         @logmsg Verbose2 "" sugar_deg = schrey_deg
-        cond = p -> schrey_degree(ctx, p[1]) == schrey_deg
+        cond = p -> are_compatible(ctx.sgb_nodes[p[1][2][1]], ctx.sgb_nodes[node_id]) && schrey_degree(ctx, p[1]) == schrey_deg
     elseif S == :schrey_deg_and_pos
         schrey_deg = schrey_degree(ctx, pair[1])
         @logmsg Verbose2 "" sugar_deg = schrey_deg
-        cond = p -> index(ctx, p[1]) == indx && schrey_degree(ctx, p[1]) == schrey_deg
+        cond = p -> p[1][2][1] == node_id && schrey_degree(ctx, p[1]) == schrey_deg
     else
         error("Select method must be one of :deg_and_pos, :schrey_deg or :pos")
     end
