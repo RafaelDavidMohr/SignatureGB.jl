@@ -118,32 +118,26 @@ end
     order = SG.Grevlex(2)
     char = 101
     ctx = SG.sigpolynomialctx(SG.Nmod32Γ(char), order=order)
-    root = SG.new_root!(ctx.sgb_nodes)
-    f_id = SG.new_generator_before!(ctx, root, ctx.po(f))
-    g_id = SG.new_generator_before!(ctx, ctx.sgb_nodes[f_id], ctx.po(g))
+    g_id = SG.new_generator!(ctx, zero(SG.pos_type(ctx)), ctx.po(g))
+    f_id = SG.new_generator!(ctx, g_id, ctx.po(f))
+    branch_node = SG.new_branch_node!(f_id, ctx.sgb_nodes)
+    push!(ctx.branch_nodes, branch_node.ID)
 
-    # tree should be g -- f -- root
+    # tree should be g -- f -- branch_node
     # TODO: maybe write a seperate tree test
-    @test ctx.sgb_nodes[f_id].children_id == [root.ID]
+    @test ctx.sgb_nodes[f_id].children_id == [branch_node.ID]
     @test ctx.sgb_nodes[g_id].children_id == [f_id]
     @test ctx.sgb_nodes[f_id].parent_id == g_id
-    @test ctx.sgb_nodes[root.ID].parent_id == f_id
-    @test ctx.sgb_nodes[root.ID].path_to == [g_id, f_id]
+    @test ctx.sgb_nodes[branch_node.ID].parent_id == f_id
+    @test ctx.sgb_nodes[branch_node.ID].path_to == [g_id, f_id]
     @test ctx.sgb_nodes[f_id].path_to == [g_id]
 
     # new leaf with parent as g
     h =  x^4*y
-    h_node = SG.new_leaf!(g_id, ctx.po(h), ctx.sgb_nodes, :f)
-    h_id = h_node.ID
-    sig_h = SG.unitvector(ctx, h_id)
-    ctx(sig_h, ctx.po(h))
+    h_id = SG.new_generator!(ctx, g_id, ctx.po(h))
     
-    sig_f, sig_g = ctx(f_id, R(1)), ctx(g_id, R(1))
+    sig_f, sig_g, sig_h = ctx(f_id, R(1)), ctx(g_id, R(1)), ctx(h_id, R(1))
     m1 = ctx.po.mo(x)
-    println("sort ids:")
-    println("g: $(ctx.sgb_nodes[g_id].sort_ID)")
-    println("f: $(ctx.sgb_nodes[f_id].sort_ID)")
-    println("h: $(ctx.sgb_nodes[h_id].sort_ID)")
     @test Set(collect(keys(ctx.tbl))) == Set([sig_f, sig_g, sig_h])
     @test R(ctx.po, ctx(sig_f).pol) == f
     @test R(ctx.po, ctx(m1, sig_f).pol) == x*f
@@ -172,18 +166,20 @@ end
     @test SG.mod_order(ctx) == :SCHREY
 end
 
-# @testset "pairs" begin
-#     R, (x, y), ctx, basis, syz = small_example()
-#     new_sig = ctx(2, x)
-#     koszul_syz = ctx(2, x^2)
-#     ctx(new_sig, y^3)
-#     koszul_q = SG.koszul_queue(ctx)
-#     push!(koszul_q, koszul_syz)
-#     pairset = SG.pairset(ctx)
-#     SG.pairs!(ctx, pairset, new_sig, ctx.po.mo(y^3), basis, syz, false)
-#     @test length(pairset) == 1
-#     @test SG.check!(koszul_q, first(pairset))
-# end
+@testset "pairs" begin
+    R, (x, y), ctx, basis, syz = small_example()
+    h_id = SG.new_generator!(ctx, SG.pos_type(ctx)(1), ctx.po(x*y))
+    new_sig = ctx(2, x)
+    koszul_syz = ctx(2, x^2)
+    ctx(new_sig, y^3)
+    koszul_q = SG.koszul_queue(ctx)
+    push!(koszul_q, koszul_syz)
+    pairset = SG.pairset(ctx)
+    SG.pairs!(ctx, pairset, new_sig, ctx.po.mo(y^3), basis, syz, false)
+    SG.pairs!(ctx, pairset, SG.unitvector(ctx, h_id), ctx.po.mo(x*y), basis, syz, false)
+    @test length(pairset) == 2
+    @test SG.check!(koszul_q, first(pairset))
+end
 
 # @testset "symbolic-pp" begin
 #     R, (x, y), ctx, basis, syz = small_example()

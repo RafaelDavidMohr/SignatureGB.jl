@@ -81,7 +81,7 @@ const PairSet{I, M, SΓ} = SortedSet{Pair{I, M}, PairOrdering{SΓ}}
 const MonSigSet{I, M, SΓ} = Set{MonSigPair{I, M}}
 
 function new_basis(ctx::SigPolynomialΓ{I, M}) where {I, M}
-    Basis(SigHash{I, M}[], M[], Dict([(i, M[]) for i in keys(ctx.f5_indices)]))
+    Basis(SigHash{I, M}[], M[], Dict([(i, M[]) for i in keys(ctx.sgb_nodes) if !isone(i)]))
 end
 
 Base.length(G::Basis) = Base.length(G.sigs)

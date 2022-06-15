@@ -37,7 +37,7 @@ end
 function are_compatible(node1::SGBNode{I, M, T},
                         node2::SGBNode{I, M, T}) where {I, M, T}
 
-    in_path_to(node1, node2) || in_path_to(node2, node1)
+    node1.ID == node2.ID || in_path_to(node1, node2) || in_path_to(node2, node1)
 end
     
 function compare(ID_dict::Dict{I, SGBNode{I, M, T}},
@@ -96,8 +96,9 @@ function new_node!(parent_id::I,
     return node
 end
 
-function new_root!(ID_dict::Dict{I, SGBNode{I, M, T}}) where {I, M, T}
-    new_node!(zero(I), zero(Polynomial{M, T}), ID_dict, :root, is_branch_node = true)
+function new_branch_node!(parent_id::I,
+                          ID_dict::Dict{I, SGBNode{I, M, T}}) where {I, M, T}
+    new_node!(parent_id, zero(Polynomial{M, T}), ID_dict, :branch, is_branch_node = true)
 end  
 
 function new_leaf!(parent_id::I,

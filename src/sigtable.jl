@@ -23,7 +23,8 @@ mutable struct SigPolynomialΓ{I, M, MM, T, MODT,
     mod_po::PPΓ
     tbl::SigTable{I, M, MM, T, MODT}
     sgb_nodes::Dict{I, SGBNode{I, M, T}}
-    # need a simpler caching mechanism
+    branch_nodes::Vector{I}
+    # TODO: need a simpler caching mechanism
     cashed_sigs::Vector{SigHash{I, M}}
     track_module_tags::Vector{Symbol}
     lms::Dict{I, M}
@@ -63,7 +64,7 @@ function sigpolynomialctx(coefficients;
                    typeof(coefficients), typeof(monomials),
                    typeof(polynomials), typeof(mod_polynomials),
                    mod_order}(polynomials, mod_polynomials, tbl, sgb_nodes,
-                              eltpe[], track_module_tags, Dict{pos_type, mon_type}())
+                              pos_type[], eltpe[], track_module_tags, Dict{pos_type, mon_type}())
 end
 
 function Base.Order.lt(order::SigOrdering{SΓ},
@@ -115,6 +116,23 @@ function new_generator_before!(ctx::SigPolynomialΓ{I, M, MM, T},
                                module_rep = ctx.po([one(ctx.po.mo)], [one(eltype(ctx.po.co))])) where {I, M, MM, T}
     
     new_node = insert_before!(before, pol, ctx.sgb_nodes, tag)
+    sighash = unitvector(ctx, new_node.ID)
+    if mod_order(ctx) in [:SCHREY, :DPOT]
+        ctx.lms[new_node.ID] = leadingmonomial(pol)
+    end
+    ctx(sighash, pol, module_rep)
+    return new_node.ID
+end
+
+function new_generator!(ctx::SigPolynomialΓ{I, M, MM, T},
+                        parent_id::I,
+                        pol::Polynomial{M, T},
+                        tag = :f;
+                        module_rep = ctx.po([one(ctx.po.mo)], [one(eltype(ctx.po.co))])) where {I, M, MM, T}
+    
+    new_node = new_node!(parent_id, pol, ctx.sgb_nodes, tag)
+    # TODO: Temporary! find a more consistent way to assign sort ids
+    assign_sort_ids!(ctx.sgb_nodes)
     sighash = unitvector(ctx, new_node.ID)
     if mod_order(ctx) in [:SCHREY, :DPOT]
         ctx.lms[new_node.ID] = leadingmonomial(pol)
@@ -298,23 +316,25 @@ function setup(I::Vector{P};
     ctx = sigpolynomialctx(coefficients; mod_order = mod_order,
                            order=order, kwargs...)
     T = eltype(coefficients)
-    root = new_root!(ctx.sgb_nodes)
+    parent_id = zero(pos_type(ctx))
     if mod_rep_type(ctx) in [nothing, :highest_index]
-        for f in reverse(I)
-            f_id = new_generator_before!(ctx, root, ctx.po(f))
-            root = ctx.sgb_nodes[f_id]
+        for f in I
+            f_id = new_generator!(ctx, parent_id, ctx.po(f))
+            parent_id = f_id
         end
     elseif mod_rep_type(ctx) == :random_lin_comb
         coeffs = rand(zero(T):T(char - 1), Base.length(I))
-        for (i, f) in enumerate(reverse(I))
-            f_id = new_generator_before!(ctx, root, ctx.po(f), module_rep = ctx.po(R(coeffs[i])))
-            root = ctx.sgb_nodes[f_id]
+        for f in I
+            f_id = new_generator!(ctx, parent_id, ctx.po(f), module_rep = ctx.po(R(coeffs[i])))
+            parent_id = f_id
         end
     end
+    branch_node = new_branch_node!(parent_id, ctx.sgb_nodes)
+    push!(ctx.branch_nodes, branch_node.ID)
     if mod_order == :SCHREY || mod_order == :DPOT
         # TODO: iterating over the keys is not ideal
         ctx.lms = Dict([(pos_type(ctx)(i), leadingmonomial(ctx, unitvector(ctx, i)))
-                        for i in keys(ctx.sgb_nodes) if !isone(i)])
+                        for i in keys(ctx.sgb_nodes) if !(i in ctx.branch_nodes)])
     end
     ctx
 end
