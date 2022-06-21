@@ -197,25 +197,25 @@ end
     @test all(sig -> sig in result_sigs, test_sigs) && all(sig -> sig in test_sigs, result_sigs)
 end
 
-# @testset "small-reduction" begin
-#     R, (x, y), ctx, basis, syz = small_example()
-#     pair_sig = (ctx.po.mo(x), ctx(2, R(1)))
-#     pairset = SG.mpairset(ctx)
-#     push!(pairset, pair_sig)
-#     tbl, module_tbl, sigpolys = SG.symbolic_pp!(ctx, pairset, basis, syz, false, 2, are_pairs = false)
-#     mat = SG.f5_matrix(ctx, tbl, module_tbl, sigpolys)
-#     @test SG.mat_show(mat) == [1 0 0; 0 1 1; 1 1 0]
-#     SG.reduction!(mat)
-#     @test SG.mat_show(mat) == [1 0 0; 0 1 1; 0 0 1]
-# end
+@testset "small-reduction" begin
+    R, (x, y), ctx, basis, syz = small_example()
+    pair_sig = (ctx.po.mo(x), ctx(2, R(1)))
+    pairset = SG.mpairset(ctx)
+    push!(pairset, pair_sig)
+    tbl, module_tbl, sigpolys = SG.symbolic_pp!(ctx, pairset, basis, syz, false, 2, are_pairs = false)
+    mat = SG.f5_matrix(ctx, tbl, module_tbl, sigpolys)
+    @test SG.mat_show(mat) == [1 0 0; 0 1 1; 1 1 0]
+    SG.reduction!(mat)
+    @test SG.mat_show(mat) == [1 0 0; 0 1 1; 0 0 1]
+end
 
-# @testset "small groebner" begin
-#     R, (x, y) = Singular.PolynomialRing(Singular.Fp(101), ["x", "y"])
-#     I = [x^2, x*y + y^2]
-#     gb_2 = SG.sgb(I)
-#     gb = vcat(I, [y^3])
-#     @test all(p -> p in gb, gb_2)
-# end
+@testset "small groebner" begin
+    R, (x, y) = Singular.PolynomialRing(Singular.Fp(101), ["x", "y"])
+    I = [x^2, x*y + y^2]
+    gb_2 = SG.sgb(I)
+    gb = vcat(I, [y^3])
+    @test all(p -> p in gb, gb_2)
+end
 
 # @testset "small groebner schreyer" begin
 #     R, (x, y) = Singular.PolynomialRing(Singular.Fp(101), ["x", "y"])

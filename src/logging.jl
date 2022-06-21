@@ -102,7 +102,7 @@ end
 function Logging.handle_message(logger::SGBLogger, level, message, _module, group, id, file, line;
                                 add_row = false,
                                 defaults = [],
-                                curr_index = 0,
+                                curr_sort_id = 0,
                                 curr_index_hash = 0,
                                 interred = false,
                                 sig_degree = -1,
@@ -126,7 +126,7 @@ function Logging.handle_message(logger::SGBLogger, level, message, _module, grou
 
     if level == Verbose1
         if curr_index != 0
-            println("index $(curr_index), index hash $(curr_index_hash), sig degree $(sig_degree), tag $(tag)")
+            println("sort ID $(curr_sort_id), index hash $(curr_index_hash), sig degree $(sig_degree), tag $(tag)")
         end
         if interred
             println("Interreducing...")

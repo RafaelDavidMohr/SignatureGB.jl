@@ -165,7 +165,7 @@ function sgb_core!(ctx::SΓ,
     # TODO: get rid of this somehow
     select_both = false
 
-    curr_indx = index(ctx, first(pairs)[1])
+    curr_indx_key = first(pairs)[1][2][1]
     old_gb_length = length(G)
     
     while !(isempty(pairs))
@@ -173,8 +173,8 @@ function sgb_core!(ctx::SΓ,
             deg = schrey_degree(ctx, first(pairs)[1])
             deg > deg_bound && return
         end
-        next_index = index(ctx, first(pairs)[1])
-        if next_index != curr_indx
+        next_index_key = first(pairs)[1][2][1]
+        if next_index_key != curr_indx_key
             # final interreduction outside of this function
             if f5c
                 if length(G) > old_gb_length
@@ -182,14 +182,14 @@ function sgb_core!(ctx::SΓ,
                 end
                 old_gb_length = length(G)
             end
-            curr_indx = next_index
+            curr_indx_key = next_index_key
         end
         
         remask!(ctx.po.mo.table)
-        mat = core_loop!(ctx, G, H, koszul_q, pairs, select, all_koszul, curr_indx,
+        mat = core_loop!(ctx, G, H, koszul_q, pairs, select, all_koszul, ctx.sgb_nodes[curr_indx_key].sort_ID,
                          f5c = f5c, select_both = select_both)
         
-        new_elems!(ctx, G, H, pairs, mat, all_koszul, curr_indx, f5c = f5c)
+        new_elems!(ctx, G, H, pairs, mat, all_koszul, ctx.sgb_nodes[curr_indx_key].sort_ID, f5c = f5c)
         @logmsg Verbose2 "" end_time_core = time()
         @logmsg Verbose2 "" gb_size = gb_size(ctx, G)
     end
@@ -467,7 +467,7 @@ function core_loop!(ctx::SΓ,
                     pairs::PairSet{I, M, SΓ},
                     select,
                     all_koszul,
-                    curr_indx;
+                    curr_sort_id;
                     kwargs...) where {I, M, SΓ <: SigPolynomialΓ{I, M}}
     
     @logmsg Verbose2 "" start_time_core = time()
@@ -483,7 +483,7 @@ function core_loop!(ctx::SΓ,
     @logmsg Verbose2 "" indx = mod_order(ctx) == :POT && !(isempty(to_reduce)) ? maximum(p -> index(ctx, p), to_reduce) : 0
     @logmsg Verbose2 "" min_deg = minimum(p -> degree(ctx.po, ctx(p...).pol), to_reduce)
     
-    table, module_table, sigpolys = symbolic_pp!(ctx, to_reduce, G, H, all_koszul, curr_indx,
+    table, module_table, sigpolys = symbolic_pp!(ctx, to_reduce, G, H, all_koszul, curr_sort_id,
                                                  are_pairs = are_pairs; kwargs...)
     mat = f5_matrix(ctx, table, module_table, sigpolys)
     
@@ -499,13 +499,13 @@ function new_elems!(ctx::SΓ,
                     pairs::PairSet{I, M, SΓ},
                     mat::F5matrix,
                     all_koszul,
-                    curr_indx::I;
+                    curr_sort_id::I;
                     kwargs...) where {I, M, SΓ <: SigPolynomialΓ{I, M}}
 
     for (i, (sig, row)) in enumerate(zip(mat.sigs, mat.rows))
         # @debug "considering $((sig, ctx))"
         if mod_order(ctx) == :POT
-            index(ctx, sig) < curr_indx && continue
+            sort_id(ctx, sig) < curr_sort_id && continue
         end
         new_sig = mul(ctx, sig...)
         if isempty(row)
