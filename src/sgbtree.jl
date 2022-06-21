@@ -133,6 +133,23 @@ function insert_before!(before::SGBNode{I, M, T},
     return node
 end
 
+function copy_subtree!(node::SGBNode{I, M, T},
+                       ID_dict::Dict{I, SGBNode{I, M, T}}) where {I, M, T}
+
+    new_ids = I[]
+    new_branch_node_ids = I[]
+    for child in map(id -> ID_dict[id], node.children_id)
+        child_copy = new_node!(node.ID, copy(child.pol), ID_dict, child.tag, is_branch_node = child.is_branch_node)
+        if child.is_branch_node
+            push!(new_branch_node_ids, child_copy.ID)
+        else
+            push!(new_ids, child_copy.ID)
+        end
+        copy_subtree!(child, ID_dict)
+    end
+    return new_ids, new_branch_node_ids
+end
+
 # set the path to the subtree with root "node" (without setting path of "node" itself)
 function set_path_subtree!(node::SGBNode{I, M, T},
                            ID_dict::Dict{I, SGBNode{I, M, T}}) where {I, M, T}
