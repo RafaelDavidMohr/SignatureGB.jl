@@ -125,7 +125,7 @@ function Logging.handle_message(logger::SGBLogger, level, message, _module, grou
                                 kwargs...)
 
     if level == Verbose1
-        if curr_index != 0
+        if curr_sort_id != 0
             println("sort ID $(curr_sort_id), index hash $(curr_index_hash), sig degree $(sig_degree), tag $(tag)")
         end
         if interred

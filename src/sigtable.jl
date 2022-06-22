@@ -104,9 +104,9 @@ function mod_order(ctx::SigPolynomialΓ{I, M, MM, T,
     MORD
 end
 unitvector(ctx::SigPolynomialΓ, i) = (pos_type(ctx)(i), one(ctx.po.mo))
-isunitvector(ctx::SigPolynomialΓ{I, M}, a::SigHash{I, M}) where {I, M} = isone(a[2])
+isunitvector(ctx::SigPolynomialΓ{I, M}, a::SigHash{I, M}) where {I, M} = a[2] == one(ctx.po.mo)
 
-tag(ctx::SigPolynomialΓ{I}, i::I) where {I} = ctx.f5_indices[i].tag
+tag(ctx::SigPolynomialΓ{I}, i::I) where {I} = ctx.sgb_nodes[i].tag
 tag(ctx::SigPolynomialΓ{I, M}, p::SigHash{I, M}) where {I, M} = tag(ctx, p[1])
 
 function new_generator!(ctx::SigPolynomialΓ{I, M, MM, T},

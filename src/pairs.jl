@@ -51,7 +51,8 @@ function filter_basis_by_indices!(ctx::SigPolynomialΓ{I, M},
             G.by_index[i] = M[]
         end
     end
-
+end
+    
 function delete_indices!(ctx::SigPolynomialΓ{I, M},
                          G::Basis{I, M},
                          node_ids::I) where {I, M}
@@ -80,10 +81,9 @@ Base.length(G::Basis) = Base.length(G.sigs)
 
 new_syz(ctx::SigPolynomialΓ{I, M}) where {I, M} = SigHash{I, M}[]
 
-
 function gb_size(ctx::SigPolynomialΓ{I, M}, G_sigs::Vector{SigHash{I, M}}) where {I, M}
 
-    isempty(G.sigs) ? 0 : sum([length(ctx(g).pol) for g in G_sigs])
+    isempty(G_sigs) ? 0 : sum([length(ctx(g).pol) for g in G_sigs])
 end
 
 function new_basis_elem!(basis::Basis{I, M},
@@ -240,7 +240,7 @@ function pairs!(ctx::SΓ,
         m = lcm(ctx.po.mo, lm, lm_sig)
         m == mul(ctx.po.mo, lm, lm_sig) && continue
         a = div(ctx.po.mo, m, lm_sig)
-        @debug "considering pair $(gpair(ctx.po.mo, a)), $(index(ctx, sig))"
+        @debug "considering pair $(gpair(ctx.po.mo, a)), $(sort_id(ctx, sig))"
         if rewriteable_syz(ctx, a, sig, G, H, all_koszul)
             @debug "rewritten by syz criterion"
             continue

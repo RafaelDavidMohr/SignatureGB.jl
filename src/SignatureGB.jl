@@ -15,7 +15,7 @@ include("./symbolicpp.jl")
 include("./reduction_better.jl")
 include("./gen_example_file.jl")
 
-export sgb
+export sgb, decomp
 
 # build initial pairset, basis and syzygies
 function pairs_and_basis(ctx::SigPolynomialΓ,
@@ -49,25 +49,25 @@ function sgb(I::Vector{P};
     [R(ctx, g) for g in G.sigs]
 end
 
-function nondegen_part(I::Vector{P};
-                       verbose = 0,
-                       kwargs...) where {P <: AA.MPolyElem}
+function decomp(I::Vector{P};
+                verbose = 0,
+                kwargs...) where {P <: AA.MPolyElem}
 
     R = parent(first(I))
     if length(I) > Singular.nvars(parent(first(I)))
         error("Put in a number of polynomials less than or equal to the number of variables")
     end
-    ctx = setup([I[1]]; mod_rep_type = :highest_index,
+    ctx = setup(I; mod_rep_type = :highest_index,
                 mod_order = :POT,
-                track_module_tags = [:f, :h, :zd],
+                track_module_tags = [:f, :cleaner],
                 kwargs...)
-    G, H, koszul_q, _ = pairs_and_basis(ctx, 1, start_gen = 2)
-    remaining = [ctx.po(f) for f in I[2:end]]
-    logger = SGBLogger(ctx, verbose = verbose, task = :sat; kwargs...)
+    G, H, koszul_q, pairs = pairs_and_basis(ctx, length(I); kwargs...)
+    logger = SGBLogger(ctx, verbose = verbose; kwargs...)
     with_logger(logger) do
-	result = nondegen_part_core!(ctx, G, H, koszul_q, remaining, R; kwargs...)
+	decomp_core!(ctx, G, H, koszul_q, pairs, R; kwargs...)
         verbose == 2 && printout(logger)
-        [[R(ctx, sig) for sig in component.sigs] for component in result]
+        # TODO: build components out of basis
+        [R(ctx, g) for g in G.sigs]
     end
 end
 
@@ -142,7 +142,7 @@ function sgb_core!(ctx::SΓ,
         
         new_elems!(ctx, G, H, pairs, mat, all_koszul, ctx.sgb_nodes[curr_indx_key].sort_ID, f5c = f5c)
         @logmsg Verbose2 "" end_time_core = time()
-        @logmsg Verbose2 "" gb_size = gb_size(ctx, G)
+        @logmsg Verbose2 "" gb_size = gb_size(ctx, G.sigs)
     end
     f5c && interreduction!(ctx, G, R)
 end
@@ -156,7 +156,20 @@ function decomp_core!(ctx::SΓ,
                       select = nothing,
                       kwargs...) where {I, M, SΓ <: SigPolynomialΓ{I, M}} 
 
-    all_koszul = f5c = select_both = false
+    f5c = select_both = false
+    all_koszul = true
+
+    if mod_order(ctx) == :POT 
+        select = :deg_and_pos
+    elseif mod_order(ctx) == :DPOT
+        select = :schrey_deg_and_pos
+    elseif mod_order(ctx) == :SCHREY
+        select = :schrey_deg
+    end
+
+    curr_indx_key = first(pairs)[1][2][1]
+    old_gb_length = length(G)
+    
     # TODO: error checking
 
     while !(isempty(pairs))
@@ -177,7 +190,7 @@ function decomp_core!(ctx::SΓ,
                          f5c = f5c, select_both = select_both)
         zero_reduct_sig_pols = filter!(sig_pol -> iszero(sig_pol[2])
                                        && tag(ctx, sig_pol[1]) == :f,
-                                       zip(mat.sigs, mat.rows))
+                                       collect(zip(mat.sigs, mat.rows)))
         if isempty(zero_reduct_sig_pols)
             new_elems!(ctx, G, H, pairs, mat, all_koszul,
                        ctx.sgb_nodes[curr_indx_key].sort_ID, f5c = f5c)
@@ -200,7 +213,7 @@ function decomp_core!(ctx::SΓ,
             end
         end
         @logmsg Verbose2 "" end_time_core = time()
-        @logmsg Verbose2 "" gb_size = gb_size(ctx, G)
+        @logmsg Verbose2 "" gb_size = gb_size(ctx, G.sigs)
     end
 end
 
@@ -216,7 +229,7 @@ function core_loop!(ctx::SΓ,
                     kwargs...) where {I, M, SΓ <: SigPolynomialΓ{I, M}}
     
     @logmsg Verbose2 "" start_time_core = time()
-    @logmsg Verbose1 "" curr_index = index(ctx, first(pairs)[1]) curr_index_hash = first(pairs)[1][2][1] sig_degree = degree(ctx, first(pairs)[1]) tag = tag(ctx, first(pairs)[1])
+    @logmsg Verbose1 "" curr_index = sort_id(ctx, first(pairs)[1]) curr_index_hash = first(pairs)[1][2][1] sig_degree = degree(ctx, first(pairs)[1]) tag = tag(ctx, first(pairs)[1])
     @logmsg Verbose1 "" sugar_deg = mod_order(ctx) in [:DPOT, :SCHREY] ? sugar_deg = schrey_degree(ctx, first(pairs)[1]) : sugar_deg = -1
     @debug string("pairset:\n", [isnull(p[2]) ? "$((p[1], ctx))\n" : "$((p[1], ctx)), $((p[2], ctx))\n" for p in pairs]...)
     
@@ -225,7 +238,7 @@ function core_loop!(ctx::SΓ,
         return f5_matrix(ctx, easytable(M[]), easytable(M[]), Tuple{MonSigPair{I, M}, eltype(ctx.po), eltype(ctx.mod_po)}[])
     end
     
-    @logmsg Verbose2 "" indx = mod_order(ctx) == :POT && !(isempty(to_reduce)) ? maximum(p -> index(ctx, p), to_reduce) : 0
+    @logmsg Verbose2 "" indx = mod_order(ctx) == :POT && !(isempty(to_reduce)) ? maximum(p -> sort_id(ctx, p), to_reduce) : 0
     @logmsg Verbose2 "" min_deg = minimum(p -> degree(ctx.po, ctx(p...).pol), to_reduce)
     
     table, module_table, sigpolys = symbolic_pp!(ctx, to_reduce, G, H, all_koszul, curr_sort_id,
@@ -250,12 +263,15 @@ function new_elems!(ctx::SΓ,
     for (i, (sig, row)) in enumerate(zip(mat.sigs, mat.rows))
         # @debug "considering $((sig, ctx))"
         if mod_order(ctx) == :POT
-            sort_id(ctx, sig) < curr_sort_id && continue
+            if sort_id(ctx, sig) < curr_sort_id
+                @debug "skipping $((sig, ctx))"
+                continue
+            end
         end
         new_sig = mul(ctx, sig...)
         if isempty(row)
-            #@debug "old leading monomial $(gpair(ctx.po.mo, leadingmonomial(ctx, sig..., no_rewrite = true)))"
-            #@debug "syzygy $((sig, ctx))"
+            @debug "old leading monomial $(gpair(ctx.po.mo, leadingmonomial(ctx, sig..., no_rewrite = true)))"
+            @debug "syzygy $((sig, ctx))"
             @logmsg Verbose2 "" new_syz = true
             push!(H, new_sig)
             if mod_rep_type(ctx) != nothing
@@ -268,8 +284,10 @@ function new_elems!(ctx::SΓ,
         else
             p = unindexpolynomial(mat.tbl, row)
             lm = leadingmonomial(p)
-            #@debug "old leading monomial $(gpair(ctx.po.mo, leadingmonomial(ctx, sig..., no_rewrite = true)))"
-            #@debug "new leading monomial $(gpair(ctx.po.mo, lm))"
+            @debug "old leading monomial $(gpair(ctx.po.mo, leadingmonomial(ctx, sig..., no_rewrite = true)))"
+            @debug "new leading monomial $(gpair(ctx.po.mo, lm))"
+            @debug "is a unitvector to add: $((isunitvector(ctx, new_sig) && !(new_sig in G.sigs)))"
+            @debug "leading monomial changed: $(lt(ctx.po.mo, lm, leadingmonomial(ctx, sig..., no_rewrite = true)))"
             if (isunitvector(ctx, new_sig) && !(new_sig in G.sigs)) || lt(ctx.po.mo, lm, leadingmonomial(ctx, sig..., no_rewrite = true))
                 @debug "adding $((sig, ctx))"
                 @logmsg Verbose2 "" new_basis = true
