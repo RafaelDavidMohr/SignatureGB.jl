@@ -109,21 +109,6 @@ isunitvector(ctx::SigPolynomialΓ{I, M}, a::SigHash{I, M}) where {I, M} = isone(
 tag(ctx::SigPolynomialΓ{I}, i::I) where {I} = ctx.f5_indices[i].tag
 tag(ctx::SigPolynomialΓ{I, M}, p::SigHash{I, M}) where {I, M} = tag(ctx, p[1])
 
-function new_generator_before!(ctx::SigPolynomialΓ{I, M, MM, T},
-                               before::SGBNode{I, M, T},
-                               pol::Polynomial{M, T},
-                               tag = :f;
-                               module_rep = ctx.po([one(ctx.po.mo)], [one(eltype(ctx.po.co))])) where {I, M, MM, T}
-    
-    new_node = insert_before!(before, pol, ctx.sgb_nodes, tag)
-    sighash = unitvector(ctx, new_node.ID)
-    if mod_order(ctx) in [:SCHREY, :DPOT]
-        ctx.lms[new_node.ID] = leadingmonomial(pol)
-    end
-    ctx(sighash, pol, module_rep)
-    return new_node.ID
-end
-
 function new_generator!(ctx::SigPolynomialΓ{I, M, MM, T},
                         parent_id::I,
                         pol::Polynomial{M, T},
@@ -139,6 +124,25 @@ function new_generator!(ctx::SigPolynomialΓ{I, M, MM, T},
     end
     ctx(sighash, pol, module_rep)
     return new_node.ID
+end
+
+function split_on_tag_f!(ctx::SigPolynomialΓ{I, M, MM, T},
+                         f_node_id::I,
+                         zd_to_insert::Polynomial{M, T}) where {I, M, MM, T}
+
+    new_ids, new_branch_node_ids, new_cleaners = split_on_tag_f!(ctx.sgb_nodes,
+                                                                 f_node_id,
+                                                                 zd_to_insert)
+    for id in vcat(new_ids, new_cleaners)
+        sighash = unitvector(ctx, id)
+        pol = ctx.sgb_nodes[id].pol
+        if mod_order(ctx) in [:SCHREY, :DPOT]
+            ctx.lms[new_node.ID] = leadingmonomial(pol)
+        end
+        ctx(sighash, pol)
+    end
+    assign_sort_ids!(ctx.sgb_nodes)
+    return new_ids, new_branch_node_ids, new_cleaners
 end
 
 function sort_id(ctx::SigPolynomialΓ{I, M},
@@ -374,4 +378,21 @@ function orginal_gen_left(ctx::SigPolynomialΓ{I}, index::I) where I
         end
     end
     return result
+end
+
+#--- UNUSED CODE/ONLY FOR TESTING ---#
+
+function new_generator_before!(ctx::SigPolynomialΓ{I, M, MM, T},
+                               before::SGBNode{I, M, T},
+                               pol::Polynomial{M, T},
+                               tag = :f;
+                               module_rep = ctx.po([one(ctx.po.mo)], [one(eltype(ctx.po.co))])) where {I, M, MM, T}
+    
+    new_node = insert_before!(before, pol, ctx.sgb_nodes, tag)
+    sighash = unitvector(ctx, new_node.ID)
+    if mod_order(ctx) in [:SCHREY, :DPOT]
+        ctx.lms[new_node.ID] = leadingmonomial(pol)
+    end
+    ctx(sighash, pol, module_rep)
+    return new_node.ID
 end

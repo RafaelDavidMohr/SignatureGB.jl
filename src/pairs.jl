@@ -39,33 +39,25 @@ function poly_reduce(ctx::SigPolynomialΓ{I, M, MM, T},
     poly_reduce(ctx, G.sigs, p, R)
 end
 
+function filter_basis_by_indices!(ctx::SigPolynomialΓ{I, M},
+                                  G::Basis{I, M},
+                                  criterion) where {I, M}
 
-function filter_by_index!(ctx::SigPolynomialΓ{I, M},
-                          G::Basis{I, M},
-                          node_ids::I) where {I, M}
-
-    to_delete = findall(sig -> !(sig[1] in node_ids), G.sigs)
+    to_delete = findall(sig -> criterion(sig[1]), G.sigs)
     deleteat!(G.sigs, to_delete)
     deleteat!(G.lms, to_delete)
     for i in keys(G.by_index)
-        if index(ctx, i) >= indx
+        if !(criterion(i))
             G.by_index[i] = M[]
         end
     end
-end
 
-function filter_by_tag!(ctx::SigPolynomialΓ{I, M},
-                        G::Basis{I, M},
-                        tag_name::Symbol) where {I, M}
+function delete_indices!(ctx::SigPolynomialΓ{I, M},
+                         G::Basis{I, M},
+                         node_ids::I) where {I, M}
 
-    to_delete = findall(sig -> tag(ctx, sig) == tag_name, G.sigs)
-    deleteat!(G.sigs, to_delete)
-    deleteat!(G.lms, to_delete)
-    for i in keys(G.by_index)
-        if tag(ctx, i) == tag_name
-            G.by_index[i] = M[]
-        end
-    end
+    criterion = index_hash -> index_hash in node_ids
+    filter_basis_by_indices!(ctx, G, criterion)
 end
 
 struct MPairOrdering{SΓ <: SigPolynomialΓ}<:Base.Order.Ordering
