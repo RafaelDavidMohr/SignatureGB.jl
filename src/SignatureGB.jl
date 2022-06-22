@@ -188,21 +188,23 @@ function decomp_core!(ctx::SΓ,
         mat = core_loop!(ctx, G, H, koszul_q, pairs, select, all_koszul,
                          ctx.sgb_nodes[curr_indx_key].sort_ID,
                          f5c = f5c, select_both = select_both)
-        zero_reduct_sig_pols = filter!(sig_pol -> iszero(sig_pol[2])
-                                       && tag(ctx, sig_pol[1]) == :f,
-                                       collect(zip(mat.sigs, mat.rows)))
+        zero_reduct_sig_pols = map(x -> (x[1], unindexpolynomial(mat.module_tbl, x[3])),
+                                   filter(sig_pol -> iszero(sig_pol[2])
+                                          && tag(ctx, sig_pol[1]) == :f,
+                                          collect(zip(mat.sigs, mat.rows, mat.module_rows))))
         if isempty(zero_reduct_sig_pols)
             new_elems!(ctx, G, H, pairs, mat, all_koszul,
                        ctx.sgb_nodes[curr_indx_key].sort_ID, f5c = f5c)
         else
-            for (sig, pol) in zero_reduct_sig_pols
+            for (sig, zero_divisor) in zero_reduct_sig_pols
                 f_node_id = sig[2][1]
                 new_ids, new_branch_node_ids, new_cleaners =
-                    split_on_tag_f!(ctx, f_node_id, pol)
+                    split_on_tag_f!(ctx, f_node_id, zero_divisor)
                 append!(ctx.branch_nodes, new_branch_node_ids)
                 # TODO: readding unitvector(f_node_id) to pairs should
                 # kill the old pairs in index hash f_node_id
                 pair!(ctx, pairs, unitvector(ctx, f_node_id))
+                filter_basis_by_indices!(ctx, G, basis_id -> basis_id == f_node_id)
                 for id in vcat(new_ids, new_cleaners)
                     pair!(ctx, pairs, unitvector(ctx, id))
                     # TODO: do we need to add stuff back into the pairset here?

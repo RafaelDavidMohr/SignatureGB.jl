@@ -56,13 +56,19 @@ function compare(ID_dict::Dict{I, SGBNode{I, M, T}},
     # two different branches -> compare "left" to "right"
     fullpath1 = vcat(node1.path_to, [node1.ID])
     fullpath2 = vcat(node2.path_to, [node2.ID])
-    common_ancestor_index = findlast(index_and_entry -> index_and_entry[1] > length(fullpath2) ? false : fullpath2[index_and_entry[1]] == index_and_entry[2],
-                                     collect(enumerate(fullpath1)))[1]
-
-    common_ancestor = ID_dict[fullpath1[common_ancestor_index]]
+    ancestor_pairs = collect(zip(fullpath1, fullpath2))
+    common_ancestor_index = findlast(node_ids -> node_ids[1] == node_ids[2], ancestor_pairs)
+    if isnothing(common_ancestor_index)
+        println(fullpath1)
+        println(fullpath2)
+        error(":(")
+    end
+    common_ancestor = fullpath1[common_ancestor_index]
+    
     next_in_path1 = fullpath1[common_ancestor_index + 1]
     next_in_path2 = fullpath2[common_ancestor_index + 1]
-    return findfirst(id -> id == next_in_path1, common_ancestor.children_id) < findfirst(id -> id == next_in_path2, common_ancestor.children_id)
+    return findfirst(id -> id == next_in_path1, ID_dict[common_ancestor].children_id) <
+        findfirst(id -> id == next_in_path2, ID_dict[common_ancestor].children_id)
 end
 
 function assign_sort_ids!(ID_dict::Dict{I, SGBNode{I, M, T}}) where {I, M, T}
@@ -118,16 +124,13 @@ function insert_before!(before::SGBNode{I, M, T},
                         tag::Symbol) where {I, M, T}
 
     if !(iszero(before.parent_id))
-        delete!(ID_dict[before.parent_id].children, before.ID)
+        deleteat!(ID_dict[before.parent_id].children_id,
+                  findfirst(id -> id == before.ID, ID_dict[before.parent_id].children_id))
     end
     node = new_node!(before.parent_id, pol, ID_dict, tag)
     before.parent_id = node.ID
     push!(node.children_id, before.ID)
-    if isempty(before.path_to)
-        push!(before.path_to, node.ID)
-    else
-        before.path_to[end] = node.ID
-    end
+    push!(before.path_to, node.ID)
     set_path_subtree!(before, ID_dict)
     assign_sort_ids!(ID_dict)
     return node
