@@ -169,6 +169,8 @@ function decomp_core!(ctx::SΓ,
 
     curr_indx_key = first(pairs)[1][2][1]
     old_gb_length = length(G)
+    # this list is used for zero divisors that are only inserted at the end of the computation
+    insert_at_end = eltype(ctx)[]
     
     # TODO: error checking
 
@@ -188,15 +190,25 @@ function decomp_core!(ctx::SΓ,
         mat = core_loop!(ctx, G, H, koszul_q, pairs, select, all_koszul,
                          ctx.sgb_nodes[curr_indx_key].sort_ID,
                          f5c = f5c, select_both = select_both)
+
+        # extract the cofactors of the zero reductions. TODO: simplify these calls
         zero_reduct_sig_pols = map(x -> (x[1], unindexpolynomial(mat.module_tbl, x[3])),
                                    filter(sig_pol -> iszero(sig_pol[2])
                                           && tag(ctx, sig_pol[1]) == :f,
                                           collect(zip(mat.sigs, mat.rows, mat.module_rows))))
-        if isempty(zero_reduct_sig_pols)
+        zero_reduct_sig_pols_cleaner = map(x -> (x[1], unindexpolynomial(mat.module_tbl, x[3])),
+                                           filter(sig_pol -> iszero(sig_pol[2])
+                                                  && tag(ctx, sig_pol[1]) == :cleaner,
+                                                  collect(zip(mat.sigs, mat.rows, mat.module_rows))))
+
+        # no zero reductions -> proceed as in GB computation
+        if isempty(zero_reduct_sig_pols) && isempty(zero_reduct_sig_pols_cleaner)
             new_elems!(ctx, G, H, pairs, mat, all_koszul,
                        ctx.sgb_nodes[curr_indx_key].sort_ID, f5c = f5c)
         else
+            # we split if a zero divisor occured for a non-cleaning node
             for (sig, zero_divisor) in zero_reduct_sig_pols
+                @debug "inserting zero divisor $(R(ctx.po, zero_divisor)) coming from f"
                 f_node_id = sig[2][1]
                 new_ids, new_branch_node_ids, new_cleaners =
                     split_on_tag_f!(ctx, f_node_id, zero_divisor)
@@ -207,15 +219,32 @@ function decomp_core!(ctx::SΓ,
                 filter_basis_by_indices!(ctx, G, basis_id -> basis_id == f_node_id)
                 for id in vcat(new_ids, new_cleaners)
                     pair!(ctx, pairs, unitvector(ctx, id))
-                    # TODO: do we need to add stuff back into the pairset here?
+                    # TODO: do we need to add stuff back into the pairset here? No I think
                     filter_basis_by_indices!(ctx, G,
                                              basis_id -> in_path_to(ctx.sgb_nodes[id],
                                                                     ctx.sgb_nodes[basis_id]))
                 end
             end
+            for node_id in keys(ctx.sgb_nodes)
+                @debug "node id $(node_id), parent $(ctx.sgb_nodes[node_id].parent_id)"
+                @debug "polynomial $(node_id in ctx.branch_nodes ? nothing : R(ctx.po, ctx.sgb_nodes[node_id].pol))"
+            end
+            # zero divs of cleaning nodes are (for now) simply inserted
+            for (sig, zero_divisor) in zero_reduct_sig_pols_cleaner
+                @debug "inserting zero divisor $(R(ctx.po, zero_divisor)) coming from cleaner"
+                cleaner_node_id = sig[2][1]
+                # parent of cleaner_node_id should be a branch node
+                # TODO: this line is not pretty
+                new_id = new_generator_before!(ctx, ctx.sgb_nodes[ctx.sgb_nodes[cleaner_node_id].parent_id],
+                                               zero_divisor, :p)
+                push!(insert_at_end, unitvector(ctx, new_id))
+            end  
         end
         @logmsg Verbose2 "" end_time_core = time()
         @logmsg Verbose2 "" gb_size = gb_size(ctx, G.sigs)
+    end
+    for sig in insert_at_end
+        new_basis_elem!(ctx, G, sig)
     end
 end
 
