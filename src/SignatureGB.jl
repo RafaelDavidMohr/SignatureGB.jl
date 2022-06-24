@@ -66,8 +66,8 @@ function decomp(I::Vector{P};
     with_logger(logger) do
 	decomp_core!(ctx, G, H, koszul_q, pairs, R; kwargs...)
         verbose == 2 && printout(logger)
-        # TODO: build components out of basis
-        [R(ctx, g) for g in G.sigs]
+        return [[R(ctx, g) for g in G.sigs if in_path_to(ctx.sgb_nodes[g[1]], ctx.sgb_nodes[br])]
+                for br in ctx.branch_nodes]
     end
 end
 
