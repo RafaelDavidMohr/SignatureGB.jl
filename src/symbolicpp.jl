@@ -76,6 +76,7 @@ function symbolic_pp!(ctx::SΓ,
         pol = ctx(p..., no_rewrite = get_orig_elem(p)).pol
         if mod_rep_type(ctx) == :highest_index && tag(ctx, p) in ctx.track_module_tags && sort_id(ctx, p) == curr_sort_id
             module_pol = project(ctx, p..., no_rewrite = get_orig_elem(p))
+            @debug "reading module rep $(gpair(ctx.po, module_pol)) for sig $((p, ctx))"
         else
             module_pol = zero(eltype(ctx.mod_po))
         end
@@ -96,6 +97,7 @@ function symbolic_pp!(ctx::SΓ,
                            f5c = f5c;
                            kwargs...)
         isnull(red) && continue
+        @debug "found reducer $((red, ctx)) for $(gpair(ctx.po.mo, m))"
         pol = ctx(red..., no_rewrite = get_orig_elem(red)).pol
         if mod_rep_type(ctx) == :highest_index && tag(ctx, red) in ctx.track_module_tags && sort_id(ctx, red) == curr_sort_id
             module_pol = project(ctx, red..., no_rewrite = get_orig_elem(red))
@@ -109,7 +111,6 @@ function symbolic_pp!(ctx::SΓ,
             findorpush!(module_tbl, m)
         end
         push!(sigpolys, (red, pol, module_pol))
-        # @debug "found reducer $((red, ctx)) for $(gpair(ctx.po.mo, m))"
     end
     @debug "done with symbolic pp..."
     return tbl, module_tbl, sigpolys

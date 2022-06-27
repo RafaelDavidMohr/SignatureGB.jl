@@ -133,13 +133,16 @@ function split_on_tag_f!(ctx::SigPolynomialΓ{I, M, MM, T},
     new_ids, new_branch_node_ids, new_cleaners = split_on_tag_f!(ctx.sgb_nodes,
                                                                  f_node_id,
                                                                  zd_to_insert)
+
+    module_rep = ctx.po([one(ctx.po.mo)], [one(eltype(ctx.po.co))])
+    
     for id in vcat(new_ids, new_cleaners)
         sighash = unitvector(ctx, id)
         pol = ctx.sgb_nodes[id].pol
         if mod_order(ctx) in [:SCHREY, :DPOT]
             ctx.lms[new_node.ID] = leadingmonomial(pol)
         end
-        ctx(sighash, pol)
+        ctx(sighash, pol, copy(module_rep))
     end
     assign_sort_ids!(ctx.sgb_nodes)
     return new_ids, new_branch_node_ids, new_cleaners
