@@ -62,7 +62,7 @@ function decomp(I::Vector{P};
                 track_module_tags = [:f, :cleaner],
                 kwargs...)
     G, H, koszul_q, pairs = pairs_and_basis(ctx, length(I); kwargs...)
-    logger = SGBLogger(ctx, verbose = verbose; kwargs...)
+    logger = SGBLogger(ctx, verbose = verbose, task = :decomp; kwargs...)
     with_logger(logger) do
 	decomp_core!(ctx, G, H, koszul_q, pairs, R; kwargs...)
         verbose == 2 && printout(logger)
@@ -170,6 +170,7 @@ function decomp_core!(ctx::SΓ,
     curr_indx_key = first(pairs)[1][2][1]
     old_gb_length = length(G)
     # this dict is used for zero divisors that are only inserted later, not when theyre found
+    # TODO: this will stop working once we switch to another module order
     insert_with_delay = Dict{I, Vector{eltype(ctx)}}()
     
     # TODO: error checking
@@ -195,7 +196,8 @@ function decomp_core!(ctx::SΓ,
         mat = core_loop!(ctx, G, H, koszul_q, pairs, select, all_koszul,
                          ctx.sgb_nodes[curr_indx_key].sort_ID,
                          f5c = f5c, select_both = select_both)
-
+        @logmsg Verbose2 "" tag = tag(ctx, last(mat.sigs)) indx_hash = last(mat.sigs)[2][1]
+        
         # extract the cofactors of the zero reductions. TODO: simplify these calls
         zero_reduct_sig_pols = map(x -> (x[1], unindexpolynomial(mat.module_tbl, x[3])),
                                    filter(sig_pol -> iszero(sig_pol[2])
@@ -216,6 +218,7 @@ function decomp_core!(ctx::SΓ,
             # we split if a zero divisor occured for a non-cleaning node
             for (sig, zero_divisor) in zero_reduct_sig_pols
                 @debug "inserting zero divisor $(R(ctx.po, zero_divisor)) coming from f"
+                @logmsg Verbose2 "" new_syz = true
                 f_node_id = sig[2][1]
                 new_ids, new_branch_node_ids, new_cleaners =
                     split_on_tag_f!(ctx, f_node_id, zero_divisor)
@@ -241,6 +244,7 @@ function decomp_core!(ctx::SΓ,
             # zero divs of cleaning nodes are (for now) simply inserted
             for (sig, zero_divisor) in zero_reduct_sig_pols_cleaner
                 @debug "inserting zero divisor $(R(ctx.po, zero_divisor)) coming from cleaner"
+                @logmsg Verbose2 "" new_syz = true
                 cleaner_node_id = sig[2][1]
                 # parent of cleaner_node_id should be a branch node
                 # TODO: this line is not pretty
@@ -281,7 +285,7 @@ function core_loop!(ctx::SΓ,
                     kwargs...) where {I, M, SΓ <: SigPolynomialΓ{I, M}}
     
     @logmsg Verbose2 "" start_time_core = time()
-    @logmsg Verbose1 "" curr_index = sort_id(ctx, first(pairs)[1]) curr_index_hash = first(pairs)[1][2][1] sig_degree = degree(ctx, first(pairs)[1]) tag = tag(ctx, first(pairs)[1])
+    @logmsg Verbose1 "" curr_sort_id = sort_id(ctx, first(pairs)[1]) curr_index_hash = first(pairs)[1][2][1] sig_degree = degree(ctx, first(pairs)[1]) tag = tag(ctx, first(pairs)[1])
     @logmsg Verbose1 "" sugar_deg = mod_order(ctx) in [:DPOT, :SCHREY] ? sugar_deg = schrey_degree(ctx, first(pairs)[1]) : sugar_deg = -1
     @debug string("pairset:\n", [isnull(p[2]) ? "$((p[1], ctx))\n" : "$((p[1], ctx)), $((p[2], ctx))\n" for p in pairs]...)
     

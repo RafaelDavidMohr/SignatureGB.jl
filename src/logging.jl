@@ -52,15 +52,10 @@ function SGBLogger(ctx::SigPolynomialΓ{I};
     if task == :sat
         insertcols!(core_info, :tag => Symbol[])
     elseif task == :decomp
-        insertcols!(core_info, :indx => Int64[], :tag => Symbol[], :level => Int64[], :component => Int64[])
-    elseif task == :f4sat
-        insertcols!(core_info, :gb_or_sat => Symbol[])
-    end
-    
-    if mod_order(ctx) == :POT || mod_order(ctx) == :DPOT
+        insertcols!(core_info, :indx => Int64[], :indx_hash => Int64[], :tag => Symbol[])
+    elseif mod_order(ctx) == :POT || mod_order(ctx) == :DPOT
         insertcols!(core_info, :indx => Int64[])
-    end
-    if mod_order(ctx) == :SCHREY || mod_order(ctx) == :DPOT
+    elseif mod_order(ctx) == :SCHREY || mod_order(ctx) == :DPOT
         insertcols!(core_info, :sig_deg, :sugar_deg => Int64[],
                     after = true)
     end
@@ -113,6 +108,7 @@ function Logging.handle_message(logger::SGBLogger, level, message, _module, grou
                                 nz_entries = 0,
                                 mat_size = (0, 0),
                                 indx = 0,
+                                indx_hash = 0,
                                 tag = nothing,
                                 arit_ops = 0,
                                 new_syz = false,
@@ -167,6 +163,9 @@ function Logging.handle_message(logger::SGBLogger, level, message, _module, grou
         end
         if indx != 0
             set_info_row!(logger, (:indx, indx))
+        end
+        if indx_hash != 0
+            set_info_row!(logger, (:indx_hash, indx_hash))
         end
         if tag != nothing
             set_info_row!(logger, (:tag, tag))
