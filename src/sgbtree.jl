@@ -149,7 +149,7 @@ function copy_subtree!(node::SGBNode{I, M, T},
         else
             push!(new_ids, child_copy.ID)
         end
-        new_ids_child, new_branch_node_ids_child = copy_subtree!(child, child.ID, ID_dict)
+        new_ids_child, new_branch_node_ids_child = copy_subtree!(child, child_copy.ID, ID_dict)
         append!(new_ids, new_ids_child)
         append!(new_branch_node_ids, new_branch_node_ids_child)
     end

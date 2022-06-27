@@ -169,11 +169,11 @@ function decomp_core!(ctx::SΓ,
 
     curr_indx_key = first(pairs)[1][2][1]
     old_gb_length = length(G)
-    # this list is used for zero divisors that are only inserted at the end of the computation
-    insert_at_end = eltype(ctx)[]
+    # this dict is used for zero divisors that are only inserted later, not when theyre found
+    insert_with_delay = Dict{I, Vector{eltype(ctx)}}()
     
     # TODO: error checking
-
+    
     while !(isempty(pairs))
         next_index_key = first(pairs)[1][2][1]
         if next_index_key != curr_indx_key
@@ -183,6 +183,11 @@ function decomp_core!(ctx::SΓ,
                     interreduction!(ctx, G, R)
                 end
                 old_gb_length = length(G)
+            end
+            if curr_indx_key in keys(insert_with_delay)
+                while !(isempty(insert_with_delay[curr_indx_key]))
+                    new_basis_elem!(ctx, G, pop!(insert_with_delay[curr_indx_key]))
+                end
             end
             curr_indx_key = next_index_key
         end
@@ -200,12 +205,14 @@ function decomp_core!(ctx::SΓ,
                                            filter(sig_pol -> iszero(sig_pol[2])
                                                   && tag(ctx, sig_pol[1]) == :cleaner,
                                                   collect(zip(mat.sigs, mat.rows, mat.module_rows))))
-
-        # no zero reductions -> proceed as in GB computation
-        if isempty(zero_reduct_sig_pols) && isempty(zero_reduct_sig_pols_cleaner)
-            new_elems!(ctx, G, H, pairs, mat, all_koszul,
-                       ctx.sgb_nodes[curr_indx_key].sort_ID, f5c = f5c)
-        else
+        #=
+        TODO: calling this every time is an inefficient solution to
+        registering every matrix row with new leading term regardless
+        of whether zero divisors are inserted
+        =#
+        new_elems!(ctx, G, H, pairs, mat, all_koszul,
+                   ctx.sgb_nodes[curr_indx_key].sort_ID, f5c = f5c)
+        if !(isempty(zero_reduct_sig_pols)) || !(isempty(zero_reduct_sig_pols_cleaner))
             # we split if a zero divisor occured for a non-cleaning node
             for (sig, zero_divisor) in zero_reduct_sig_pols
                 @debug "inserting zero divisor $(R(ctx.po, zero_divisor)) coming from f"
@@ -225,9 +232,11 @@ function decomp_core!(ctx::SΓ,
                                                                     ctx.sgb_nodes[basis_id]))
                 end
             end
-            for node_id in keys(ctx.sgb_nodes)
-                @debug "node id $(node_id), parent $(ctx.sgb_nodes[node_id].parent_id)"
-                @debug "polynomial $(node_id in ctx.branch_nodes ? nothing : R(ctx.po, ctx.sgb_nodes[node_id].pol))"
+            if !(isempty(zero_reduct_sig_pols))
+                for node_id in keys(ctx.sgb_nodes)
+                    @debug "node id $(node_id), parent $(ctx.sgb_nodes[node_id].parent_id)"
+                    @debug "polynomial $(node_id in ctx.branch_nodes ? nothing : R(ctx.po, ctx.sgb_nodes[node_id].pol))"
+                end
             end
             # zero divs of cleaning nodes are (for now) simply inserted
             for (sig, zero_divisor) in zero_reduct_sig_pols_cleaner
@@ -237,14 +246,26 @@ function decomp_core!(ctx::SΓ,
                 # TODO: this line is not pretty
                 new_id = new_generator_before!(ctx, ctx.sgb_nodes[ctx.sgb_nodes[cleaner_node_id].parent_id],
                                                zero_divisor, :p)
-                push!(insert_at_end, unitvector(ctx, new_id))
+                if sig[2][1] in keys(insert_with_delay)
+                    push!(insert_with_delay[sig[2][1]], unitvector(ctx, new_id))
+                else
+                    insert_with_delay[sig[2][1]] = [unitvector(ctx, new_id)]
+                end
             end  
         end
         @logmsg Verbose2 "" end_time_core = time()
         @logmsg Verbose2 "" gb_size = gb_size(ctx, G.sigs)
+        # Remove comment of this line out for debugging if infinite loop
+        # sleep(1)
     end
-    for sig in insert_at_end
-        new_basis_elem!(ctx, G, sig)
+    for id in keys(insert_with_delay)
+        while !(isempty(insert_with_delay[id]))
+            new_basis_elem!(ctx, G, pop!(insert_with_delay[id]))
+        end
+    end
+    for node_id in keys(ctx.sgb_nodes)
+        @debug "node id $(node_id), parent $(ctx.sgb_nodes[node_id].parent_id)"
+        @debug "polynomial $(node_id in ctx.branch_nodes ? nothing : R(ctx.po, ctx.sgb_nodes[node_id].pol))"
     end
 end
 
@@ -264,7 +285,7 @@ function core_loop!(ctx::SΓ,
     @logmsg Verbose1 "" sugar_deg = mod_order(ctx) in [:DPOT, :SCHREY] ? sugar_deg = schrey_degree(ctx, first(pairs)[1]) : sugar_deg = -1
     @debug string("pairset:\n", [isnull(p[2]) ? "$((p[1], ctx))\n" : "$((p[1], ctx)), $((p[2], ctx))\n" for p in pairs]...)
     
-    to_reduce, sig_degree, are_pairs = select!(ctx, koszul_q, pairs, Val(select), all_koszul; kwargs...)
+    to_reduce, sig_degree, are_pairs = select!(ctx, G, koszul_q, pairs, Val(select), all_koszul; kwargs...)
     if isempty(to_reduce)
         return f5_matrix(ctx, easytable(M[]), easytable(M[]), Tuple{MonSigPair{I, M}, eltype(ctx.po), eltype(ctx.mod_po)}[])
     end

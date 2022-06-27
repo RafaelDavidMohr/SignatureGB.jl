@@ -241,7 +241,7 @@ function pairs!(ctx::SΓ,
         m == mul(ctx.po.mo, lm, lm_sig) && continue
         a = div(ctx.po.mo, m, lm_sig)
         @debug "considering pair $(gpair(ctx.po.mo, a)), $(sort_id(ctx, sig))"
-        if rewriteable_syz(ctx, a, sig, G, H, all_koszul)
+        if rewriteable_syz(ctx, a, sig, H)
             @debug "rewritten by syz criterion"
             continue
         end
@@ -274,29 +274,12 @@ end
 function rewriteable_syz(ctx::SigPolynomialΓ{I, M},
                          m::M,
                          sig::SigHash{I, M},
-                         G::Basis{I, M},
-                         H::Syz{I, M},
-                         all_koszul) where {I, M}
+                         H::Syz{I, M}) where {I, M}
 
     msig = mul(ctx, m, sig)
     for h in H
         if divides(ctx, h, msig)
             return true
-        end
-    end
-
-    if all_koszul
-        for i in keys(G.by_index)
-            !(are_compatible(ctx, sig, unitvector(ctx, i))) && continue
-            ctx.sgb_nodes[i].sort_ID >= ctx.sgb_nodes[sig[1]].sort_ID && continue
-            if i in keys(G.by_index)
-                for lm in G.by_index[i]
-                    if divides(ctx.po.mo, lm, msig[2])
-                        @debug "by koszul criterion"
-                        return true
-                    end
-                end
-            end
         end
     end
 
@@ -311,7 +294,7 @@ function rewriteable(ctx::SigPolynomialΓ{I, M},
                      H::Syz{I, M},
                      all_koszul) where {I, M}
 
-    rewriteable_syz(ctx, m, sig, G, H, all_koszul) || rewriteable(ctx, m, sig, indx, G)
+    rewriteable_syz(ctx, m, sig, H) || rewriteable(ctx, m, sig, indx, G)
 end
 
 function new_rewriter!(ctx::SΓ,
@@ -335,6 +318,7 @@ function new_rewriter!(ctx::SΓ,
 end
 
 function select!(ctx::SΓ,
+                 G::Basis{I, M},
                  K::KoszulQueue{I, M, SΓ},
                  pairs::PairSet{I, M, SΓ},
                  cond::Val{S},
@@ -382,7 +366,26 @@ function select!(ctx::SΓ,
             if check!(K, p)
                 continue
             end
+        else
+            elim_by_koszul = false
+            for i in keys(G.by_index)
+                elim_by_koszul && break
+                !(are_compatible(ctx, p[1][2], unitvector(ctx, i))) && continue
+                ctx.sgb_nodes[i].sort_ID >= ctx.sgb_nodes[p[1][2][1]].sort_ID && continue
+                if i in keys(G.by_index)
+                    for lm in G.by_index[i]
+                        if divides(ctx.po.mo, lm, mul(ctx.po.mo, p[1][1], p[1][2][2]))
+                            @debug "by koszul criterion"
+                            elim_by_koszul = true
+                            break
+                        end
+                    end
+                end
+            end
         end
+
+        elim_by_koszul && continue
+        
         push!(selected, first(p))
         nselected += 1
         if select_both && !(isnull(p[2]))
