@@ -240,9 +240,9 @@ function pairs!(ctx::SΓ,
         m = lcm(ctx.po.mo, lm, lm_sig)
         m == mul(ctx.po.mo, lm, lm_sig) && continue
         a = div(ctx.po.mo, m, lm_sig)
-        @debug "considering pair $(gpair(ctx.po.mo, a)), $(sort_id(ctx, sig))"
+        # @debug "considering pair $(gpair(ctx.po.mo, a)), $(sort_id(ctx, sig))"
         if rewriteable_syz(ctx, a, sig, H)
-            @debug "rewritten by syz criterion"
+            # @debug "rewritten by syz criterion"
             continue
         end
         b = div(ctx.po.mo, m, lm)
@@ -250,8 +250,10 @@ function pairs!(ctx::SΓ,
             rewriteable(ctx, b, g, j, G, H, all_koszul) && continue
         end
         if lt(ctx, (index_key, ctx(sig).sigratio), (g[1], ctx(g).sigratio))
+            @debug "new pair $(((b, g), ctx)), $(((a, sig), ctx))"
             push!(pairset, ((b, g), (a, sig)))
         else
+            @debug "new pair $(((a, sig), ctx)), $(((b, g), ctx))"
             push!(pairset, ((a, sig), (b, g)))
         end
     end
@@ -303,13 +305,14 @@ function new_rewriter!(ctx::SΓ,
     pos, m = sig
     crit = p -> (divides(ctx, sig, mul(ctx, p[1]...)) || (!(isnull(p[2])) && divides(ctx, sig, mul(ctx, p[2]...))))
     if !(iszero(ctx(sig).pol))
-        crit2 = p -> index(ctx, sig) < index(ctx, p[1]) && divides(ctx.po.mo, leadingmonomial(ctx, sig), mul(ctx, p[1]...)[2])
+        crit2 = p -> sort_id(ctx, sig) < sort_id(ctx, p[1]) && divides(ctx.po.mo, leadingmonomial(ctx, sig), mul(ctx, p[1]...)[2])
     else
         crit2 = p -> false
     end
-    for p in pairset
+    for (st, p) in semitokens(pairset)
         if crit(p)
-            delete!(pairset, p)
+            @debug "deleting $((p[1], ctx)), $((p[2], ctx))"
+            delete!((pairset, st))
         end
         if mod_order(ctx) == :DPOT && crit2(p)
             delete!(pairset, p)
@@ -356,6 +359,7 @@ function select!(ctx::SΓ,
     else
         error("Select method must be one of :deg_and_pos, :schrey_deg or :pos")
     end
+
     
     while !(isempty(pairs))
         if !(cond(first(pairs)))
@@ -382,9 +386,8 @@ function select!(ctx::SΓ,
                     end
                 end
             end
+            elim_by_koszul && continue
         end
-
-        elim_by_koszul && continue
         
         push!(selected, first(p))
         nselected += 1

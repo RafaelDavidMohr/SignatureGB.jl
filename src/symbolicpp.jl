@@ -101,6 +101,7 @@ function symbolic_pp!(ctx::SΓ,
         pol = ctx(red..., no_rewrite = get_orig_elem(red)).pol
         if mod_rep_type(ctx) == :highest_index && tag(ctx, red) in ctx.track_module_tags && sort_id(ctx, red) == curr_sort_id
             module_pol = project(ctx, red..., no_rewrite = get_orig_elem(red))
+            @debug "reading module rep $(gpair(ctx.po, module_pol)) for sig $((red, ctx))"
         else
             module_pol = zero(eltype(ctx.mod_po))
         end

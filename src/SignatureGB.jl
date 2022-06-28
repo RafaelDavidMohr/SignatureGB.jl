@@ -176,6 +176,7 @@ function decomp_core!(ctx::SΓ,
     # TODO: error checking
     
     while !(isempty(pairs))
+        
         next_index_key = first(pairs)[1][2][1]
         if next_index_key != curr_indx_key
             # final interreduction outside of this function
@@ -196,7 +197,9 @@ function decomp_core!(ctx::SΓ,
         mat = core_loop!(ctx, G, H, koszul_q, pairs, select, all_koszul,
                          ctx.sgb_nodes[curr_indx_key].sort_ID,
                          f5c = f5c, select_both = select_both)
-        @logmsg Verbose2 "" tag = tag(ctx, last(mat.sigs)) indx_hash = last(mat.sigs)[2][1]
+        if !(isempty(mat.sigs))
+            @logmsg Verbose2 "" tag = tag(ctx, last(mat.sigs)) indx_hash = last(mat.sigs)[2][1]
+        end
         
         # extract the cofactors of the zero reductions. TODO: simplify these calls
         zero_reduct_sig_pols = map(x -> (x[1], unindexpolynomial(mat.module_tbl, x[3])),
@@ -217,7 +220,9 @@ function decomp_core!(ctx::SΓ,
         if !(isempty(zero_reduct_sig_pols)) || !(isempty(zero_reduct_sig_pols_cleaner))
             # we split if a zero divisor occured for a non-cleaning node
             for (sig, zero_divisor) in zero_reduct_sig_pols
-                @debug "inserting zero divisor $(R(ctx.po, zero_divisor)) coming from f"
+                isunit(ctx.po, zero_divisor) && continue
+                @debug "inserting zero divisor $(R(ctx.po, zero_divisor)) coming from f, sig $((sig, ctx))"
+                @assert !(iszero(zero_divisor))
                 @logmsg Verbose2 "" new_syz = true
                 f_node_id = sig[2][1]
                 new_ids, new_branch_node_ids, new_cleaners =
@@ -228,6 +233,7 @@ function decomp_core!(ctx::SΓ,
                 pair!(ctx, pairs, unitvector(ctx, f_node_id))
                 filter_basis_by_indices!(ctx, G, basis_id -> basis_id == f_node_id)
                 for id in vcat(new_ids, new_cleaners)
+                    # @assert tag(ctx, id) != :p
                     pair!(ctx, pairs, unitvector(ctx, id))
                     # TODO: do we need to add stuff back into the pairset here? No I think
                     filter_basis_by_indices!(ctx, G,
@@ -243,6 +249,7 @@ function decomp_core!(ctx::SΓ,
             end
             # zero divs of cleaning nodes are (for now) simply inserted
             for (sig, zero_divisor) in zero_reduct_sig_pols_cleaner
+                @assert !(iszero(zero_divisor))
                 @debug "inserting zero divisor $(R(ctx.po, zero_divisor)) coming from cleaner"
                 @logmsg Verbose2 "" new_syz = true
                 cleaner_node_id = sig[2][1]
