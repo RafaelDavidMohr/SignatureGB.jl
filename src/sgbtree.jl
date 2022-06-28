@@ -71,8 +71,16 @@ function compare(ID_dict::Dict{I, SGBNode{I, M, T}},
         findfirst(id -> id == next_in_path2, ID_dict[common_ancestor].children_id)
 end
 
-function assign_sort_ids!(ID_dict::Dict{I, SGBNode{I, M, T}}) where {I, M, T}
+function assign_sort_ids!(ID_dict::Dict{I, SGBNode{I, M, T}},
+                          curr_id = one(I),
+                          curr_sort_id = one(I)) where {I, M, T}
 
+    # ID_dict[curr_id].sort_ID = curr_sort_id
+    # for node_id in ID_dict[curr_id].children_id
+    #     curr_sort_id += 1
+    #     assign_sort_ids!(ID_dict, node_id, curr_sort_id)
+    # end
+           
     ids = collect(keys(ID_dict))
     sorted = sortperm(ids, by = id -> ID_dict[id],
                       lt = (node1, node2) -> compare(ID_dict, node1, node2))
