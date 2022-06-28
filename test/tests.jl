@@ -111,42 +111,45 @@ end
 #     @test SG.divides(idx, j, k)
 # end
 
-# @testset "sig polynomials and trees" begin
-#     R, (x, y) = Singular.PolynomialRing(Singular.Fp(101), ["x", "y"])
-#     f, g = x + y, x^2 + x*y + y^2
+@testset "sig polynomials and trees" begin
+    R, (x, y) = Singular.PolynomialRing(Singular.Fp(101), ["x", "y"])
+    f, g = x + y, x^2 + x*y + y^2
     
-#     order = SG.Grevlex(2)
-#     char = 101
-#     ctx = SG.sigpolynomialctx(SG.Nmod32Γ(char), order=order)
-#     g_id = SG.new_generator!(ctx, zero(SG.pos_type(ctx)), ctx.po(g))
-#     f_id = SG.new_generator!(ctx, g_id, ctx.po(f))
-#     branch_node = SG.new_branch_node!(f_id, ctx.sgb_nodes)
-#     push!(ctx.branch_nodes, branch_node.ID)
+    order = SG.Grevlex(2)
+    char = 101
+    ctx = SG.sigpolynomialctx(SG.Nmod32Γ(char), order=order)
+    g_id = SG.new_generator!(ctx, zero(SG.pos_type(ctx)), ctx.po(g))
+    f_id = SG.new_generator!(ctx, g_id, ctx.po(f))
+    branch_node = SG.new_branch_node!(f_id, ctx.sgb_nodes)
+    push!(ctx.branch_nodes, branch_node.ID)
 
-#     # tree should be g -- f -- branch_node
-#     # TODO: maybe write a seperate tree test
-#     @test ctx.sgb_nodes[f_id].children_id == [branch_node.ID]
-#     @test ctx.sgb_nodes[g_id].children_id == [f_id]
-#     @test ctx.sgb_nodes[f_id].parent_id == g_id
-#     @test ctx.sgb_nodes[branch_node.ID].parent_id == f_id
-#     @test ctx.sgb_nodes[branch_node.ID].path_to == [g_id, f_id]
-#     @test ctx.sgb_nodes[f_id].path_to == [g_id]
+    # tree should be g -- f -- branch_node
+    # TODO: maybe write a seperate tree test
+    @test ctx.sgb_nodes[f_id].children_id == [branch_node.ID]
+    @test ctx.sgb_nodes[g_id].children_id == [f_id]
+    @test ctx.sgb_nodes[f_id].parent_id == g_id
+    @test ctx.sgb_nodes[branch_node.ID].parent_id == f_id
+    @test ctx.sgb_nodes[branch_node.ID].path_to == [g_id, f_id]
+    @test ctx.sgb_nodes[f_id].path_to == [g_id]
 
-#     # new leaf with parent as g
-#     h =  x^4*y
-#     h_id = SG.new_generator!(ctx, g_id, ctx.po(h))
+    # new leaf with parent as g
+    h =  x^4*y
+    h_id = SG.new_generator!(ctx, g_id, ctx.po(h))
     
-#     sig_f, sig_g, sig_h = ctx(f_id, R(1)), ctx(g_id, R(1)), ctx(h_id, R(1))
-#     m1 = ctx.po.mo(x)
-#     @test Set(collect(keys(ctx.tbl))) == Set([sig_f, sig_g, sig_h])
-#     @test R(ctx.po, ctx(sig_f).pol) == f
-#     @test R(ctx.po, ctx(m1, sig_f).pol) == x*f
-#     @test SG.lt(ctx, sig_g, sig_f)
-#     @test SG.lt(ctx, sig_f, sig_h)
-#     @test SG.lt(ctx, sig_g, sig_h)
-#     @test !(SG.are_compatible(ctx.sgb_nodes[f_id], ctx.sgb_nodes[h_id]))
-#     @test SG.are_compatible(ctx.sgb_nodes[h_id], ctx.sgb_nodes[g_id])
-# end
+    sig_f, sig_g, sig_h = ctx(f_id, R(1)), ctx(g_id, R(1)), ctx(h_id, R(1))
+    @test SG.sort_id(ctx, sig_g) == 1
+    @test SG.sort_id(ctx, sig_f) == 2
+    @test SG.sort_id(ctx, sig_h) == 3
+    m1 = ctx.po.mo(x)
+    @test Set(collect(keys(ctx.tbl))) == Set([sig_f, sig_g, sig_h])
+    @test R(ctx.po, ctx(sig_f).pol) == f
+    @test R(ctx.po, ctx(m1, sig_f).pol) == x*f
+    @test SG.lt(ctx, sig_g, sig_f)
+    @test SG.lt(ctx, sig_f, sig_h)
+    @test SG.lt(ctx, sig_g, sig_h)
+    @test !(SG.are_compatible(ctx.sgb_nodes[f_id], ctx.sgb_nodes[h_id]))
+    @test SG.are_compatible(ctx.sgb_nodes[h_id], ctx.sgb_nodes[g_id])
+end
 
 # @testset "setup" begin
 #     R, (x, y) = Singular.PolynomialRing(Singular.Fp(101), ["x", "y"])
@@ -217,26 +220,26 @@ end
 #     @test all(p -> p in gb, gb_2)
 # end
 
-@testset "small decomp" begin
-    R, (x, y, z) = Singular.PolynomialRing(Singular.Fp(101), ["x", "y", "z"])
-    I = [x*y, x*z, y*z]
-    res = decomp(I)
-    @test any(gb -> is_eq(Ideal(R, gb), Ideal(R, [x, z])), res)
-    @test any(gb -> is_eq(Ideal(R, gb), Ideal(R, [y, x*z])), res)
-end
+# @testset "small decomp" begin
+#     R, (x, y, z) = Singular.PolynomialRing(Singular.Fp(101), ["x", "y", "z"])
+#     I = [x*y, x*z, y*z]
+#     res = decomp(I)
+#     @test any(gb -> is_eq(Ideal(R, gb), Ideal(R, [x, z])), res)
+#     @test any(gb -> is_eq(Ideal(R, gb), Ideal(R, [y, x*z])), res)
+# end
 
-@testset "decomp cyclic" begin
-    R, (x, y, z, w) = Singular.PolynomialRing(Singular.Fp(101), ["x", "y", "z", "w"])
-    I = SG.cyclic(gens(R))
-    res = decomp(I)
-    res_intersect = reduce((gb1, gb2) -> intersection(gb1, gb2), [Ideal(R, gb) for gb in res])
-    @test is_radical_eq(res_intersect, Ideal(R, I))
-    R, (x,y,z,w,t,s) = Singular.PolynomialRing(Singular.Fp(101), ["x", "y", "z", "w", "t", "s"])
-    I = SG.cyclic(gens(R))[1:5]
-    res = decomp(I)
-    res_intersect = reduce((gb1, gb2) -> intersection(gb1, gb2), [Ideal(R, gb) for gb in res])
-    @test is_radical_eq(res_intersect, Ideal(R, I))
-end
+# @testset "decomp cyclic" begin
+#     R, (x, y, z, w) = Singular.PolynomialRing(Singular.Fp(101), ["x", "y", "z", "w"])
+#     I = SG.cyclic(gens(R))
+#     res = decomp(I)
+#     res_intersect = reduce((gb1, gb2) -> intersection(gb1, gb2), [Ideal(R, gb) for gb in res])
+#     @test is_radical_eq(res_intersect, Ideal(R, I))
+#     R, (x,y,z,w,t,s) = Singular.PolynomialRing(Singular.Fp(101), ["x", "y", "z", "w", "t", "s"])
+#     I = SG.cyclic(gens(R))[1:5]
+#     res = decomp(I)
+#     res_intersect = reduce((gb1, gb2) -> intersection(gb1, gb2), [Ideal(R, gb) for gb in res])
+#     @test is_radical_eq(res_intersect, Ideal(R, I))
+# end
 
 # @testset "small groebner schreyer" begin
 #     R, (x, y) = Singular.PolynomialRing(Singular.Fp(101), ["x", "y"])
