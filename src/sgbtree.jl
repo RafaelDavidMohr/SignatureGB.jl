@@ -40,54 +40,16 @@ function are_compatible(node1::SGBNode{I, M, T},
     node1.ID == node2.ID || in_path_to(node1, node2) || in_path_to(node2, node1)
 end
     
-function compare(ID_dict::Dict{I, SGBNode{I, M, T}},
-                 node1::SGBNode{I, M, T},
-                 node2::SGBNode{I, M, T}) where {I, M, T}
-
-    node1.ID == node2.ID && return false
-    
-    if in_path_to(node1, node2)
-        return true
-    end
-    if in_path_to(node2, node1)
-        return false
-    end
-
-    # two different branches -> compare "left" to "right"
-    fullpath1 = vcat(node1.path_to, [node1.ID])
-    fullpath2 = vcat(node2.path_to, [node2.ID])
-    ancestor_pairs = collect(zip(fullpath1, fullpath2))
-    common_ancestor_index = findlast(node_ids -> node_ids[1] == node_ids[2], ancestor_pairs)
-    if isnothing(common_ancestor_index)
-        println(fullpath1)
-        println(fullpath2)
-        error(":(")
-    end
-    common_ancestor = fullpath1[common_ancestor_index]
-    
-    next_in_path1 = fullpath1[common_ancestor_index + 1]
-    next_in_path2 = fullpath2[common_ancestor_index + 1]
-    return findfirst(id -> id == next_in_path1, ID_dict[common_ancestor].children_id) <
-        findfirst(id -> id == next_in_path2, ID_dict[common_ancestor].children_id)
-end
-
 function assign_sort_ids!(ID_dict::Dict{I, SGBNode{I, M, T}},
                           curr_id = one(I),
                           curr_sort_id = one(I)) where {I, M, T}
 
     ID_dict[curr_id].sort_ID = curr_sort_id
     for node_id in ID_dict[curr_id].children_id
-        # still in old state after going up recursion tree
         curr_sort_id += 1
         curr_sort_id = assign_sort_ids!(ID_dict, node_id, curr_sort_id)
     end
     return curr_sort_id       
-    # ids = collect(keys(ID_dict))
-    # sorted = sortperm(ids, by = id -> ID_dict[id],
-    #                   lt = (node1, node2) -> compare(ID_dict, node1, node2))
-    # for (i, id) in enumerate(ids[sorted])
-    #     ID_dict[id].sort_ID = i
-    # end
 end
         
 function new_node!(parent_id::I,
@@ -193,3 +155,36 @@ function split_on_tag_f!(ID_dict::Dict{I, SGBNode{I, M, T}},
     push!(new_ids, insert_before!(ID_dict[f_node_id], zd_to_insert, ID_dict, :g).ID)
     return new_ids, new_branch_node_ids, new_cleaners
 end 
+
+#-- UNUSED CODE --#
+
+# function compare(ID_dict::Dict{I, SGBNode{I, M, T}},
+#                  node1::SGBNode{I, M, T},
+#                  node2::SGBNode{I, M, T}) where {I, M, T}
+
+#     node1.ID == node2.ID && return false
+    
+#     if in_path_to(node1, node2)
+#         return true
+#     end
+#     if in_path_to(node2, node1)
+#         return false
+#     end
+
+#     # two different branches -> compare "left" to "right"
+#     fullpath1 = vcat(node1.path_to, [node1.ID])
+#     fullpath2 = vcat(node2.path_to, [node2.ID])
+#     ancestor_pairs = collect(zip(fullpath1, fullpath2))
+#     common_ancestor_index = findlast(node_ids -> node_ids[1] == node_ids[2], ancestor_pairs)
+#     if isnothing(common_ancestor_index)
+#         println(fullpath1)
+#         println(fullpath2)
+#         error(":(")
+#     end
+#     common_ancestor = fullpath1[common_ancestor_index]
+    
+#     next_in_path1 = fullpath1[common_ancestor_index + 1]
+#     next_in_path2 = fullpath2[common_ancestor_index + 1]
+#     return findfirst(id -> id == next_in_path1, ID_dict[common_ancestor].children_id) <
+#         findfirst(id -> id == next_in_path2, ID_dict[common_ancestor].children_id)
+# end
