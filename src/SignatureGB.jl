@@ -233,7 +233,7 @@ function decomp_core!(ctx::SΓ,
                 pair!(ctx, pairs, unitvector(ctx, f_node_id))
                 filter_basis_by_indices!(ctx, G, basis_id -> basis_id == f_node_id)
                 for id in vcat(new_ids, new_cleaners)
-                    # @assert tag(ctx, id) != :p
+                    @assert tag(ctx, id) != :p
                     pair!(ctx, pairs, unitvector(ctx, id))
                     # TODO: do we need to add stuff back into the pairset here? No I think
                     filter_basis_by_indices!(ctx, G,
@@ -243,7 +243,7 @@ function decomp_core!(ctx::SΓ,
             end
             if !(isempty(zero_reduct_sig_pols))
                 for node_id in keys(ctx.sgb_nodes)
-                    @debug "node id $(node_id), parent $(ctx.sgb_nodes[node_id].parent_id)"
+                    @debug "node id $(node_id), parent $(ctx.sgb_nodes[node_id].parent_id), sort id $(ctx.sgb_nodes[node_id].sort_ID)"
                     @debug "polynomial $(node_id in ctx.branch_nodes ? nothing : R(ctx.po, ctx.sgb_nodes[node_id].pol))"
                 end
             end
@@ -262,7 +262,9 @@ function decomp_core!(ctx::SΓ,
                 else
                     insert_with_delay[sig[2][1]] = [unitvector(ctx, new_id)]
                 end
-            end  
+            end
+            # TODO: different pairset struct
+            pairs = pairset(ctx, collect(pairs))
         end
         @logmsg Verbose2 "" end_time_core = time()
         @logmsg Verbose2 "" gb_size = gb_size(ctx, G.sigs)
@@ -295,6 +297,8 @@ function core_loop!(ctx::SΓ,
     @logmsg Verbose1 "" curr_sort_id = sort_id(ctx, first(pairs)[1]) curr_index_hash = first(pairs)[1][2][1] sig_degree = degree(ctx, first(pairs)[1]) tag = tag(ctx, first(pairs)[1])
     @logmsg Verbose1 "" sugar_deg = mod_order(ctx) in [:DPOT, :SCHREY] ? sugar_deg = schrey_degree(ctx, first(pairs)[1]) : sugar_deg = -1
     @debug string("pairset:\n", [isnull(p[2]) ? "$((p[1], ctx))\n" : "$((p[1], ctx)), $((p[2], ctx))\n" for p in pairs]...)
+    @debug string("sorted pairset:\n", [isnull(p[2]) ? "$((p[1], ctx))\n" : "$((p[1], ctx)), $((p[2], ctx))\n" for p in
+                                            sort(collect(pairs), by = p -> p[1], lt = (p, q) -> Base.Order.lt(mpairordering(ctx), p, q))]...)
     
     to_reduce, sig_degree, are_pairs = select!(ctx, G, koszul_q, pairs, Val(select), all_koszul; kwargs...)
     if isempty(to_reduce)
@@ -361,6 +365,7 @@ function new_elems!(ctx::SΓ,
                 end
                 ctx(new_sig, p, q)
                 new_rewriter!(ctx, pairs, new_sig)
+                @assert all(p -> Base.Order.lt(mpairordering(ctx), sig, p[1]), pairs)                
                 new_basis_elem!(G, new_sig, lm)
                 pairs!(ctx, pairs, new_sig, lm, G, H, all_koszul; kwargs...)
             end

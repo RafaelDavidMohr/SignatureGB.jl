@@ -77,10 +77,11 @@ function assign_sort_ids!(ID_dict::Dict{I, SGBNode{I, M, T}},
 
     ID_dict[curr_id].sort_ID = curr_sort_id
     for node_id in ID_dict[curr_id].children_id
+        # still in old state after going up recursion tree
         curr_sort_id += 1
-        assign_sort_ids!(ID_dict, node_id, curr_sort_id)
+        curr_sort_id = assign_sort_ids!(ID_dict, node_id, curr_sort_id)
     end
-           
+    return curr_sort_id       
     # ids = collect(keys(ID_dict))
     # sorted = sortperm(ids, by = id -> ID_dict[id],
     #                   lt = (node1, node2) -> compare(ID_dict, node1, node2))
