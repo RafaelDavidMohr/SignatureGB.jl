@@ -1,4 +1,5 @@
 # SGB TREES
+using AbstractTrees
 
 # check whether a is a prefix of b
 function is_prefix_vector(a, b)
@@ -9,6 +10,7 @@ function is_prefix_vector(a, b)
     end
     return true
 end
+
 
 # How to handle the root nodes?
 mutable struct SGBNode{I, M, T}
@@ -25,6 +27,16 @@ mutable struct SGBNode{I, M, T}
     parent_id::I
 end
 
+mutable struct WrapperNode{I, M, T}
+    node::SGBNode{I, M, T}
+    ID_dict::Dict{I, SGBNode{I, M, T}}
+end
+
+function AbstractTrees.children(node::WrapperNode)
+    return [WrapperNode(node.ID_dict[child_id], node.ID_dict) for child_id in node.node.children_id]
+end
+
+AbstractTrees.printnode(io::IO, node::WrapperNode) = print(io, (Int(node.node.ID), Int(node.node.sort_ID)))
 
 function in_path_to(node1::SGBNode{I, M, T},
                     node2::SGBNode{I, M, T}) where {I, M, T}
@@ -40,22 +52,19 @@ function are_compatible(node1::SGBNode{I, M, T},
     node1.ID == node2.ID || in_path_to(node1, node2) || in_path_to(node2, node1)
 end
     
-function assign_sort_ids!(ID_dict::Dict{I, SGBNode{I, M, T}},
-                          curr_id = one(I),
-                          curr_sort_id = one(I)) where {I, M, T}
+function assign_sort_ids!(ID_dict::Dict{I, SGBNode{I, M, T}}) where {I, M, T}
 
-    ID_dict[curr_id].sort_ID = curr_sort_id
-    for node_id in ID_dict[curr_id].children_id
-        curr_sort_id += 1
-        curr_sort_id = assign_sort_ids!(ID_dict, node_id, curr_sort_id)
-    end
-    return curr_sort_id       
+    root = WrapperNode(ID_dict[one(I)], ID_dict)
+    for (i, node) in enumerate(PreOrderDFS(root))
+        node.node.sort_ID = i
+    end   
 end
         
 function new_node!(parent_id::I,
                    pol::Polynomial{M, T},
                    ID_dict::Dict{I, SGBNode{I, M, T}},
                    tag::Symbol;
+                   insert_ind = iszero(parent_id) ? 1 : length(ID_dict[parent_id].children_id) + 1,
                    is_branch_node = false) where {I, M, T}
 
     id = isempty(keys(ID_dict)) ? one(I) : maximum(keys(ID_dict)) + 1
@@ -63,7 +72,7 @@ function new_node!(parent_id::I,
         node = SGBNode{I, M, T}(id, zero(I), vcat(ID_dict[parent_id].path_to, [parent_id]),
                                 pol, is_branch_node, tag, I[],
                                 parent_id)
-        push!(ID_dict[parent_id].children_id, id)
+        insert!(ID_dict[parent_id].children_id, insert_ind, id)
     else
         node = SGBNode{I, M, T}(id, zero(I), I[],
                                 pol, is_branch_node, tag, I[],
@@ -94,11 +103,9 @@ function insert_before!(before::SGBNode{I, M, T},
                         ID_dict::Dict{I, SGBNode{I, M, T}},
                         tag::Symbol) where {I, M, T}
 
-    if !(iszero(before.parent_id))
-        deleteat!(ID_dict[before.parent_id].children_id,
-                  findfirst(id -> id == before.ID, ID_dict[before.parent_id].children_id))
-    end
-    node = new_node!(before.parent_id, pol, ID_dict, tag)
+    before_index = findfirst(id -> id == before.ID, ID_dict[before.parent_id].children_id)
+    node = new_node!(before.parent_id, pol, ID_dict, tag, insert_ind = before_index)
+    deleteat!(ID_dict[before.parent_id].children_id, before_index + one(I))
     before.parent_id = node.ID
     push!(node.children_id, before.ID)
     push!(before.path_to, node.ID)
@@ -150,6 +157,7 @@ function split_on_tag_f!(ID_dict::Dict{I, SGBNode{I, M, T}},
     new_cleaners = I[]
     for new_branch_node_id in new_branch_node_ids
         push!(new_cleaners, new_leaf!(new_branch_node_id, zd_to_insert, ID_dict, :cleaner).ID)
+        @debug "new cleaner id $(last(new_cleaners))"
     end
 
     push!(new_ids, insert_before!(ID_dict[f_node_id], zd_to_insert, ID_dict, :g).ID)

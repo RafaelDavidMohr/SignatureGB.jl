@@ -70,7 +70,8 @@ struct PairOrdering{SΓ <: SigPolynomialΓ}<:Base.Order.Ordering
 end
 
 const KoszulQueue{I, M, SΓ} = MutableBinaryHeap{SigHash{I, M}, SigOrdering{SΓ}}
-const PairSet{I, M, SΓ} = SortedSet{Pair{I, M}, PairOrdering{SΓ}}
+# const PairSet{I, M, SΓ} = SortedSet{Pair{I, M}, PairOrdering{SΓ}}
+const PairSet{I, M} = Vector{Pair{I, M}}
 const MonSigSet{I, M, SΓ} = Set{MonSigPair{I, M}}
 
 function new_basis(ctx::SigPolynomialΓ{I, M}) where {I, M}
@@ -110,7 +111,7 @@ function Base.show(io::IO,
     pair = a[1]
     ctx = a[2]
     print(io, (convert(Vector{Int}, exponents(ctx.po.mo, pair[1])),
-               (Int(pair[2][1]), convert(Vector{Int}, exponents(ctx.po.mo, pair[2][2])))))
+               (Int(ctx.sgb_nodes[pair[2][1]].sort_ID), Int(pair[2][1]), convert(Vector{Int}, exponents(ctx.po.mo, pair[2][2])))))
 end
 
 function sort_id(ctx::SigPolynomialΓ{I, M}, p::MonSigPair{I, M}) where {I, M}
@@ -204,7 +205,8 @@ end
 
 function pairset(ctx::SigPolynomialΓ{I, M},
                  pairs::Vector{Pair{I, M}}) where {I, M}
-    SortedSet(pairs, pairordering(ctx))
+    # SortedSet(pairs, pairordering(ctx))
+    pairs
 end
 
 function pairset(ctx::SigPolynomialΓ{I, M}) where {I, M}
@@ -216,14 +218,14 @@ function koszul_queue(ctx::SigPolynomialΓ{I, M}) where {I, M}
 end
 
 function pair!(ctx::SΓ,
-               pairset::PairSet{I, M, SΓ},
+               pairset::PairSet{I, M},
                sig::SigHash{I, M}) where {I, M, SΓ <: SigPolynomialΓ{I, M}}
 
     !(iszero(ctx(sig).pol)) && push!(pairset, ((one(ctx.po.mo), sig), nullmonsigpair(ctx)))
 end
 
 function pairs!(ctx::SΓ,
-                pairset::PairSet{I, M, SΓ},
+                pairset::PairSet{I, M},
                 sig::SigHash{I, M},
                 lm_sig::M,
                 G::Basis{I, M},
@@ -240,9 +242,9 @@ function pairs!(ctx::SΓ,
         m = lcm(ctx.po.mo, lm, lm_sig)
         m == mul(ctx.po.mo, lm, lm_sig) && continue
         a = div(ctx.po.mo, m, lm_sig)
-        # @debug "considering pair $(gpair(ctx.po.mo, a)), $(sort_id(ctx, sig))"
+        @debug "considering pair $(gpair(ctx.po.mo, a)), $(sort_id(ctx, sig))"
         if rewriteable_syz(ctx, a, sig, H)
-            # @debug "rewritten by syz criterion"
+            @debug "rewritten by syz criterion"
             continue
         end
         b = div(ctx.po.mo, m, lm)
@@ -300,7 +302,7 @@ function rewriteable(ctx::SigPolynomialΓ{I, M},
 end
 
 function new_rewriter!(ctx::SΓ,
-                       pairset::PairSet{I, M, SΓ},
+                       pairset::PairSet{I, M},
                        sig::SigHash{I, M}) where {I, M, SΓ <: SigPolynomialΓ{I, M}}
     pos, m = sig
     crit = p -> (divides(ctx, sig, mul(ctx, p[1]...)) || (!(isnull(p[2])) && divides(ctx, sig, mul(ctx, p[2]...))))
@@ -309,21 +311,23 @@ function new_rewriter!(ctx::SΓ,
     else
         crit2 = p -> false
     end
-    for (st, p) in semitokens(pairset)
+    to_delete = Int[]
+    for (i, p) in enumerate(pairset)
         if crit(p)
             @debug "deleting $((p[1], ctx)), $((p[2], ctx))"
-            delete!((pairset, st))
+            push!(to_delete, i)
         end
         if mod_order(ctx) == :DPOT && crit2(p)
-            delete!(pairset, p)
+            push!(to_delete, i)
         end
     end
+    deleteat!(pairset, to_delete)
 end
 
 function select!(ctx::SΓ,
                  G::Basis{I, M},
                  K::KoszulQueue{I, M, SΓ},
-                 pairs::PairSet{I, M, SΓ},
+                 pairs::PairSet{I, M},
                  cond::Val{S},
                  all_koszul;
                  select_both = true,
@@ -365,7 +369,7 @@ function select!(ctx::SΓ,
         if !(cond(first(pairs)))
             break
         end
-        p = pop!(pairs)
+        p = popfirst!(pairs)
         if !(all_koszul)
             if check!(K, p)
                 continue

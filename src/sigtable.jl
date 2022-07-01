@@ -159,7 +159,6 @@ function (ctx::SigPolynomialΓ{I, M, MM, T})(sig::SigHash{I, M},
                                             pol::Polynomial{M, T},
                                             module_rep::Polynomial{MM, T}) where {I, M, MM, T}
     # TODO: maybe temporary
-    @assert sig[1] in keys(ctx.sgb_nodes)
     if iszero(pol)
         ratio = one(ctx.po.mo)
     else

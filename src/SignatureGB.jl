@@ -31,6 +31,7 @@ function pairs_and_basis(ctx::SigPolynomialΓ,
     H = new_syz(ctx)
     pairs = pairset(ctx)
     [pair!(ctx, pairs, unitvector(ctx, i)) for i in start_gen:basis_length]
+    sort!(pairs, lt = (p1, p2) -> Base.Order.lt(pairordering(ctx), p1, p2))
     G, H, koszul_queue(ctx), pairs
 end
 
@@ -75,7 +76,7 @@ function sgb_core!(ctx::SΓ,
                    G::Basis{I, M},
                    H::Syz{I, M},
                    koszul_q::KoszulQueue{I, M, SΓ},
-                   pairs::PairSet{I, M, SΓ},
+                   pairs::PairSet{I, M},
                    R;
                    select = nothing,
                    all_koszul = false,
@@ -151,7 +152,7 @@ function decomp_core!(ctx::SΓ,
                       G::Basis{I, M},
                       H::Syz{I, M},
                       koszul_q::KoszulQueue{I, M, SΓ},
-                      pairs::PairSet{I, M, SΓ},
+                      pairs::PairSet{I, M},
                       R;
                       select = nothing,
                       kwargs...) where {I, M, SΓ <: SigPolynomialΓ{I, M}} 
@@ -176,7 +177,7 @@ function decomp_core!(ctx::SΓ,
     # TODO: error checking
     
     while !(isempty(pairs))
-        
+        sort!(pairs, lt = (p1, p2) -> Base.Order.lt(pairordering(ctx), p1, p2))
         next_index_key = first(pairs)[1][2][1]
         if next_index_key != curr_indx_key
             # final interreduction outside of this function
@@ -187,6 +188,7 @@ function decomp_core!(ctx::SΓ,
                 old_gb_length = length(G)
             end
             if curr_indx_key in keys(insert_with_delay)
+                filter_basis_by_indices!(ctx, G, node_id -> node_id == curr_indx_key)
                 while !(isempty(insert_with_delay[curr_indx_key]))
                     new_basis_elem!(ctx, G, pop!(insert_with_delay[curr_indx_key]))
                 end
@@ -222,6 +224,7 @@ function decomp_core!(ctx::SΓ,
             for (sig, zero_divisor) in zero_reduct_sig_pols
                 isunit(ctx.po, zero_divisor) && continue
                 @debug "inserting zero divisor $(R(ctx.po, zero_divisor)) coming from f, sig $((sig, ctx))"
+                @debug "inserting zero divisor coming from f, sig $((sig, ctx))"
                 @logmsg Verbose2 "" new_syz = true
                 f_node_id = sig[2][1]
                 new_ids, new_branch_node_ids, new_cleaners =
@@ -254,14 +257,13 @@ function decomp_core!(ctx::SΓ,
                 # TODO: this line is not pretty
                 new_id = new_generator_before!(ctx, ctx.sgb_nodes[ctx.sgb_nodes[cleaner_node_id].parent_id],
                                                zero_divisor, :p)
+                @debug "inserting zero divisor coming from cleaner with id $(new_id)"
                 if sig[2][1] in keys(insert_with_delay)
                     push!(insert_with_delay[sig[2][1]], unitvector(ctx, new_id))
                 else
                     insert_with_delay[sig[2][1]] = [unitvector(ctx, new_id)]
                 end
             end
-            # TODO: different pairset struct
-            pairs = pairset(ctx, collect(pairs))
         end
         @logmsg Verbose2 "" end_time_core = time()
         @logmsg Verbose2 "" gb_size = gb_size(ctx, G.sigs)
@@ -284,7 +286,7 @@ function core_loop!(ctx::SΓ,
                     G::Basis{I, M},
                     H::Syz{I, M},
                     koszul_q::KoszulQueue{I, M, SΓ},
-                    pairs::PairSet{I, M, SΓ},
+                    pairs::PairSet{I, M},
                     select,
                     all_koszul,
                     curr_sort_id;
@@ -294,9 +296,9 @@ function core_loop!(ctx::SΓ,
     @logmsg Verbose1 "" curr_sort_id = sort_id(ctx, first(pairs)[1]) curr_index_hash = first(pairs)[1][2][1] sig_degree = degree(ctx, first(pairs)[1]) tag = tag(ctx, first(pairs)[1])
     @logmsg Verbose1 "" sugar_deg = mod_order(ctx) in [:DPOT, :SCHREY] ? sugar_deg = schrey_degree(ctx, first(pairs)[1]) : sugar_deg = -1
     @debug string("pairset:\n", [isnull(p[2]) ? "$((p[1], ctx))\n" : "$((p[1], ctx)), $((p[2], ctx))\n" for p in pairs]...)
-    @debug string("sorted pairset:\n", [isnull(p[2]) ? "$((p[1], ctx))\n" : "$((p[1], ctx)), $((p[2], ctx))\n" for p in
-                                            sort(collect(pairs), by = p -> p[1], lt = (p, q) -> Base.Order.lt(mpairordering(ctx), p, q))]...)
-    
+    # @debug string("sorted pairset:\n", [isnull(p[2]) ? "$((p[1], ctx))\n" : "$((p[1], ctx)), $((p[2], ctx))\n" for p in
+                                            # sort(collect(pairs), by = p -> p[1], lt = (p, q) -> Base.Order.lt(mpairordering(ctx), p, q))]...)
+
     to_reduce, sig_degree, are_pairs = select!(ctx, G, koszul_q, pairs, Val(select), all_koszul; kwargs...)
     if isempty(to_reduce)
         return f5_matrix(ctx, easytable(M[]), easytable(M[]), Tuple{MonSigPair{I, M}, eltype(ctx.po), eltype(ctx.mod_po)}[])
@@ -318,14 +320,14 @@ end
 function new_elems!(ctx::SΓ,
                     G::Basis{I, M},
                     H::Syz{I, M},
-                    pairs::PairSet{I, M, SΓ},
+                    pairs::PairSet{I, M},
                     mat::F5matrix,
                     all_koszul,
                     curr_sort_id::I;
                     kwargs...) where {I, M, SΓ <: SigPolynomialΓ{I, M}}
 
     for (i, (sig, row)) in enumerate(zip(mat.sigs, mat.rows))
-        # @debug "considering $((sig, ctx))"
+        @debug "considering $((sig, ctx))"
         if mod_order(ctx) == :POT
             if sort_id(ctx, sig) < curr_sort_id
                 @debug "skipping $((sig, ctx))"
