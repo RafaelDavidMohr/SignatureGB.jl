@@ -228,7 +228,7 @@ function decomp_core!(ctx::SΓ,
                 @logmsg Verbose2 "" new_syz = true
                 f_node_id = sig[2][1]
                 new_ids, new_branch_node_ids, new_cleaners =
-                    split_on_tag_f!(ctx, f_node_id, zero_divisor)
+                    split_on_tag_f!(ctx, f_node_id, zero_divisor, G, R)
                 append!(ctx.branch_nodes, new_branch_node_ids)
                 # TODO: readding unitvector(f_node_id) to pairs should
                 # kill the old pairs in index hash f_node_id
@@ -398,6 +398,42 @@ function debug_sgb!(;io = stdout)
     logger = ConsoleLogger(io, Logging.LogLevel(-1000), meta_formatter = no_fmt)
     global_logger(logger)
     global_logger(logger)
+end
+
+#- SPLITTING LOGIC -#
+
+function split_on_tag_f!(ctx::SigPolynomialΓ{I, M, MM, T},
+                         f_node_id::I,
+                         zd_to_insert::Polynomial{M, T},
+                         G::Basis{I, M},
+                         R) where {I, M, MM, T}
+
+    known_ideal_signatures = filter(sig -> sig[1] in ctx.sgb_nodes[f_node_id].path_to,
+                                    G.sigs)
+    # TODO: this line of code is too complicated
+    is_relevant = id -> any(cleaner -> iszero(poly_reduce(ctx, known_ideal_signatures,
+                                                          R(ctx.po, zd_to_insert) * R(ctx.po, cleaner), R)),
+                            map(node_id -> ctx.sgb_nodes[node_id].pol, ctx.sgb_nodes[id].children_id))
+    relevant_branch_node_ids = filter(id -> isempty(ctx.sgb_nodes[id].children_id) || !(is_relevant(id)),
+                                      ctx.branch_nodes)
+    
+    new_ids, new_branch_node_ids, new_cleaners = split_on_tag_f!(ctx.sgb_nodes,
+                                                                 f_node_id,
+                                                                 zd_to_insert,
+                                                                 relevant_branch_node_ids)
+
+    module_rep = ctx.po([one(ctx.po.mo)], [one(eltype(ctx.po.co))])
+    
+    for id in vcat(new_ids, new_cleaners)
+        sighash = unitvector(ctx, id)
+        pol = ctx.sgb_nodes[id].pol
+        if mod_order(ctx) in [:SCHREY, :DPOT]
+            ctx.lms[new_node.ID] = leadingmonomial(pol)
+        end
+        ctx(sighash, pol, copy(module_rep))
+    end
+    assign_sort_ids!(ctx.sgb_nodes)
+    return new_ids, new_branch_node_ids, new_cleaners
 end
 
 end
