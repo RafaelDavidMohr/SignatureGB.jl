@@ -115,23 +115,47 @@ function insert_before!(before::SGBNode{I, M, T},
 end
 
 function copy_subtree!(node::SGBNode{I, M, T},
+                       # parent of the copies
                        parent_id::I,
-                       ID_dict::Dict{I, SGBNode{I, M, T}}) where {I, M, T}
+                       ID_dict::Dict{I, SGBNode{I, M, T}},
+                       branch_node_ids::Vector{I}) where {I, M, T}
 
     new_ids = I[]
     new_branch_node_ids = I[]
-    for child in map(id -> ID_dict[id], node.children_id)
-        child_copy = new_node!(parent_id, copy(child.pol), ID_dict, child.tag, is_branch_node = child.is_branch_node)
-        if child.is_branch_node
-            push!(new_branch_node_ids, child_copy.ID)
-        else
-            push!(new_ids, child_copy.ID)
+    for branch_node_id in filter(id -> are_compatible(ID_dict[id], node), branch_node_ids)
+        node_index = findfirst(id -> id == node.ID, ID_dict[branch_node_id].path_to)
+        prev = parent_id
+        for id in ID_dict[branch_node_id].path_to[node_index + 1:end]
+            child_node = ID_dict[id]
+            id_copy = new_node!(prev, copy(child_node.pol), ID_dict,
+                                child_node.tag)
+            prev = id_copy.ID
+            push!(new_ids, id_copy.ID)
         end
-        new_ids_child, new_branch_node_ids_child = copy_subtree!(child, child_copy.ID, ID_dict)
-        append!(new_ids, new_ids_child)
-        append!(new_branch_node_ids, new_branch_node_ids_child)
+        branch_node_id_copy = new_branch_node!(prev, ID_dict)
+        push!(new_branch_node_ids, branch_node_id_copy.ID)
+        for id in ID_dict[branch_node_id].children_id
+            child_node = ID_dict[id]
+            id_copy = new_node!(branch_node_id_copy.ID, copy(child_node.pol), ID_dict,
+                                child_node.tag)
+            push!(new_ids, id_copy.ID)
+        end
+        prev = parent_id
     end
     return new_ids, new_branch_node_ids
+        
+    # for child in map(id -> ID_dict[id], node.children_id)
+    #     child_copy = new_node!(parent_id, copy(child.pol), ID_dict, child.tag, is_branch_node = child.is_branch_node)
+    #     if child.is_branch_node
+    #         push!(new_branch_node_ids, child_copy.ID)
+    #     else
+    #         push!(new_ids, child_copy.ID)
+    #     end
+    #     new_ids_child, new_branch_node_ids_child = copy_subtree!(child, child_copy.ID, ID_dict)
+    #     append!(new_ids, new_ids_child)
+    #     append!(new_branch_node_ids, new_branch_node_ids_child)
+    # end
+    # return new_ids, new_branch_node_ids
 end
 
 # set the path to the subtree with root "node" (without setting path of "node" itself)
@@ -148,11 +172,12 @@ end
 
 function split_on_tag_f!(ID_dict::Dict{I, SGBNode{I, M, T}},
                          f_node_id::I,
-                         zd_to_insert::Polynomial{M, T}) where {I, M, T}
+                         zd_to_insert::Polynomial{M, T},
+                         branch_node_ids::Vector{I}) where {I, M, T}
 
     new_ids, new_branch_node_ids = copy_subtree!(ID_dict[f_node_id],
                                                  ID_dict[f_node_id].parent_id,
-                                                 ID_dict)
+                                                 ID_dict, branch_node_ids)
 
     new_cleaners = I[]
     for new_branch_node_id in new_branch_node_ids

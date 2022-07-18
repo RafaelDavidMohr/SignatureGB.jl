@@ -132,7 +132,8 @@ function split_on_tag_f!(ctx::SigPolynomialΓ{I, M, MM, T},
 
     new_ids, new_branch_node_ids, new_cleaners = split_on_tag_f!(ctx.sgb_nodes,
                                                                  f_node_id,
-                                                                 zd_to_insert)
+                                                                 zd_to_insert,
+                                                                 ctx.branch_nodes)
 
     module_rep = ctx.po([one(ctx.po.mo)], [one(eltype(ctx.po.co))])
     

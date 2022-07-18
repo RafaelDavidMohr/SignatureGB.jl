@@ -220,13 +220,13 @@ end
 #     @test all(p -> p in gb, gb_2)
 # end
 
-# @testset "small decomp" begin
-#     R, (x, y, z) = Singular.PolynomialRing(Singular.Fp(101), ["x", "y", "z"])
-#     I = [x*y, x*z, y*z]
-#     res = decomp(I)
-#     @test any(gb -> is_eq(Ideal(R, gb), Ideal(R, [x, z])), res)
-#     @test any(gb -> is_eq(Ideal(R, gb), Ideal(R, [y, x*z])), res)
-# end
+@testset "small decomp" begin
+    R, (x, y, z) = Singular.PolynomialRing(Singular.Fp(101), ["x", "y", "z"])
+    I = [x*y, x*z, y*z]
+    res = decomp(I)
+    @test any(gb -> is_eq(Ideal(R, gb), Ideal(R, [x, z])), res)
+    @test any(gb -> is_eq(Ideal(R, gb), Ideal(R, [y, x*z])), res)
+end
 
 @testset "decomp cyclic" begin
     R, (x, y, z, w) = Singular.PolynomialRing(Singular.Fp(101), ["x", "y", "z", "w"])
