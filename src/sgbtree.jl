@@ -82,6 +82,20 @@ function new_node!(parent_id::I,
     return node
 end
 
+function delete_node!(node_id::I,
+                      ID_dict::Dict{I, SGBNode{I, M, T}};
+                      delete_parent_child = true) where {I, M, T}
+
+    if delete_parent_child
+        parent = ID_dict[ID_dict[node_id].parent_id]
+        deleteat!(parent.children_id, findfirst(id -> id == node_id, parent.children_id))
+    end
+    for child_id in ID_dict[node_id].children_id
+        delete_node!(child_id, ID_dict, delete_parent_child = false)
+    end
+    delete!(ID_dict, node_id)
+end
+
 function new_branch_node!(parent_id::I,
                           ID_dict::Dict{I, SGBNode{I, M, T}}) where {I, M, T}
     new_node!(parent_id, zero(Polynomial{M, T}), ID_dict, :branch, is_branch_node = true)

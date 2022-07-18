@@ -15,7 +15,7 @@ include("./symbolicpp.jl")
 include("./reduction_better.jl")
 include("./gen_example_file.jl")
 
-export sgb, decomp
+export sgb, decomp, decomp_increm
 
 # build initial pairset, basis and syzygies
 function pairs_and_basis(ctx::SigPolynomialΓ,
@@ -62,7 +62,7 @@ function decomp(I::Vector{P};
                 mod_order = :POT,
                 track_module_tags = [:f, :cleaner],
                 kwargs...)
-    G, H, koszul_q, pairs = pairs_and_basis(ctx, length(I); kwargs...)
+    G, H, koszul_q, pairs = pairs_and_basis(ctx, length(I), kwargs...)
     logger = SGBLogger(ctx, verbose = verbose, task = :decomp; kwargs...)
     with_logger(logger) do
 	decomp_core!(ctx, G, H, koszul_q, pairs, R; kwargs...)
@@ -72,6 +72,32 @@ function decomp(I::Vector{P};
     end
 end
 
+function decomp_increm(I::Vector{P};
+                       verbose = 0,
+                       kwargs...) where {P <: AA.MPolyElem}
+
+    R = parent(first(I))
+    if length(I) > Singular.nvars(parent(first(I)))
+        error("Put in a number of polynomials less than or equal to the number of variables")
+    end
+    if length(I) == 1
+        error("Why would you want to decompose a hypersurface?")
+    end
+    ctx = setup([I[1]]; mod_rep_type = :highest_index,
+                mod_order = :POT,
+                track_module_tags = [:f, :cleaner],
+                kwargs...)
+    remaining = I[2:end]
+    G, H, koszul_q, pairs = pairs_and_basis(ctx, 1, start_gen = 2; kwargs...)
+    logger = SGBLogger(ctx, verbose = verbose, task = :decomp; kwargs...)
+    with_logger(logger) do
+	decomp_increm_core!(ctx, G, H, koszul_q, pairs, remaining, R; kwargs...)
+        verbose == 2 && printout(logger)
+        return [[R(ctx, g) for g in G.sigs if in_path_to(ctx.sgb_nodes[g[1]], ctx.sgb_nodes[br])]
+                for br in ctx.branch_nodes]
+    end
+end
+    
 function sgb_core!(ctx::SΓ,
                    G::Basis{I, M},
                    H::Syz{I, M},
@@ -159,13 +185,10 @@ function decomp_core!(ctx::SΓ,
 
     f5c = select_both = false
     all_koszul = true
+    select = :deg_and_pos
 
-    if mod_order(ctx) == :POT 
-        select = :deg_and_pos
-    elseif mod_order(ctx) == :DPOT
-        select = :schrey_deg_and_pos
-    elseif mod_order(ctx) == :SCHREY
-        select = :schrey_deg
+    if mod_order(ctx) != :POT
+        error("Only POT currently supported in ideal decomposition")
     end
 
     curr_indx_key = first(pairs)[1][2][1]
@@ -180,6 +203,10 @@ function decomp_core!(ctx::SΓ,
         sort!(pairs, lt = (p1, p2) -> Base.Order.lt(pairordering(ctx), p1, p2))
         next_index_key = first(pairs)[1][2][1]
         if next_index_key != curr_indx_key
+            # Here: done with one node
+            # TODO: iterate  through all branch nodes
+            # check whether prod(children) in branch ideal
+            # if so delete everything from basis and pairset that lies ONLY in this branch
             # final interreduction outside of this function
             if f5c
                 if length(G) > old_gb_length
@@ -267,10 +294,11 @@ function decomp_core!(ctx::SΓ,
         end
         @logmsg Verbose2 "" end_time_core = time()
         @logmsg Verbose2 "" gb_size = gb_size(ctx, G.sigs)
-        # Remove comment of this line out for debugging if infinite loop
+        # Remove comment of this line for debugging if infinite loop
         # sleep(1)
     end
     for id in keys(insert_with_delay)
+        filter_basis_by_indices!(ctx, G, node_id -> node_id == id)
         while !(isempty(insert_with_delay[id]))
             new_basis_elem!(ctx, G, pop!(insert_with_delay[id]))
         end
@@ -281,7 +309,56 @@ function decomp_core!(ctx::SΓ,
     end
 end
 
+function decomp_increm_core!(ctx::SΓ,
+                             G::Basis{I, M},
+                             H::Syz{I, M},
+                             koszul_q::KoszulQueue{I, M, SΓ},
+                             pairs::PairSet{I, M},
+                             remaining::Vector{P},
+                             R;
+                             kwargs...) where {I, M, SΓ <: SigPolynomialΓ{I, M},
+                                               P <: AA.MPolyElem}
 
+    for f in remaining
+        empty!(pairs)
+        for branch_node_id in ctx.branch_nodes
+            new_f_id = new_generator_before!(ctx, ctx.sgb_nodes[branch_node_id], ctx.po(f))
+            pair!(ctx, pairs, unitvector(ctx, new_f_id))
+            for cleaner_id in ctx.sgb_nodes[branch_node_id].children_id
+                pair!(ctx, pairs, unitvector(ctx, cleaner_id))
+            end
+        end
+        decomp_core!(ctx, G, H, koszul_q, pairs, R; kwargs...)
+        to_delete = Int[]
+        # gott ist das kompliziert
+        for (i, branch_node_id) in enumerate(ctx.branch_nodes)
+            # check whether the branch represents the unit ideal
+            if contains_unit(ctx, filter(sig -> are_compatible(ctx.sgb_nodes[sig[1]],
+                                                               ctx.sgb_nodes[branch_node_id]),
+                                         G.sigs))
+                # delete the branch if that is the case
+                undeleted_branch_nodes = map(x -> x[2], filter(keyval -> !(keyval[1] in to_delete),
+                                                               collect(enumerate(ctx.branch_nodes))))
+                id_ind = findfirst(id -> length(filter(branch_id -> are_compatible(ctx.sgb_nodes[id],
+                                                                                   ctx.sgb_nodes[branch_id]),
+                                                       undeleted_branch_nodes)) == 1,
+                                   ctx.sgb_nodes[branch_node_id].path_to)
+                # delete everything in the branch from the basis/syzygies
+                delete_id = isnothing(id_ind) ? branch_node_id : ctx.sgb_nodes[branch_node_id].path_to[id_ind]
+                if !(isnothing(id_ind))
+                    for id in ctx.sgb_nodes[branch_node_id].path_to[id_ind:end]
+                        filter_basis_by_indices!(ctx, G, ind -> ind == id)
+                        filter!(ind -> ind != id, H)
+                    end
+                end
+                delete_node!(delete_id, ctx.sgb_nodes)
+                push!(to_delete, i)
+            end
+        end
+        deleteat!(ctx.branch_nodes, to_delete)
+    end
+end
+    
 function core_loop!(ctx::SΓ,
                     G::Basis{I, M},
                     H::Syz{I, M},

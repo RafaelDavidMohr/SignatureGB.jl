@@ -9,9 +9,8 @@ struct Basis{I, M}
 end
 const Syz{I, M} = Vector{SigHash{I, M}}
 
-# TODO: this is no longer useful
-function contains_unit(ctx::SigPolynomialΓ{I, M}, G::Basis{I, M}) where {I, M}
-    any(lm -> degree(ctx.po.mo, lm) == 0, G.lms)
+function contains_unit(ctx::SigPolynomialΓ{I, M}, Gsigs::Vector{SigHash{I, M}}) where {I, M}
+    any(sig -> degree(ctx.po.mo, leadingmonomial(ctx, sig)) == 0, Gsigs)
 end
 
 function poly_reduce(ctx::SigPolynomialΓ{I, M},
@@ -47,8 +46,8 @@ function filter_basis_by_indices!(ctx::SigPolynomialΓ{I, M},
     deleteat!(G.sigs, to_delete)
     deleteat!(G.lms, to_delete)
     for i in keys(G.by_index)
-        if !(criterion(i))
-            G.by_index[i] = M[]
+        if criterion(i)
+            delete!(G.by_index, i)
         end
     end
 end
