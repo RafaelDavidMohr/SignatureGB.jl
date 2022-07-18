@@ -228,16 +228,19 @@ end
     @test any(gb -> is_eq(Ideal(R, gb), Ideal(R, [y, x*z])), res)
 end
 
-@testset "decomp cyclic" begin
+@testset "decomp increm cyclic" begin
     R, (x, y, z, w) = Singular.PolynomialRing(Singular.Fp(101), ["x", "y", "z", "w"])
     I = SG.cyclic(gens(R))
-    res = decomp(I)
+    res = decomp_increm(I)
     res_intersect = reduce((gb1, gb2) -> intersection(gb1, gb2), [Ideal(R, gb) for gb in res])
+    @test all(gb -> SG.is_gb(gb), res)
     @test is_radical_eq(res_intersect, Ideal(R, I))
+    
     R, (x,y,z,w,t,s) = Singular.PolynomialRing(Singular.Fp(101), ["x", "y", "z", "w", "t", "s"])
     I = SG.cyclic(gens(R))[1:5]
-    res = decomp(I)
+    res = decomp_increm(I)
     res_intersect = reduce((gb1, gb2) -> intersection(gb1, gb2), [Ideal(R, gb) for gb in res])
+    @test all(gb -> SG.is_gb(gb), res)
     @test is_radical_eq(res_intersect, Ideal(R, I))
 end
 
