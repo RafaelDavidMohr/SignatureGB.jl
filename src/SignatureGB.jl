@@ -67,7 +67,7 @@ function decomp(I::Vector{P};
     with_logger(logger) do
 	decomp_core!(ctx, G, H, koszul_q, pairs, R; kwargs...)
         verbose == 2 && printout(logger)
-        return [[R(ctx, g) for g in G.sigs if in_path_to(ctx.sgb_nodes[g[1]], ctx.sgb_nodes[br])]
+        return [[R(ctx, g) for g in G.sigs if in_path_to(ctx, g[1], br)]
                 for br in ctx.branch_nodes]
     end
 end
@@ -93,7 +93,7 @@ function decomp_increm(I::Vector{P};
     with_logger(logger) do
 	decomp_increm_core!(ctx, G, H, koszul_q, pairs, remaining, R; kwargs...)
         verbose == 2 && printout(logger)
-        return [[R(ctx, g) for g in G.sigs if in_path_to(ctx.sgb_nodes[g[1]], ctx.sgb_nodes[br])]
+        return [[R(ctx, g) for g in G.sigs if in_path_to(ctx, g[1], br)]
                 for br in ctx.branch_nodes]
     end
 end
@@ -164,10 +164,12 @@ function sgb_core!(ctx::SΓ,
         end
         
         remask!(ctx.po.mo.table)
-        mat = core_loop!(ctx, G, H, koszul_q, pairs, select, all_koszul, ctx.sgb_nodes[curr_indx_key].sort_ID,
+        mat = core_loop!(ctx, G, H, koszul_q, pairs, select, all_koszul,
+                         sort_id(ctx, curr_indx_key),
                          f5c = f5c, select_both = select_both)
         
-        new_elems!(ctx, G, H, pairs, mat, all_koszul, ctx.sgb_nodes[curr_indx_key].sort_ID, f5c = f5c)
+        new_elems!(ctx, G, H, pairs, mat, all_koszul,
+                   sort_id(ctx, curr_indx_key), f5c = f5c)
         @logmsg Verbose2 "" end_time_core = time()
         @logmsg Verbose2 "" gb_size = gb_size(ctx, G.sigs)
     end
@@ -224,7 +226,7 @@ function decomp_core!(ctx::SΓ,
         end
         remask!(ctx.po.mo.table)
         mat = core_loop!(ctx, G, H, koszul_q, pairs, select, all_koszul,
-                         ctx.sgb_nodes[curr_indx_key].sort_ID,
+                         sort_id(ctx, curr_indx_key),
                          f5c = f5c, select_both = select_both)
         if !(isempty(mat.sigs))
             @logmsg Verbose2 "" tag = tag(ctx, last(mat.sigs)) indx_hash = last(mat.sigs)[2][1]
@@ -245,7 +247,7 @@ function decomp_core!(ctx::SΓ,
         of whether zero divisors are inserted
         =#
         new_elems!(ctx, G, H, pairs, mat, all_koszul,
-                   ctx.sgb_nodes[curr_indx_key].sort_ID, f5c = f5c)
+                   sort_id(ctx, curr_indx_key), f5c = f5c)
         if !(isempty(zero_reduct_sig_pols)) || !(isempty(zero_reduct_sig_pols_cleaner))
             # we split if a zero divisor occured for a non-cleaning node
             for (sig, zero_divisor) in zero_reduct_sig_pols
@@ -264,9 +266,7 @@ function decomp_core!(ctx::SΓ,
                 for id in vcat(new_ids, new_cleaners)
                     pair!(ctx, pairs, unitvector(ctx, id))
                     # TODO: do we need to add stuff back into the pairset here? No I think
-                    filter_basis_by_indices!(ctx, G,
-                                             basis_id -> in_path_to(ctx.sgb_nodes[id],
-                                                                    ctx.sgb_nodes[basis_id]))
+                    filter_basis_by_indices!(ctx, G, basis_id -> in_path_to(ctx, id, basis_id))
                 end
             end
             if !(isempty(zero_reduct_sig_pols))
@@ -282,7 +282,7 @@ function decomp_core!(ctx::SΓ,
                 cleaner_node_id = sig[2][1]
                 # parent of cleaner_node_id should be a branch node
                 # TODO: this line is not pretty
-                new_id = new_generator_before!(ctx, ctx.sgb_nodes[ctx.sgb_nodes[cleaner_node_id].parent_id],
+                new_id = new_generator_before!(ctx, parent_id(ctx, cleaner_node_id),
                                                zero_divisor, :p)
                 @debug "inserting zero divisor coming from cleaner with id $(new_id)"
                 if sig[2][1] in keys(insert_with_delay)
@@ -322,9 +322,9 @@ function decomp_increm_core!(ctx::SΓ,
     for f in remaining
         empty!(pairs)
         for branch_node_id in ctx.branch_nodes
-            new_f_id = new_generator_before!(ctx, ctx.sgb_nodes[branch_node_id], ctx.po(f))
+            new_f_id = new_generator_before!(ctx, branch_node_id, ctx.po(f))
             pair!(ctx, pairs, unitvector(ctx, new_f_id))
-            for cleaner_id in ctx.sgb_nodes[branch_node_id].children_id
+            for cleaner_id in children_id(ctx, branch_node_id)
                 pair!(ctx, pairs, unitvector(ctx, cleaner_id))
             end
         end
@@ -333,14 +333,12 @@ function decomp_increm_core!(ctx::SΓ,
         # gott ist das kompliziert
         for (i, branch_node_id) in enumerate(ctx.branch_nodes)
             # check whether the branch represents the unit ideal
-            if contains_unit(ctx, filter(sig -> are_compatible(ctx.sgb_nodes[sig[1]],
-                                                               ctx.sgb_nodes[branch_node_id]),
+            if contains_unit(ctx, filter(sig -> are_compatible(ctx, sig[1], branch_node_id),
                                          G.sigs))
                 # delete the branch if that is the case
                 undeleted_branch_nodes = map(x -> x[2], filter(keyval -> !(keyval[1] in to_delete),
                                                                collect(enumerate(ctx.branch_nodes))))
-                id_ind = findfirst(id -> length(filter(branch_id -> are_compatible(ctx.sgb_nodes[id],
-                                                                                   ctx.sgb_nodes[branch_id]),
+                id_ind = findfirst(id -> length(filter(branch_id -> are_compatible(ctx, id, branch_id),
                                                        undeleted_branch_nodes)) == 1,
                                    ctx.sgb_nodes[branch_node_id].path_to)
                 # delete everything in the branch from the basis/syzygies
@@ -490,8 +488,8 @@ function split_on_tag_f!(ctx::SigPolynomialΓ{I, M, MM, T},
     # TODO: this line of code is too complicated
     is_relevant = id -> any(cleaner -> iszero(poly_reduce(ctx, known_ideal_signatures,
                                                           R(ctx.po, zd_to_insert) * R(ctx.po, cleaner), R)),
-                            map(node_id -> ctx.sgb_nodes[node_id].pol, ctx.sgb_nodes[id].children_id))
-    relevant_branch_node_ids = filter(id -> isempty(ctx.sgb_nodes[id].children_id) || !(is_relevant(id)),
+                            map(node_id -> pol(ctx, node_id), children_id(ctx, id)))
+    relevant_branch_node_ids = filter(id -> isempty(children_id(ctx, id)) || !(is_relevant(id)),
                                       ctx.branch_nodes)
     
     new_ids, new_branch_node_ids, new_cleaners = split_on_tag_f!(ctx.sgb_nodes,

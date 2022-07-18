@@ -106,6 +106,10 @@ end
 unitvector(ctx::SigPolynomialΓ, i) = (pos_type(ctx)(i), one(ctx.po.mo))
 isunitvector(ctx::SigPolynomialΓ{I, M}, a::SigHash{I, M}) where {I, M} = a[2] == one(ctx.po.mo)
 
+parent_id(ctx::SigPolynomialΓ{I}, id::I) where I = ctx.sgb_nodes[id].parent_id
+children_id(ctx::SigPolynomialΓ{I}, id::I) where I = ctx.sgb_nodes[id].children_id
+pol(ctx::SigPolynomialΓ{I}, id::I) where I = ctx.sgb_nodes[id].pol
+
 tag(ctx::SigPolynomialΓ{I}, i::I) where {I} = ctx.sgb_nodes[i].tag
 tag(ctx::SigPolynomialΓ{I, M}, p::SigHash{I, M}) where {I, M} = tag(ctx, p[1])
 
@@ -127,9 +131,15 @@ function new_generator!(ctx::SigPolynomialΓ{I, M, MM, T},
 end
 
 function sort_id(ctx::SigPolynomialΓ{I, M},
+                 id::I) where {I, M}
+
+    ctx.sgb_nodes[id].sort_ID
+end
+
+function sort_id(ctx::SigPolynomialΓ{I, M},
                  a::SigHash{I, M}) where {I, M}
 
-    ctx.sgb_nodes[a[1]].sort_ID
+    sort_id(ctx, a[1])
 end
 
 # registration functions
@@ -217,11 +227,25 @@ end
 
 # sorting
 
+function in_path_to(ctx::SigPolynomialΓ{I, M},
+                    id1::I,
+                    id2::I) where {I, M}
+    
+    in_path_to(ctx.sgb_nodes[id1], ctx.sgb_nodes[id2])
+end
+
+function are_compatible(ctx::SigPolynomialΓ{I, M},
+                        id1::I,
+                        id2::I) where {I, M}
+
+    are_compatible(ctx.sgb_nodes[id1], ctx.sgb_nodes[id2])
+end
+
 function are_compatible(ctx::SigPolynomialΓ{I, M},
                         a::SigHash{I, M},
                         b::SigHash{I, M}) where {I, M}
 
-    are_compatible(ctx.sgb_nodes[a[1]], ctx.sgb_nodes[b[1]])
+    are_compatible(ctx, a[1], b[1])
 end
 
 @inline @generated function lt(ctx::SigPolynomialΓ{I, M, MM, T, MODT, MΓ, MMΓ, TΓ, PΓ, PPΓ, MORD},
@@ -234,7 +258,7 @@ end
             if a[1] == b[1]
                 return lt(ctx.po.mo, a[2], b[2])
             end
-            return ctx.sgb_nodes[a[1]].sort_ID < ctx.sgb_nodes[b[1]].sort_ID
+            return sort_id(ctx, a) < sort_id(ctx, b)
         end
     elseif MORD == :DPOT
         quote
@@ -244,14 +268,14 @@ end
                 if a[1] == b[1]
                     return lt(ctx.po.mo, a[2], b[2])
                 end
-                return ctx.sgb_nodes[a[1]].sort_ID < ctx.sgb_nodes[b[1]].sort_ID
+                return sort_id(ctx, a) < sort_id(ctx, b)
             end
             return d1 < d2
         end
     elseif MORD == :TOP
         quote
             if a[2] == b[2]
-                return ctx.sgb_nodes[a[1]].sort_ID < ctx.sgb_nodes[b[1]].sort_ID
+                return sort_id(ctx, a) < sort_id(ctx, b)
             end
             return lt(ctx.po.mo, a[2], b[2])
         end
@@ -260,7 +284,7 @@ end
             c1 = mul(ctx.po.mo, a[2], ctx.lms[a[1]])
             c2 = mul(ctx.po.mo, b[2], ctx.lms[b[1]])
             if c1 == c2
-                return ctx.sgb_nodes[a[1]].sort_ID < ctx.sgb_nodes[b[1]].sort_ID
+                return sort_id(ctx, a) < sort_id(ctx, b)
             end
             return lt(ctx.po.mo, c1, c2)
         end
@@ -363,11 +387,12 @@ end
 #--- UNUSED CODE/ONLY FOR TESTING ---#
 
 function new_generator_before!(ctx::SigPolynomialΓ{I, M, MM, T},
-                               before::SGBNode{I, M, T},
+                               before_id::I,
                                pol::Polynomial{M, T},
                                tag = :f;
                                module_rep = ctx.po([one(ctx.po.mo)], [one(eltype(ctx.po.co))])) where {I, M, MM, T}
-    
+
+    before = ctx.sgb_nodes[before_id]
     new_node = insert_before!(before, pol, ctx.sgb_nodes, tag)
     sighash = unitvector(ctx, new_node.ID)
     if mod_order(ctx) in [:SCHREY, :DPOT]

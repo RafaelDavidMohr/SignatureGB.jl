@@ -110,7 +110,7 @@ function Base.show(io::IO,
     pair = a[1]
     ctx = a[2]
     print(io, (convert(Vector{Int}, exponents(ctx.po.mo, pair[1])),
-               (Int(ctx.sgb_nodes[pair[2][1]].sort_ID), Int(pair[2][1]), convert(Vector{Int}, exponents(ctx.po.mo, pair[2][2])))))
+               (Int(sort_id(ctx, pair[2])), Int(pair[2][1]), convert(Vector{Int}, exponents(ctx.po.mo, pair[2][2])))))
 end
 
 function sort_id(ctx::SigPolynomialΓ{I, M}, p::MonSigPair{I, M}) where {I, M}
@@ -350,11 +350,11 @@ function select!(ctx::SΓ,
     elseif S == :pos
         cond = p -> p[1][2][1] == node_id
     elseif S == :deg
-        cond = p -> are_compatible(ctx.sgb_nodes[p[1][2][1]], ctx.sgb_nodes[node_id]) && degree(ctx, p[1]) == sig_degree
+        cond = p -> are_compatible(ctx, p[1][2][1], node_id) && degree(ctx, p[1]) == sig_degree
     elseif S == :schrey_deg
         schrey_deg = schrey_degree(ctx, pair[1])
         @logmsg Verbose2 "" sugar_deg = schrey_deg
-        cond = p -> are_compatible(ctx.sgb_nodes[p[1][2][1]], ctx.sgb_nodes[node_id]) && schrey_degree(ctx, p[1]) == schrey_deg
+        cond = p -> are_compatible(ctx, p[1][2][1], node_id) && schrey_degree(ctx, p[1]) == schrey_deg
     elseif S == :schrey_deg_and_pos
         schrey_deg = schrey_degree(ctx, pair[1])
         @logmsg Verbose2 "" sugar_deg = schrey_deg
@@ -378,7 +378,7 @@ function select!(ctx::SΓ,
             for i in keys(G.by_index)
                 elim_by_koszul && break
                 !(are_compatible(ctx, p[1][2], unitvector(ctx, i))) && continue
-                ctx.sgb_nodes[i].sort_ID >= ctx.sgb_nodes[p[1][2][1]].sort_ID && continue
+                sort_id(ctx, i) >= sort_id(ctx, p[1][2]) && continue
                 if i in keys(G.by_index)
                     for lm in G.by_index[i]
                         if divides(ctx.po.mo, lm, mul(ctx.po.mo, p[1][1], p[1][2][2]))

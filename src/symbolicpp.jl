@@ -24,7 +24,7 @@ function find_reducer(ctx::SigPolynomialΓ{I, M},
     mpairord = mpairordering(ctx)
     for (j, lm) in enumerate(G.lms)
         if divides(ctx.po.mo, lm, m)
-            !(are_compatible(ctx.sgb_nodes[compatibility_check_id], ctx.sgb_nodes[G.sigs[j][1]])) && continue
+            !(are_compatible(ctx, compatibility_check_id, G.sigs[j][1])) && continue
             delta = div(ctx.po.mo, m, lm)
             g = G.sigs[j]
             !(cond((delta, g))) && continue
