@@ -2,13 +2,13 @@
 using Combinatorics
 using Lazy
 
-mutable struct F5matrix{I, M, MM, J, K, T}
+mutable struct F5matrix{I, M, MM, J, K, T, SΓ <: SigPolynomialΓ{I, M, MM, T}}
     sigs::Vector{MonSigPair{I, M}}
     rows::Vector{Polynomial{J, T}}
     module_rows::Vector{Polynomial{K, T}}
     tbl::EasyTable{M, J}
     module_tbl::EasyTable{MM, K}
-    ctx::SigPolynomialΓ{I, M, MM, T}
+    ctx::SΓ
 end
 
 function reduction!(mat::F5matrix)

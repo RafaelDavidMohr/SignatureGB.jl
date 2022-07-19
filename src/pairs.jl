@@ -13,29 +13,16 @@ function contains_unit(ctx::SigPolynomialΓ{I, M}, Gsigs::Vector{SigHash{I, M}})
     any(sig -> degree(ctx.po.mo, leadingmonomial(ctx, sig)) == 0, Gsigs)
 end
 
-function poly_reduce(ctx::SigPolynomialΓ{I, M},
-                     G_sigs::Vector{SigHash{I, M}},
+function poly_reduce(gb::Vector{P},
                      p::P,
-                     R) where {I, M, P <: AA.MPolyElem}
+                     R) where {P <: AA.MPolyElem}
 
-    J = Singular.Ideal(R, [R(ctx, g) for g in G_sigs])
+    J = Singular.Ideal(R, gb)
     J.isGB = true
+    println("reducing polynomial...")
     q = reduce(p, J)
-    return ctx.po(q)
-end
-
-function poly_reduce(ctx::SigPolynomialΓ{I, M, MM, T},
-                     G_sigs::Vector{SigHash{I, M}},
-                     p::Polynomial{M, T},
-                     R) where {I, M, MM, T}
-
-    poly_reduce(ctx, G_sigs, R(ctx.po, p), R)
-end
-
-function poly_reduce(ctx::SigPolynomialΓ{I, M, MM, T},
-                     G::Basis{I, M},
-                     p::Polynomial{M, T}, R) where {I, M, MM, T}
-    poly_reduce(ctx, G.sigs, p, R)
+    println("done")
+    return q
 end
 
 function filter_basis_by_indices!(ctx::SigPolynomialΓ{I, M},

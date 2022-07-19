@@ -136,7 +136,8 @@ function copy_subtree!(node::SGBNode{I, M, T},
 
     new_ids = I[]
     new_branch_node_ids = I[]
-    for branch_node_id in filter(id -> are_compatible(ID_dict[id], node), branch_node_ids)
+    for branch_node_id in branch_node_ids
+        @assert are_compatible(ID_dict[branch_node_id], node)
         node_index = findfirst(id -> id == node.ID, ID_dict[branch_node_id].path_to)
         prev = parent_id
         for id in ID_dict[branch_node_id].path_to[node_index + 1:end]
@@ -156,7 +157,20 @@ function copy_subtree!(node::SGBNode{I, M, T},
         end
         prev = parent_id
     end
+
+    for (key, node) in ID_dict
+        for name in fieldnames(SGBNode{I, M, T})
+            @assert isdefined(node, name)
+        end
+        for i in eachindex(node.path_to)
+            @assert isassigned(node.path_to, i)
+        end
+    end
+        
+    
     return new_ids, new_branch_node_ids
+
+    
         
     # for child in map(id -> ID_dict[id], node.children_id)
     #     child_copy = new_node!(parent_id, copy(child.pol), ID_dict, child.tag, is_branch_node = child.is_branch_node)

@@ -483,15 +483,15 @@ function split_on_tag_f!(ctx::SigPolynomialΓ{I, M, MM, T},
                          G::Basis{I, M},
                          R) where {I, M, MM, T}
 
-    known_ideal_signatures = filter(sig -> sig[1] in ctx.sgb_nodes[f_node_id].path_to,
-                                    G.sigs)
+    println("splitting tree")
+    gb = [R(ctx, sig) for sig in filter(sig -> sig[1] in ctx.sgb_nodes[f_node_id].path_to, G.sigs)]
     # TODO: this line of code is too complicated
-    is_relevant = id -> any(cleaner -> iszero(poly_reduce(ctx, known_ideal_signatures,
-                                                          R(ctx.po, zd_to_insert) * R(ctx.po, cleaner), R)),
-                            map(node_id -> pol(ctx, node_id), children_id(ctx, id)))
-    relevant_branch_node_ids = filter(id -> isempty(children_id(ctx, id)) || !(is_relevant(id)),
-                                      ctx.branch_nodes)
-    
+    println("checking $(length(ctx.branch_nodes)) branch nodes")
+    is_irrelevant = id -> iszero(poly_reduce(gb, R(ctx.po, zd_to_insert) * prod([R(ctx.po, pol(ctx, c_id)) for c_id in children_id(ctx, id)]), R))
+    relevant_branch_node_ids = filter(id -> isempty(children_id(ctx, id)) || !(is_irrelevant(id)),
+                                      filter(branch_id -> are_compatible(ctx, f_node_id, branch_id), ctx.branch_nodes))
+
+    println("done checking, continue...")
     new_ids, new_branch_node_ids, new_cleaners = split_on_tag_f!(ctx.sgb_nodes,
                                                                  f_node_id,
                                                                  zd_to_insert,
