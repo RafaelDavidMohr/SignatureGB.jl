@@ -147,6 +147,7 @@ function sgb_core!(ctx::SΓ,
     old_gb_length = length(G)
     
     while !(isempty(pairs))
+        sort!(pairs, lt = (p1, p2) -> Base.Order.lt(pairordering(ctx), p1, p2))
         if deg_bound > 0
             deg = schrey_degree(ctx, first(pairs)[1])
             deg > deg_bound && return
@@ -440,7 +441,7 @@ function new_elems!(ctx::SΓ,
                 ctx(new_sig, p, q)
                 new_rewriter!(ctx, pairs, new_sig)
                 new_basis_elem!(G, new_sig, lm)
-                pairs!(ctx, pairs, new_sig, lm, G, H, all_koszul; kwargs...)
+                pairs!(ctx, pairs, new_sig, lm, G, H; kwargs...)
             end
         end
     end
