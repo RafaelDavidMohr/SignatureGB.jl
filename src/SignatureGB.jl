@@ -15,25 +15,7 @@ include("./symbolicpp.jl")
 include("./reduction_better.jl")
 include("./gen_example_file.jl")
 
-export sgb
-
-# build initial pairset, basis and syzygies
-function pairs_and_basis(ctx::SigPolynomialΓ,
-                         basis_length;
-                         start_gen = 1,
-                         kwargs...)
-
-    G = new_basis(ctx)
-    for i in 1:(start_gen - 1)
-        lm = leadingmonomial(ctx, unitvector(ctx, i))
-        new_basis_elem!(G, unitvector(ctx, i), lm)
-    end
-    H = new_syz(ctx)
-    pairs = pairset(ctx)
-    [pair!(ctx, pairs, unitvector(ctx, i)) for i in start_gen:basis_length]
-    sort!(pairs, lt = (p1, p2) -> Base.Order.lt(pairordering(ctx), p1, p2))
-    G, H, koszul_queue(ctx), pairs
-end
+export sgb, f5sat
 
 function sgb(I::Vector{P};
              verbose = 0,
@@ -45,6 +27,32 @@ function sgb(I::Vector{P};
     logger = SGBLogger(ctx, verbose = verbose; kwargs...)
     with_logger(logger) do
         sgb_core!(ctx, G, H, koszul_q, pairs, R; kwargs...)
+        verbose == 2 && printout(logger)
+    end
+    [R(ctx, g) for g in G.sigs]
+end
+
+function f5sat(I::Vector{P},
+               to_sat::P;
+               verbose = 0,
+               f5c = false,
+               kwargs...) where {P<:AA.MPolyElem}
+
+    R = parent(first(I))
+    ctx = setup(I; mod_rep_type = :highest_index,
+                track_module_tags = [:to_sat],
+                kwargs...)
+    G, H, koszul_q, pairs = pairs_and_basis(ctx, length(I); kwargs...)
+    sat_id = new_generator!(ctx, pos_type(ctx)(length(I)), ctx.po(to_sat), :to_sat)
+    pair!(ctx, pairs, unitvector(ctx, sat_id))
+    logger = SGBLogger(ctx, verbose = verbose, task = :sat, f5c = f5c; kwargs...)
+    S, vars = Singular.PolynomialRing(Fp(Int(characteristic(R))), ["x$(i)" for i in 1:length(gens(R))])
+    with_logger(logger) do
+        f5sat_core!(ctx, G, H, koszul_q, pairs, S, f5c = f5c; kwargs...)
+        delete_indices!(ctx, G, [sat_id])
+        if f5c
+            interreduction!(ctx, G, S)
+        end
         verbose == 2 && printout(logger)
     end
     [R(ctx, g) for g in G.sigs]
@@ -108,7 +116,6 @@ function sgb_core!(ctx::SΓ,
                    all_koszul = false,
                    f5c = false,
                    deg_bound = 0,
-                   exit_upon_zero_reduction = false,
                    kwargs...) where {I, M, SΓ <: SigPolynomialΓ{I, M}}
 
     if !(extends_degree(termorder(ctx.po.mo)))
@@ -139,7 +146,7 @@ function sgb_core!(ctx::SΓ,
         mod_order(ctx) != :POT && error("F5c only makes sense for position over term ordering.")
     end
 
-    S, vars = Singular.PolynomialRing(Fp(Int(characteristic(R))), ["x$(i)" for i in 1:ngens(R)])
+    S, vars = Singular.PolynomialRing(Fp(Int(characteristic(R))), ["x$(i)" for i in 1:length(gens(R))])
 
     # TEMP: temporary solution to not correctly symbolically preproc. the unit vectors
     # TODO: get rid of this somehow
@@ -177,6 +184,84 @@ function sgb_core!(ctx::SΓ,
         @logmsg Verbose2 "" gb_size = gb_size(ctx, G.sigs)
     end
     f5c && interreduction!(ctx, G, S)
+end
+
+function f5sat_core!(ctx::SΓ,
+                     G::Basis{I,M},
+                     H::Syz{I,M},
+                     koszul_q::KoszulQueue{I,M,SΓ},
+                     pairs::PairSet{I,M},
+                     R;
+                     sat_tag = [:to_sat],
+                     f5c = false,
+                     kwargs...) where {I,M,SΓ<:SigPolynomialΓ{I,M}}
+
+    
+    if !(extends_degree(termorder(ctx.po.mo)))
+        error("I currently don't know how to deal with non-degree based monomial orderings...")
+    end
+
+    select = :deg_and_pos
+    all_koszul = true
+    select_both = false
+    
+    curr_indx_key = first(pairs)[1][2][1]
+    old_gb_length = length(G)
+    
+    while !(isempty(pairs))
+        sort!(pairs, lt = (p1, p2) -> Base.Order.lt(pairordering(ctx), p1, p2))
+        next_index_key = first(pairs)[1][2][1]
+        if next_index_key != curr_indx_key
+            # final interreduction outside of this function
+            if f5c
+                if length(G) > old_gb_length
+                    interreduction!(ctx, G, R)
+                end
+                old_gb_length = length(G)
+            end
+            curr_indx_key = next_index_key
+        end
+        
+        remask!(ctx.po.mo.table)       
+        mat = core_loop!(ctx, G, H, koszul_q, pairs, select, all_koszul,
+                         sort_id(ctx, curr_indx_key),
+                         select_both = select_both, f5c = f5c)
+        if !(isempty(mat.sigs))
+            @logmsg Verbose2 "" tag = tag(ctx, last(mat.sigs)) indx_hash = last(mat.sigs)[2][1]
+        end
+
+        new_elems!(ctx, G, H, pairs, mat, all_koszul,
+                   sort_id(ctx, curr_indx_key), f5c = f5c)
+        @logmsg Verbose2 "" gb_size = gb_size(ctx, G.sigs)
+        
+        max_sig = last(mat.sigs)
+        if tag(ctx, max_sig) in sat_tag
+            zero_red_row_indices = findall(row -> iszero(row), mat.rows)
+            if !(isempty(zero_red_row_indices))
+                # zero divisors to insert
+                pols_to_insert = (i -> unindexpolynomial(mat.module_tbl, mat.module_rows[i])).(zero_red_row_indices)
+                # cache some reduction results for future use
+                for g in G.sigs
+                    g[1] == max_sig[2][1] && push!(ctx.cashed_sigs, g)
+                end
+
+                # insert the zero divisors, rebuild pairs and basis
+                empty!(pairs)
+                delete_indices!(ctx, G, [max_sig[2][1]])
+                for p in pols_to_insert
+                    new_id = new_generator_before!(ctx, max_sig[2][1], p, :zd)
+                    if isunit(ctx.po, p)
+                        new_basis_elem!(G, unitvector(ctx, new_index_key), one(ctx.po.mo))
+                        return
+                    end
+                    pair!(ctx, pairs, unitvector(ctx, new_id))
+                end
+                pair!(ctx, pairs, unitvector(ctx, max_sig[2][1]))
+                curr_indx_key = first(pairs)[1][2][1]
+            end
+        end
+        @logmsg Verbose2 "" end_time_core = time()
+    end
 end
 
 function decomp_core!(ctx::SΓ,
@@ -358,6 +443,24 @@ function decomp_increm_core!(ctx::SΓ,
         end
         deleteat!(ctx.branch_nodes, to_delete)
     end
+end
+
+# build initial pairset, basis and syzygies
+function pairs_and_basis(ctx::SigPolynomialΓ,
+                         basis_length;
+                         start_gen = 1,
+                         kwargs...)
+
+    G = new_basis(ctx)
+    for i in 1:(start_gen - 1)
+        lm = leadingmonomial(ctx, unitvector(ctx, i))
+        new_basis_elem!(G, unitvector(ctx, i), lm)
+    end
+    H = new_syz(ctx)
+    pairs = pairset(ctx)
+    [pair!(ctx, pairs, unitvector(ctx, i)) for i in start_gen:basis_length]
+    sort!(pairs, lt = (p1, p2) -> Base.Order.lt(pairordering(ctx), p1, p2))
+    G, H, koszul_queue(ctx), pairs
 end
     
 function core_loop!(ctx::SΓ,
@@ -843,143 +946,6 @@ end
 #     end
 #     # deleteat!(index_keys, superflous)
 #     return components
-# end
-
-# function f5sat_core!(ctx::SΓ,
-#                      G::Basis{I,M},
-#                      H::Syz{I,M},
-#                      koszul_q::KoszulQueue{I,M,SΓ},
-#                      pairs::PairSet{I,M,SΓ},
-#                      R;
-#                      sat_tag = [:to_sat],
-#                      f5c = false,
-#                      deg_bound = 0,
-#                      excluded_tags = Symbol[],
-#                      excluded_index_keys = I[],
-#                      kwargs...) where {I,M,SΓ<:SigPolynomialΓ{I,M}}
-
-#     mod_order(ctx) != :POT && error("The experimental modifications will currently only work with POT")
-    
-#     if !(extends_degree(termorder(ctx.po.mo)))
-#         error("I currently don't know how to deal with non-degree based monomial orderings...")
-#     end
-
-#     if mod_order(ctx) == :POT 
-#         select = :deg_and_pos
-#     elseif mod_order(ctx) == :DPOT
-#         select = :schrey_deg_and_pos
-#     end
-
-#     if f5c
-#         mod_order(ctx) != :POT && error("F5c only makes sense for position over term ordering.")
-#     end
-
-#     if deg_bound > 0 && mod_order(ctx) != :DPOT
-#         error("only put deg_bound > 0 if you use :DPOT as a module order")
-#     end
-    
-#     all_koszul = true
-#     curr_indx = index(ctx, first(pairs)[1])
-#     curr_indx_key = first(pairs)[1][2][1]
-#     old_gb_length = length(G)
-    
-#     while !(isempty(pairs))
-#         remask!(ctx.po.mo.table)
-
-#         next_index = index(ctx, first(pairs)[1])
-#         if next_index != curr_indx
-#             # final interreduction outside of this function
-#             if f5c
-#                 if length(G) > old_gb_length
-#                     interreduction!(ctx, G, R)
-#                 end
-#                 old_gb_length = length(G)
-#             end
-#             curr_indx = next_index
-#             curr_indx_key = first(pairs)[1][2][1]
-#         end
-
-#         mat = core_loop!(ctx, G, H, koszul_q, pairs, select, all_koszul, curr_indx, select_both = false, f5c = f5c)
-
-
-#         @logmsg Verbose2 "" nz_entries = sum([length(row) for row in values(mat.rows)]) mat_size = (length(mat.rows), length(mat.tbl))
-#         new_elems!(ctx, G, H, pairs, mat, all_koszul, curr_indx, f5c = f5c; kwargs...)
-#         @logmsg Verbose2 "" gb_size = gb_size(ctx, G)
-        
-#         max_sig = last(mat.sigs)
-#         @logmsg Verbose2 "" indx = index(ctx, max_sig) tag = tag(ctx, max_sig)
-#         if tag(ctx, max_sig) in sat_tag
-#             zero_red_row_indices = findall(row -> iszero(row), mat.rows)
-#             filter!(i -> tag(ctx, mat.sigs[i]) in sat_tag, zero_red_row_indices)
-#             if !(isempty(zero_red_row_indices))
-#                 # zero divisors to insert
-#                 pols_to_insert = (i -> unindexpolynomial(mat.module_tbl, mat.module_rows[i])).(zero_red_row_indices)
-#                 insert_data = (i -> (unindexpolynomial(mat.module_tbl, mat.module_rows[i]), index(ctx, mat.sigs[i]))).(zero_red_row_indices)
-#                 min_new_index = minimum(p_and_index -> p_and_index[2], insert_data)
-#                 # cache some reduction results for future use
-#                 for g in G.sigs
-#                     index(ctx, g[1]) >= min_new_index && push!(ctx.cashed_sigs, g)
-#                 end
-
-#                 # insert the zero divisors
-#                 for (p, indx) in insert_data
-#                     # could be something like new_generator!(ctx, before current equation, p, :zd)
-#                     new_index_key = new_generator!(ctx, indx, p, :zd)
-#                     if isunit(ctx.po, p)
-#                         new_basis_elem!(G, unitvector(ctx, new_index_key), one(ctx.po.mo))
-#                         return
-#                     end
-#                 end
-#                 # syz_signatures = [g[2] for g in filter(g -> g[1] == curr_index_key, G)]
-
-#                 # rebuild pairset and basis
-#                 collected_pairset = collect(pairs)
-#                 empty!(pairs)
-#                 # filter stuff out of basis that might reduce further with the new generators
-#                 filter_less_than_index!(ctx, G, min_new_index)
-#                 # rebuild pairset
-#                 for index_key in keys(ctx.f5_indices)
-#                     sig = unitvector(ctx, index_key)
-#                     if index(ctx, sig) >= min_new_index && !(tag(ctx, sig) in excluded_tags) && !(index_key in excluded_index_keys)
-#                         pair!(ctx, pairs, sig)
-#                     end
-#                 end
-#                 # preserve the pairs for which the generators are not thrown out
-#                 for pair in collected_pairset
-#                     if index(ctx, pair[1]) < min_new_index
-#                         push!(pairs, pair)
-#                     end
-#                 end
-#                 curr_indx_key = first(pairs)[1][2][1]
-#             end
-#         end
-#         @logmsg Verbose2 "" end_time_core = time()
-#     end
-# end
-
-# function f5sat(I::Vector{P},
-#                to_sat::Vector{P};
-#                verbose = 0,
-#                kwargs...) where {P<:AA.MPolyElem}
-
-#     R = parent(first(I))
-#     ctx = setup(I; mod_rep_type = :highest_index,
-#                 track_module_tags = [],
-#                 kwargs...)
-#     sat_tag = Symbol[]
-#     for (i, f) in enumerate(to_sat)
-#         new_generator!(ctx, length(I) + i, ctx.po(f), Symbol("to_sat_$(i)"))
-#         push!(sat_tag, Symbol("to_sat_$(i)"))
-#         push!(ctx.track_module_tags, Symbol("to_sat_$(i)"))
-#     end
-#     G, H, koszul_q, pairs = pairs_and_basis(ctx, length(I) + length(to_sat); kwargs...)
-#     logger = SGBLogger(ctx, verbose = verbose, task = :sat; kwargs...)
-#     with_logger(logger) do
-#         f5sat_core!(ctx, G, H, koszul_q, pairs, R, sat_tag = sat_tag; kwargs...)
-#         verbose == 2 && printout(logger)
-#     end
-#     [R(ctx, g) for g in G.sigs]
-#     # [R(ctx, g) for g in filter(g -> index(ctx, g) != maxindex(ctx), G.sigs)]
 # end
 
 # function f5sat_by_multiple(I::Vector{P},

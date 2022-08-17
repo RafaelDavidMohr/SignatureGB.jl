@@ -49,10 +49,8 @@ function SGBLogger(ctx::SigPolynomialΓ{I};
                           density = Float32[], arit_ops = Int64[], syz = Int64[],
                           new = Int64[], size = Int64[], time = Float64[])
     
-    if task == :sat
-        insertcols!(core_info, :tag => Symbol[])
-    elseif task == :decomp
-        insertcols!(core_info, :indx => Int64[], :indx_hash => Int64[], :tag => Symbol[])
+    if task == :sat || task == :decomp
+        insertcols!(core_info, :tag => Symbol[], :indx_hash => Int64[], :indx => Int64[])
     elseif mod_order(ctx) == :POT || mod_order(ctx) == :DPOT
         insertcols!(core_info, :indx => Int64[])
     elseif mod_order(ctx) == :SCHREY || mod_order(ctx) == :DPOT

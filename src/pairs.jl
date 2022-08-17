@@ -39,7 +39,7 @@ end
     
 function delete_indices!(ctx::SigPolynomialΓ{I, M},
                          G::Basis{I, M},
-                         node_ids::I) where {I, M}
+                         node_ids::Vector{I}) where {I, M}
 
     criterion = index_hash -> index_hash in node_ids
     filter_basis_by_indices!(ctx, G, criterion)
