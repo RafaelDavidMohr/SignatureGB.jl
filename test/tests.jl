@@ -66,159 +66,160 @@ function fancy_loop(I::Vector{MP};
     interreduce ? std(I_prime, complete_reduction = true) : I_prime
 end
 
-# @testset "termorder" begin
-#     order = SG.Grevlex(5)
-#     v = @SVector [2,2,3,4,5]
-#     w = @SVector [3,1,2,5,5]
+@testset "termorder" begin
+    order = SG.Grevlex(5)
+    v = @SVector [2,2,3,4,5]
+    w = @SVector [3,1,2,5,5]
 
-#     @test SG.lt(order, w, v)
-#     @test SG.iscompatible(order, v, w)
-#     @test !(SG.divides(order, v, w))
-# end
+    @test SG.lt(order, w, v)
+    @test SG.iscompatible(order, v, w)
+    @test !(SG.divides(order, v, w))
+end
 
-# # # stolen from pierre
-# @testset "polynomials" begin
-#     char = 65521
-#     ctx = SG.polynomialctx(SG.Nmod32Γ(char), order = SG.Grevlex(5),indexed=false)
+# # stolen from pierre
+@testset "polynomials" begin
+    char = 65521
+    ctx = SG.polynomialctx(SG.Nmod32Γ(char), order = SG.Grevlex(5),indexed=false)
 
-#     # Conversion from and to AA
-#     R, x = SG.abstractalgebra(ctx)
+    # Conversion from and to AA
+    R, x = SG.abstractalgebra(ctx)
 
-#     p1 = (1+x[1]+x[2]+x[3])^10
-#     p0 = ctx(p1)
+    p1 = (1+x[1]+x[2]+x[3])^10
+    p0 = ctx(p1)
 
-#     @test R(ctx, p0) == p1
-#     @test SG.monomial(p0, 1) == ctx.mo(x[1]^10)
-#     @test length(p0) == binomial(10+3,3)
+    @test R(ctx, p0) == p1
+    @test SG.monomial(p0, 1) == ctx.mo(x[1]^10)
+    @test length(p0) == binomial(10+3,3)
 
-#     # LCM
-#     @test SG.lcm(ctx.mo, ctx.mo([1,0,0,2,0]), ctx.mo([0,1,0,0,0])) == ctx.mo([1,1,0,2,0])
-# end
+    # LCM
+    @test SG.lcm(ctx.mo, ctx.mo([1,0,0,2,0]), ctx.mo([0,1,0,0,0])) == ctx.mo([1,1,0,2,0])
+end
 
-# @testset "monomial hashing" begin
-#     order = SG.Grevlex(5)
-#     ctx = SG.monomialctx(exponents = Int64, order=SG.Grevlex(5), indexed = false)
-#     idx = SG.ixmonomialctx(ctx)
+@testset "monomial hashing" begin
+    order = SG.Grevlex(5)
+    ctx = SG.monomialctx(exponents = Int64, order=SG.Grevlex(5), indexed = false)
+    idx = SG.ixmonomialctx(ctx)
 
-#     v = @SVector [2,2,3,4,5]
-#     w = @SVector [3,1,2,5,5]
+    v = @SVector [2,2,3,4,5]
+    w = @SVector [3,1,2,5,5]
 
-#     m = SG.Monomial(v)
-#     n = SG.Monomial(w)
-#     i, j  = idx(m), idx(n)
-#     k = SG.mul(idx, i, j)
-#     @test SG.divides(idx, i, k)
-#     @test SG.divides(idx, j, k)
-# end
+    m = SG.Monomial(v)
+    n = SG.Monomial(w)
+    i, j  = idx(m), idx(n)
+    k = SG.mul(idx, i, j)
+    @test SG.divides(idx, i, k)
+    @test SG.divides(idx, j, k)
+end
 
-# @testset "sig polynomials and trees" begin
-#     R, (x, y) = Singular.PolynomialRing(Singular.Fp(101), ["x", "y"])
-#     f, g = x + y, x^2 + x*y + y^2
+@testset "sig polynomials and trees" begin
+    R, (x, y) = Singular.PolynomialRing(Singular.Fp(101), ["x", "y"])
+    f, g = x + y, x^2 + x*y + y^2
     
-#     order = SG.Grevlex(2)
-#     char = 101
-#     ctx = SG.sigpolynomialctx(SG.Nmod32Γ(char), order=order)
-#     g_id = SG.new_generator!(ctx, zero(SG.pos_type(ctx)), ctx.po(g))
-#     f_id = SG.new_generator!(ctx, g_id, ctx.po(f))
-#     branch_node = SG.new_branch_node!(f_id, ctx.sgb_nodes)
-#     push!(ctx.branch_nodes, branch_node.ID)
+    order = SG.Grevlex(2)
+    char = 101
+    ctx = SG.sigpolynomialctx(SG.Nmod32Γ(char), order=order)
+    g_id = SG.new_generator!(ctx, zero(SG.pos_type(ctx)), ctx.po(g))
+    f_id = SG.new_generator!(ctx, g_id, ctx.po(f))
+    branch_node = SG.new_branch_node!(f_id, ctx.sgb_nodes)
+    push!(ctx.branch_nodes, branch_node.ID)
 
-#     # tree should be g -- f -- branch_node
-#     # TODO: maybe write a seperate tree test
-#     @test ctx.sgb_nodes[f_id].children_id == [branch_node.ID]
-#     @test ctx.sgb_nodes[g_id].children_id == [f_id]
-#     @test ctx.sgb_nodes[f_id].parent_id == g_id
-#     @test ctx.sgb_nodes[branch_node.ID].parent_id == f_id
-#     @test ctx.sgb_nodes[branch_node.ID].path_to == [g_id, f_id]
-#     @test ctx.sgb_nodes[f_id].path_to == [g_id]
+    # tree should be g -- f -- branch_node
+    # TODO: maybe write a seperate tree test
+    @test ctx.sgb_nodes[f_id].children_id == [branch_node.ID]
+    @test ctx.sgb_nodes[g_id].children_id == [f_id]
+    @test ctx.sgb_nodes[f_id].parent_id == g_id
+    @test ctx.sgb_nodes[branch_node.ID].parent_id == f_id
+    @test ctx.sgb_nodes[branch_node.ID].path_to == [g_id, f_id]
+    @test ctx.sgb_nodes[f_id].path_to == [g_id]
 
-#     # new leaf with parent as g
-#     h =  x^4*y
-#     h_id = SG.new_generator!(ctx, g_id, ctx.po(h))
+    # new leaf with parent as g
+    h =  x^4*y
+    h_id = SG.new_generator!(ctx, g_id, ctx.po(h))
     
-#     sig_f, sig_g, sig_h = ctx(f_id, R(1)), ctx(g_id, R(1)), ctx(h_id, R(1))
-#     @test SG.sort_id(ctx, sig_g) == 1
-#     @test SG.sort_id(ctx, sig_f) == 2
-#     @test SG.sort_id(ctx, sig_h) == 3
-#     m1 = ctx.po.mo(x)
-#     @test Set(collect(keys(ctx.tbl))) == Set([sig_f, sig_g, sig_h])
-#     @test R(ctx.po, ctx(sig_f).pol) == f
-#     @test R(ctx.po, ctx(m1, sig_f).pol) == x*f
-#     @test SG.lt(ctx, sig_g, sig_f)
-#     @test SG.lt(ctx, sig_f, sig_h)
-#     @test SG.lt(ctx, sig_g, sig_h)
-#     @test !(SG.are_compatible(ctx.sgb_nodes[f_id], ctx.sgb_nodes[h_id]))
-#     @test SG.are_compatible(ctx.sgb_nodes[h_id], ctx.sgb_nodes[g_id])
-# end
+    sig_f, sig_g, sig_h = ctx(f_id, R(1)), ctx(g_id, R(1)), ctx(h_id, R(1))
+    @test SG.sort_id(ctx, sig_g) == 1
+    @test SG.sort_id(ctx, sig_f) == 2
+    @test SG.sort_id(ctx, branch_node.ID) == 3
+    @test SG.sort_id(ctx, sig_h) == 4
+    m1 = ctx.po.mo(x)
+    @test Set(collect(keys(ctx.tbl))) == Set([sig_f, sig_g, sig_h])
+    @test R(ctx.po, ctx(sig_f).pol) == f
+    @test R(ctx.po, ctx(m1, sig_f).pol) == x*f
+    @test SG.lt(ctx, sig_g, sig_f)
+    @test SG.lt(ctx, sig_f, sig_h)
+    @test SG.lt(ctx, sig_g, sig_h)
+    @test !(SG.are_compatible(ctx.sgb_nodes[f_id], ctx.sgb_nodes[h_id]))
+    @test SG.are_compatible(ctx.sgb_nodes[h_id], ctx.sgb_nodes[g_id])
+end
 
-# @testset "setup" begin
-#     R, (x, y) = Singular.PolynomialRing(Singular.Fp(101), ["x", "y"])
-#     I = [x + y, x^2 + x*y + y^2]
+@testset "setup" begin
+    R, (x, y) = Singular.PolynomialRing(Singular.Fp(101), ["x", "y"])
+    I = [x + y, x^2 + x*y + y^2]
 
-#     ctx = SG.setup(I)
-#     @test SG.mod_order(ctx) == :POT
-#     @test SG.pos_type(ctx) == UInt16
+    ctx = SG.setup(I)
+    @test SG.mod_order(ctx) == :POT
+    @test SG.pos_type(ctx) == UInt16
 
-#     ctx = SG.setup(I, indexed = false, exponents = Int32)
-#     @test SG.exponenttype(ctx.po.mo) == Int32
+    ctx = SG.setup(I, indexed = false, exponents = Int32)
+    @test SG.exponenttype(ctx.po.mo) == Int32
 
-#     ctx = SG.setup(I, buffer = 128)
-#     @test typeof(ctx.po.co) <: SG.Nmod32xΓ
+    ctx = SG.setup(I, buffer = 128)
+    @test typeof(ctx.po.co) <: SG.Nmod32xΓ
 
-#     ctx = SG.setup(I, mod_order = :SCHREY)
-#     @test SG.mod_order(ctx) == :SCHREY
-# end
+    ctx = SG.setup(I, mod_order = :SCHREY)
+    @test SG.mod_order(ctx) == :SCHREY
+end
 
-# @testset "pairs" begin
-#     R, (x, y), ctx, basis, syz = small_example()
-#     h_id = SG.new_generator!(ctx, SG.pos_type(ctx)(1), ctx.po(x*y))
-#     new_sig = ctx(2, x)
-#     new_sig_2 = ctx(h_id, y)
-#     koszul_syz = ctx(2, x^2)
-#     ctx(new_sig, y^3)
-#     ctx(new_sig_2, x*y^2)
-#     koszul_q = SG.koszul_queue(ctx)
-#     push!(koszul_q, koszul_syz)
-#     pairset = SG.pairset(ctx)
-#     SG.pairs!(ctx, pairset, new_sig, ctx.po.mo(y^3), basis, syz, false)
-#     SG.pairs!(ctx, pairset, new_sig_2, ctx.po.mo(x*y^2), basis, syz, false)
-#     @test length(pairset) == 2
-#     @test SG.check!(koszul_q, first(pairset))
-#     SG.select!(ctx, basis, koszul_q, pairset, Val(:deg), false)
-#     @test length(pairset) == 1
-# end
+@testset "pairs" begin
+    R, (x, y), ctx, basis, syz = small_example()
+    h_id = SG.new_generator!(ctx, SG.pos_type(ctx)(1), ctx.po(x*y))
+    new_sig = ctx(2, x)
+    new_sig_2 = ctx(h_id, y)
+    koszul_syz = ctx(2, x^2)
+    ctx(new_sig, y^3)
+    ctx(new_sig_2, x*y^2)
+    koszul_q = SG.koszul_queue(ctx)
+    push!(koszul_q, koszul_syz)
+    pairset = SG.pairset(ctx)
+    SG.pairs!(ctx, pairset, new_sig, ctx.po.mo(y^3), basis, syz)
+    SG.pairs!(ctx, pairset, new_sig_2, ctx.po.mo(x*y^2), basis, syz)
+    @test length(pairset) == 2
+    @test SG.check!(koszul_q, first(pairset))
+    SG.select!(ctx, basis, koszul_q, pairset, Val(:deg), false)
+    @test length(pairset) == 1
+end
 
-# @testset "symbolic-pp" begin
-#     R, (x, y), ctx, basis, syz = small_example()
-#     pair_sig = (ctx.po.mo(x), ctx(2, R(1)))
-#     pair_sig_2 = (ctx.po.mo(y), ctx(1, R(1)))
-#     pairset = SG.mpairset(ctx, [pair_sig, pair_sig_2])
-#     tbl, module_tbl, sigpolys = SG.symbolic_pp!(ctx, pairset, basis, syz, false, 2)
-#     result_sigs = [first(tup) for tup in sigpolys]
-#     test_sig_2 = (ctx.po.mo(y), ctx(2, R(1)))
-#     test_sigs = [pair_sig, pair_sig_2, test_sig_2]
-#     @test all(sig -> sig in result_sigs, test_sigs) && all(sig -> sig in test_sigs, result_sigs)
-# end
+@testset "symbolic-pp" begin
+    R, (x, y), ctx, basis, syz = small_example()
+    pair_sig = (ctx.po.mo(x), ctx(2, R(1)))
+    pair_sig_2 = (ctx.po.mo(y), ctx(1, R(1)))
+    pairset = SG.mpairset(ctx, [pair_sig, pair_sig_2])
+    tbl, module_tbl, sigpolys = SG.symbolic_pp!(ctx, pairset, basis, syz, false, 2)
+    result_sigs = [first(tup) for tup in sigpolys]
+    test_sig_2 = (ctx.po.mo(y), ctx(2, R(1)))
+    test_sigs = [pair_sig, pair_sig_2, test_sig_2]
+    @test all(sig -> sig in result_sigs, test_sigs) && all(sig -> sig in test_sigs, result_sigs)
+end
 
-# @testset "small-reduction" begin
-#     R, (x, y), ctx, basis, syz = small_example()
-#     pair_sig = (ctx.po.mo(x), ctx(2, R(1)))
-#     pairset = SG.mpairset(ctx)
-#     push!(pairset, pair_sig)
-#     tbl, module_tbl, sigpolys = SG.symbolic_pp!(ctx, pairset, basis, syz, false, 2, are_pairs = false)
-#     mat = SG.f5_matrix(ctx, tbl, module_tbl, sigpolys)
-#     @test SG.mat_show(mat) == [1 0 0; 0 1 1; 1 1 0]
-#     SG.reduction!(mat)
-#     @test SG.mat_show(mat) == [1 0 0; 0 1 1; 0 0 1]
-# end
+@testset "small-reduction" begin
+    R, (x, y), ctx, basis, syz = small_example()
+    pair_sig = (ctx.po.mo(x), ctx(2, R(1)))
+    pairset = SG.mpairset(ctx)
+    push!(pairset, pair_sig)
+    tbl, module_tbl, sigpolys = SG.symbolic_pp!(ctx, pairset, basis, syz, false, 2, are_pairs = false)
+    mat = SG.f5_matrix(ctx, tbl, module_tbl, sigpolys)
+    @test SG.mat_show(mat) == [1 0 0; 0 1 1; 1 1 0]
+    SG.reduction!(mat)
+    @test SG.mat_show(mat) == [1 0 0; 0 1 1; 0 0 1]
+end
 
-# @testset "small groebner" begin
-#     R, (x, y) = Singular.PolynomialRing(Singular.Fp(101), ["x", "y"])
-#     I = [x^2, x*y + y^2]
-#     gb_2 = SG.sgb(I)
-#     gb = vcat(I, [y^3])
-#     @test all(p -> p in gb, gb_2)
-# end
+@testset "small groebner" begin
+    R, (x, y) = Singular.PolynomialRing(Singular.Fp(101), ["x", "y"])
+    I = [x^2, x*y + y^2]
+    gb_2 = SG.sgb(I)
+    gb = vcat(I, [y^3])
+    @test all(p -> p in gb, gb_2)
+end
 
 @testset "small decomp" begin
     R, (x, y, z) = Singular.PolynomialRing(Singular.Fp(101), ["x", "y", "z"])
@@ -244,92 +245,92 @@ end
     @test is_radical_eq(res_intersect, Ideal(R, I))
 end
 
-# @testset "small groebner schreyer" begin
-#     R, (x, y) = Singular.PolynomialRing(Singular.Fp(101), ["x", "y"])
-#     I = [x^2, x*y + y^2]
-#     gb_2 = SG.sgb(I, mod_order = :SCHREY)
-#     gb = vcat(I, [y^3])
-#     @test all(p -> p in gb, gb_2)
-# end
+@testset "small groebner schreyer" begin
+    R, (x, y) = Singular.PolynomialRing(Singular.Fp(101), ["x", "y"])
+    I = [x^2, x*y + y^2]
+    gb_2 = SG.sgb(I, mod_order = :SCHREY)
+    gb = vcat(I, [y^3])
+    @test all(p -> p in gb, gb_2)
+end
 
-# @testset "module rep" begin
-#     R, (x, y), ctx, basis, syz = small_example(mod_rep_type = :highest_index, track_module_tags = [:f])
-#     pair_sig = (ctx.po.mo(x), ctx(2, R(1)))
-#     pairset = SG.mpairset(ctx)
-#     push!(pairset, pair_sig)
-#     tbl, module_tbl, sigpolys = SG.symbolic_pp!(ctx, pairset, basis, syz, false, 2, are_pairs = false)
-#     mat = SG.f5_matrix(ctx, tbl, module_tbl, sigpolys)
-#     SG.reduction!(mat)
-#     @test SG.module_mat_show(mat) == [0 0; 0 1; 100 1]
-# end
+@testset "module rep" begin
+    R, (x, y), ctx, basis, syz = small_example(mod_rep_type = :highest_index, track_module_tags = [:f])
+    pair_sig = (ctx.po.mo(x), ctx(2, R(1)))
+    pairset = SG.mpairset(ctx)
+    push!(pairset, pair_sig)
+    tbl, module_tbl, sigpolys = SG.symbolic_pp!(ctx, pairset, basis, syz, false, 2, are_pairs = false)
+    mat = SG.f5_matrix(ctx, tbl, module_tbl, sigpolys)
+    SG.reduction!(mat)
+    @test SG.module_mat_show(mat) == [0 0; 0 1; 100 1]
+end
 
-# @testset "small groebner 2" begin
-#     R, (x, y, z, t) = Singular.PolynomialRing(Singular.Fp(7), ["x", "y", "z", "t"])
-#     I = [y*z - 2*t^2, x*y + t^2, x^2*z + 3*x*t^2 - 2*y*t^2]
-#     gb = SG.sgb(I)
-#     @test length(gb) == 7
-# end
+@testset "small groebner 2" begin
+    R, (x, y, z, t) = Singular.PolynomialRing(Singular.Fp(7), ["x", "y", "z", "t"])
+    I = [y*z - 2*t^2, x*y + t^2, x^2*z + 3*x*t^2 - 2*y*t^2]
+    gb = SG.sgb(I)
+    @test length(gb) == 7
+end
 
-# @testset "cyclic 4" begin
-#     R, (x, y, z, w) = Singular.PolynomialRing(Singular.Fp(101), ["x", "y", "z", "w"])
-#     I = SG.cyclic([x,y,z,w])
-#     gb = SG.sgb(I)
-#     @test SG.is_gb(gb)
-# end
+@testset "cyclic 4" begin
+    R, (x, y, z, w) = Singular.PolynomialRing(Singular.Fp(101), ["x", "y", "z", "w"])
+    I = SG.cyclic([x,y,z,w])
+    gb = SG.sgb(I)
+    @test SG.is_gb(gb)
+end
 
-# @testset "cyclic 4 cofactors" begin
-#     R, (x, y, z, w) = Singular.PolynomialRing(Singular.Fp(101), ["x", "y", "z", "w"])
-#     I = SG.cyclic([x,y,z,w])
-#     ctx = SG.setup(I, track_module_tags = [:f], mod_rep_type = :highest_index)
-#     G, H, k_queue, pairs = SG.pairs_and_basis(ctx, length(I))
-#     SG.sgb_core!(ctx, G, H, k_queue, pairs, R)
-#     gb = [R(ctx, s) for s in G.sigs]
-#     projs = [R(ctx.po, SG.project(ctx, s)) for s in G.sigs]
-#     gb_s = [std(Ideal(R, I[1:k])) for k in 1:3]
-#     for (p, g, sig) in zip(projs, gb, G.sigs)
-#         @test !(iszero(p))
-#         isone(sig[1]) && continue
-#         k = sig[1]
-#         @test iszero(Singular.reduce(p*I[k] - g, gb_s[k - 1]))
-#     end
-# end
+@testset "cyclic 4 cofactors" begin
+    R, (x, y, z, w) = Singular.PolynomialRing(Singular.Fp(101), ["x", "y", "z", "w"])
+    I = SG.cyclic([x,y,z,w])
+    ctx = SG.setup(I, track_module_tags = [:f], mod_rep_type = :highest_index)
+    G, H, k_queue, pairs = SG.pairs_and_basis(ctx, length(I))
+    SG.sgb_core!(ctx, G, H, k_queue, pairs, R)
+    gb = [R(ctx, s) for s in G.sigs]
+    projs = [R(ctx.po, SG.project(ctx, s)) for s in G.sigs]
+    gb_s = [std(Ideal(R, I[1:k])) for k in 1:3]
+    for (p, g, sig) in zip(projs, gb, G.sigs)
+        @test !(iszero(p))
+        isone(sig[1]) && continue
+        k = sig[1]
+        @test iszero(Singular.reduce(p*I[k] - g, gb_s[k - 1]))
+    end
+end
 
-# @testset "cyclic 6 cofactors" begin
-#     R, (x, y, z, w, t, s) = Singular.PolynomialRing(Singular.Fp(101), ["x", "y", "z", "w", "t", "s"])
-#     I = SG.cyclic([x,y,z,w,t,s])
-#     ctx = SG.setup(I, track_module_tags = [:f], mod_rep_type = :highest_index)
-#     G, H, k_queue, pairs = SG.pairs_and_basis(ctx, length(I))
-#     SG.sgb_core!(ctx, G, H, k_queue, pairs, R)
-#     gb = [R(ctx, s) for s in G.sigs]
-#     projs = [R(ctx.po, SG.project(ctx, s)) for s in G.sigs]
-#     gb_s = [std(Ideal(R, I[1:k])) for k in 1:5]
-#     for (p, g, sig) in zip(projs, gb, G.sigs)
-#         @test !(iszero(p))
-#         isone(sig[1]) && continue
-#         k = sig[1]
-#         @test iszero(Singular.reduce(p*I[k] - g, gb_s[k - 1]))
-#     end
-# end
+@testset "cyclic 6 cofactors" begin
+    R, (x, y, z, w, t, s) = Singular.PolynomialRing(Singular.Fp(101), ["x", "y", "z", "w", "t", "s"])
+    I = SG.cyclic([x,y,z,w,t,s])
+    ctx = SG.setup(I, track_module_tags = [:f], mod_rep_type = :highest_index)
+    G, H, k_queue, pairs = SG.pairs_and_basis(ctx, length(I))
+    SG.sgb_core!(ctx, G, H, k_queue, pairs, R)
+    gb = [R(ctx, s) for s in G.sigs]
+    projs = [R(ctx.po, SG.project(ctx, s)) for s in G.sigs]
+    gb_s = [std(Ideal(R, I[1:k])) for k in 1:5]
+    for (p, g, sig) in zip(projs, gb, G.sigs)
+        @test !(iszero(p))
+        isone(sig[1]) && continue
+        k = sig[1]
+        @test iszero(Singular.reduce(p*I[k] - g, gb_s[k - 1]))
+    end
+end
 
-# @testset "cyclic 6" begin
-#     R, (x1, x2, x3, x4, x5, x6) = Singular.PolynomialRing(Singular.Fp(101), ["x$(i)" for i in 1:6])
-#     I = SG.cyclic([x1,x2,x3,x4,x5,x6])
-#     gb = SG.sgb(I, all_koszul = true)
-#     @test SG.is_gb(gb)
-# end
+@testset "cyclic 6" begin
+    R, (x1, x2, x3, x4, x5, x6) = Singular.PolynomialRing(Singular.Fp(101), ["x$(i)" for i in 1:6])
+    I = SG.cyclic([x1,x2,x3,x4,x5,x6])
+    gb = SG.sgb(I, all_koszul = true)
+    @test SG.is_gb(gb)
+end
 
-# @testset "katsura 6 interreduction" begin
-#     R, (x1, x2, x3, x4, x5, x6) = Singular.PolynomialRing(Singular.Fp(65521), ["x$(i)" for i in 1:6])
-#     I = [x1+2*x2+2*x3+2*x4+2*x5+2*x6-1,
-#          x1^2+2*x2^2+2*x3^2+2*x4^2+2*x5^2+2*x6^2-x1,
-#          2*x1*x2+2*x2*x3+2*x3*x4+2*x4*x5+2*x5*x6-x2,
-#          x2^2+2*x1*x3+2*x2*x4+2*x3*x5+2*x4*x6-x3,
-#          2*x2*x3+2*x1*x4+2*x2*x5+2*x3*x6-x4,
-#          x3^2+2*x2*x4+2*x1*x5+2*x2*x6-x5]
-#     gb = SG.sgb(I, f5c = true, all_koszul = true)
-#     gb_2 = std(Ideal(R, I), complete_reduction = true)
-#     @test length(gb) == length(gens(gb_2))
-# end
+@testset "katsura 6 interreduction" begin
+    R, (x1, x2, x3, x4, x5, x6) = Singular.PolynomialRing(Singular.Fp(65521), ["x$(i)" for i in 1:6])
+    I = [x1+2*x2+2*x3+2*x4+2*x5+2*x6-1,
+         x1^2+2*x2^2+2*x3^2+2*x4^2+2*x5^2+2*x6^2-x1,
+         2*x1*x2+2*x2*x3+2*x3*x4+2*x4*x5+2*x5*x6-x2,
+         x2^2+2*x1*x3+2*x2*x4+2*x3*x5+2*x4*x6-x3,
+         2*x2*x3+2*x1*x4+2*x2*x5+2*x3*x6-x4,
+         x3^2+2*x2*x4+2*x1*x5+2*x2*x6-x5]
+    gb = SG.sgb(I, f5c = true, all_koszul = true)
+    gb_2 = std(Ideal(R, I), complete_reduction = true)
+    @test length(gb) == length(gens(gb_2))
+end
 
 # @testset "small-decomp" begin
 #     R, (x, y, z) = Singular.PolynomialRing(Singular.Fp(101), ["x", "y", "z"])
