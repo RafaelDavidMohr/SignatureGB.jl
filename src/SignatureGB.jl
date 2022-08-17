@@ -134,10 +134,12 @@ function sgb_core!(ctx::SΓ,
     end
 
     if f5c
-        typeof(R) != Singular.PolyRing{n_Zp} && error("f5c currently only works with singular rings.")
+        # typeof(R) != Singular.PolyRing{n_Zp} && error("f5c currently only works with singular rings.")
         !(all_koszul) && error("Something is currently breaking when using f5c and not checking against all koszul syzygies. We are working hard to fix it :-)")
         mod_order(ctx) != :POT && error("F5c only makes sense for position over term ordering.")
     end
+
+    S, vars = Singular.PolynomialRing(Fp(Int(characteristic(R))), ["x$(i)" for i in 1:ngens(R)])
 
     # TEMP: temporary solution to not correctly symbolically preproc. the unit vectors
     # TODO: get rid of this somehow
@@ -157,7 +159,7 @@ function sgb_core!(ctx::SΓ,
             # final interreduction outside of this function
             if f5c
                 if length(G) > old_gb_length
-                    interreduction!(ctx, G, R)
+                    interreduction!(ctx, G, S)
                 end
                 old_gb_length = length(G)
             end
@@ -174,7 +176,7 @@ function sgb_core!(ctx::SΓ,
         @logmsg Verbose2 "" end_time_core = time()
         @logmsg Verbose2 "" gb_size = gb_size(ctx, G.sigs)
     end
-    f5c && interreduction!(ctx, G, R)
+    f5c && interreduction!(ctx, G, S)
 end
 
 function decomp_core!(ctx::SΓ,
@@ -369,11 +371,12 @@ function core_loop!(ctx::SΓ,
                     kwargs...) where {I, M, SΓ <: SigPolynomialΓ{I, M}}
     
     @logmsg Verbose2 "" start_time_core = time()
-    @logmsg Verbose1 "" curr_sort_id = sort_id(ctx, first(pairs)[1]) curr_index_hash = first(pairs)[1][2][1] sig_degree = degree(ctx, first(pairs)[1]) tag = tag(ctx, first(pairs)[1])
+    @logmsg Verbose1 "" (curr_sort_id = sort_id(ctx, first(pairs)[1]),
+                         curr_index_hash = first(pairs)[1][2][1],
+                         sig_degree = degree(ctx, first(pairs)[1]),
+                         tag = tag(ctx, first(pairs)[1]))...
     @logmsg Verbose1 "" sugar_deg = mod_order(ctx) in [:DPOT, :SCHREY] ? sugar_deg = schrey_degree(ctx, first(pairs)[1]) : sugar_deg = -1
     @debug string("pairset:\n", [isnull(p[2]) ? "$((p[1], ctx))\n" : "$((p[1], ctx)), $((p[2], ctx))\n" for p in pairs]...)
-    # @debug string("sorted pairset:\n", [isnull(p[2]) ? "$((p[1], ctx))\n" : "$((p[1], ctx)), $((p[2], ctx))\n" for p in
-                                            # sort(collect(pairs), by = p -> p[1], lt = (p, q) -> Base.Order.lt(mpairordering(ctx), p, q))]...)
 
     to_reduce, sig_degree, are_pairs = select!(ctx, G, koszul_q, pairs, Val(select), all_koszul; kwargs...)
     if isempty(to_reduce)
@@ -466,7 +469,7 @@ function interreduction!(ctx::SigPolynomialΓ{I, M},
         ctx(sig, p)
         new_basis_elem!(G, sig, leadingmonomial(p))
     end
-    @logmsg Verbose2 "" gb_size_aft_interred = gb_size(ctx, G)
+    @logmsg Verbose2 "" gb_size_aft_interred = gb_size(ctx, G.sigs)
 end
 
 function debug_sgb!(;io = stdout)

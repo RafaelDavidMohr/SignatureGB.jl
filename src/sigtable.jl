@@ -354,7 +354,7 @@ function setup(I::Vector{P};
 end
 
 
-#- UNUSED CODE -#
+#- UNUSED CODE/ONLY FOR TESTING -#
 
 function copy_index!(ctx::SigPolynomialΓ{I},
                      index_hash::I) where I
@@ -383,8 +383,6 @@ function orginal_gen_left(ctx::SigPolynomialΓ{I}, index::I) where I
     end
     return result
 end
-
-#--- UNUSED CODE/ONLY FOR TESTING ---#
 
 function new_generator_before!(ctx::SigPolynomialΓ{I, M, MM, T},
                                before_id::I,

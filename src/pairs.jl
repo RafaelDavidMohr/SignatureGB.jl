@@ -54,7 +54,6 @@ struct PairOrdering{SΓ <: SigPolynomialΓ}<:Base.Order.Ordering
 end
 
 const KoszulQueue{I, M, SΓ} = MutableBinaryHeap{SigHash{I, M}, SigOrdering{SΓ}}
-# const PairSet{I, M, SΓ} = SortedSet{Pair{I, M}, PairOrdering{SΓ}}
 const PairSet{I, M} = Vector{Pair{I, M}}
 const MonSigSet{I, M, SΓ} = Set{MonSigPair{I, M}}
 
@@ -143,6 +142,7 @@ function Base.Order.lt(porder::PairOrdering{SΓ},
     Base.Order.lt(porder.ord, first(a), first(b))
 end
 
+# TODO: why do we not use the commented code block instead
 function koszul_syz(ctx::SigPolynomialΓ{I, M},
                     a::SigHash{I, M},
                     b::SigHash{I, M}) where {I, M}
