@@ -19,9 +19,7 @@ function poly_reduce(gb::Vector{P},
 
     J = Singular.Ideal(R, gb)
     J.isGB = true
-    println("reducing polynomial...")
     q = reduce(p, J)
-    println("done")
     return q
 end
 
