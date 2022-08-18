@@ -231,7 +231,7 @@ function f5sat_core!(ctx::SΓ,
                         new_id = new_generator_before!(ctx, max_sig[2][1], p, zd_tag)
                     end
                     if isunit(ctx.po, p)
-                        new_basis_elem!(G, unitvector(ctx, new_index_key), one(ctx.po.mo))
+                        new_basis_elem!(G, unitvector(ctx, new_id), one(ctx.po.mo))
                         return
                     end
                     pair!(ctx, pairs, unitvector(ctx, new_id))
@@ -277,7 +277,9 @@ function nondegen_part_core!(ctx::SΓ,
                                 keys(ctx.sgb_nodes))
         # attach new cleaners to branch node
         for id in newly_inserted
-            h = random_lin_comb(ctx.po, (sig -> project(ctx, sig)).(filter(sig -> sig[1] == id, H)))
+            syz_index_id = filter(sig -> sig[1] == id, H)
+            isempty(syz_index_id) && continue
+            h = random_lin_comb(ctx.po, (sig -> project(ctx, sig)).(syz_index_id))
             h_id = new_generator!(ctx, branch_node_id, h, :h)
             push!(non_zero_conditions, h_id)
         end
@@ -428,4 +430,5 @@ function debug_sgb!(;io = stdout)
     logger = ConsoleLogger(io, Logging.LogLevel(-1000), meta_formatter = no_fmt)
     global_logger(logger)
     global_logger(logger)
+end
 end
