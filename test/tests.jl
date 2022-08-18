@@ -66,15 +66,15 @@ function fancy_loop(I::Vector{MP};
     interreduce ? std(I_prime, complete_reduction = true) : I_prime
 end
 
-@testset "termorder" begin
-    order = SG.Grevlex(5)
-    v = @SVector [2,2,3,4,5]
-    w = @SVector [3,1,2,5,5]
+# @testset "termorder" begin
+#     order = SG.Grevlex(5)
+#     v = @SVector [2,2,3,4,5]
+#     w = @SVector [3,1,2,5,5]
 
-    @test SG.lt(order, w, v)
-    @test SG.iscompatible(order, v, w)
-    @test !(SG.divides(order, v, w))
-end
+#     @test SG.lt(order, w, v)
+#     @test SG.iscompatible(order, v, w)
+#     @test !(SG.divides(order, v, w))
+# end
 
 # stolen from pierre
 @testset "polynomials" begin

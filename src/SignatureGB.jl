@@ -67,7 +67,7 @@ function nondegen_part(I::Vector{P};
         error("Put in a number of polynomials less or equal than the number of variables.")
     end
     ctx = setup([I[1]]; mod_rep_type = :highest_index,
-                track_module_tags = [:f, :zd, :h],
+                track_module_tags = [:f, :zd_gen, :h],
                 kwargs...)
     G, H, koszul_q, _ = pairs_and_basis(ctx, 1, start_gen = 2; kwargs...)
     logger = SGBLogger(ctx, verbose = verbose, task = :sat; kwargs...)
@@ -178,6 +178,8 @@ function f5sat_core!(ctx::SΓ,
     select = :deg_and_pos
     all_koszul = true
     select_both = false
+    zd_gen_tag = Symbol(string(string(zd_tag), "_gen"))
+    zd_gen_belong_dict = Dict{I, Vector{I}}()
     
     curr_indx_key = first(pairs)[1][2][1]
     old_gb_length = length(G)
@@ -208,6 +210,13 @@ function f5sat_core!(ctx::SΓ,
 
         new_elems!(ctx, G, H, pairs, mat, all_koszul,
                    sort_id(ctx, curr_indx_key), f5c = f5c)
+        if tag(ctx, curr_indx_key) == zd_gen_tag
+            for h in filter(sig -> sig[1] == curr_indx_key, H)
+                for id in zd_gen_belong_dict[curr_indx_key]
+                    push!(H, (id, h[2]))
+                end
+            end
+        end
         @logmsg Verbose2 "" gb_size = gb_size(ctx, G.sigs)
         
         max_sig = last(mat.sigs)
@@ -216,6 +225,7 @@ function f5sat_core!(ctx::SΓ,
             if !(isempty(zero_red_row_indices))
                 # zero divisors to insert
                 pols_to_insert = (i -> unindexpolynomial(mat.module_tbl, mat.module_rows[i])).(zero_red_row_indices)
+                pols_to_insert[1] = random_lin_comb(ctx.po, pols_to_insert)
                 # cache some reduction results for future use
                 for g in G.sigs
                     g[1] == max_sig[2][1] && push!(ctx.cashed_sigs, g)
@@ -224,11 +234,19 @@ function f5sat_core!(ctx::SΓ,
                 # insert the zero divisors, rebuild pairs and basis
                 empty!(pairs)
                 delete_indices!(ctx, G, [max_sig[2][1]])
-                for p in pols_to_insert
+                new_gen_id = zero(I)
+                for (i, p) in enumerate(pols_to_insert)
+                    ins_tag = isone(i) ? zd_gen_tag : zd_tag
                     if parent_id(ctx, max_sig[2][1]) in ctx.branch_nodes
-                        new_id = new_generator_before!(ctx, parent_id(ctx, max_sig[2][1]), p, zd_tag)
+                        new_id = new_generator_before!(ctx, parent_id(ctx, max_sig[2][1]), p, ins_tag)
                     else
-                        new_id = new_generator_before!(ctx, max_sig[2][1], p, zd_tag)
+                        new_id = new_generator_before!(ctx, max_sig[2][1], p, ins_tag)
+                    end
+                    if i == 1
+                        new_gen_id = new_id
+                        zd_gen_belong_dict[new_id] = I[]
+                    else
+                        push!(zd_gen_belong_dict[new_gen_id], new_id)
                     end
                     if isunit(ctx.po, p)
                         new_basis_elem!(G, unitvector(ctx, new_id), one(ctx.po.mo))
@@ -273,7 +291,7 @@ function nondegen_part_core!(ctx::SΓ,
         f5sat_core!(ctx, G, H, koszul_q, pairs, S, sat_tag = [:f]; kwargs...)
         empty!(pairs)
         # extract new cleaners
-        newly_inserted = filter(id -> tag(ctx, id) == :zd && minimal_larger_f_id(id) == f_id,
+        newly_inserted = filter(id -> tag(ctx, id) == :zd_gen && minimal_larger_f_id(id) == f_id,
                                 keys(ctx.sgb_nodes))
         # attach new cleaners to branch node
         for id in newly_inserted
