@@ -15,7 +15,7 @@ include("./symbolicpp.jl")
 include("./reduction_better.jl")
 include("./gen_example_file.jl")
 
-export sgb, f5sat
+export sgb, f5sat, nondegen_part
 
 function sgb(I::Vector{P};
              verbose = 0,
@@ -53,6 +53,27 @@ function f5sat(I::Vector{P},
         if f5c
             interreduction!(ctx, G, S)
         end
+        verbose == 2 && printout(logger)
+    end
+    [R(ctx, g) for g in G.sigs]
+end
+
+function nondegen_part(I::Vector{P};
+                       verbose = 0,
+                       kwargs...) where {P<:AA.MPolyElem}
+
+    R = parent(first(I))
+    if length(I) > length(gens(R))
+        error("Put in a number of polynomials less or equal than the number of variables.")
+    end
+    ctx = setup([I[1]]; mod_rep_type = :highest_index,
+                track_module_tags = [:f, :zd, :h],
+                kwargs...)
+    G, H, koszul_q, _ = pairs_and_basis(ctx, 1, start_gen = 2; kwargs...)
+    logger = SGBLogger(ctx, verbose = verbose, task = :sat; kwargs...)
+
+    with_logger(logger) do
+        nondegen_part_core!(ctx, G, H, koszul_q, I[2:end], R; kwargs...)
         verbose == 2 && printout(logger)
     end
     [R(ctx, g) for g in G.sigs]
@@ -193,6 +214,7 @@ function f5sat_core!(ctx::SΓ,
                      pairs::PairSet{I,M},
                      R;
                      sat_tag = [:to_sat],
+                     zd_tag = :zd,
                      f5c = false,
                      kwargs...) where {I,M,SΓ<:SigPolynomialΓ{I,M}}
 
@@ -228,6 +250,8 @@ function f5sat_core!(ctx::SΓ,
                          select_both = select_both, f5c = f5c)
         if !(isempty(mat.sigs))
             @logmsg Verbose2 "" tag = tag(ctx, last(mat.sigs)) indx_hash = last(mat.sigs)[2][1]
+        else
+            continue
         end
 
         new_elems!(ctx, G, H, pairs, mat, all_koszul,
@@ -249,7 +273,11 @@ function f5sat_core!(ctx::SΓ,
                 empty!(pairs)
                 delete_indices!(ctx, G, [max_sig[2][1]])
                 for p in pols_to_insert
-                    new_id = new_generator_before!(ctx, max_sig[2][1], p, :zd)
+                    if parent_id(ctx, max_sig[2][1]) in ctx.branch_nodes
+                        new_id = new_generator_before!(ctx, parent_id(ctx, max_sig[2][1]), p, zd_tag)
+                    else
+                        new_id = new_generator_before!(ctx, max_sig[2][1], p, zd_tag)
+                    end
                     if isunit(ctx.po, p)
                         new_basis_elem!(G, unitvector(ctx, new_index_key), one(ctx.po.mo))
                         return
@@ -261,6 +289,55 @@ function f5sat_core!(ctx::SΓ,
             end
         end
         @logmsg Verbose2 "" end_time_core = time()
+    end
+end
+
+function nondegen_part_core!(ctx::SΓ,
+                             G::Basis{I, M},
+                             H::Syz{I, M},
+                             koszul_q::KoszulQueue{I, M, SΓ},
+                             remaining::Vector{P},
+                             R;
+                             kwargs...) where {I, M, SΓ <: SigPolynomialΓ{I, M},
+                                               P <: AA.MPolyElem}
+
+    S, vars = Singular.PolynomialRing(Fp(Int(characteristic(R))), ["x$(i)" for i in 1:length(gens(R))])
+    non_zero_conditions = I[]
+    pairs = pairset(ctx)
+    branch_node_id = first(ctx.branch_nodes)
+    minimal_larger_f_id = id -> begin
+        child_id = first(children_id(ctx, id))
+        if tag(ctx, child_id) == :f
+            child_id
+        else
+            minimal_larger_f_id(child_id)
+        end
+    end
+    
+    for f in remaining
+        # process f
+        f_id = new_generator_before!(ctx, branch_node_id, ctx.po(f))
+        pair!(ctx, pairs, unitvector(ctx, f_id))
+        f5sat_core!(ctx, G, H, koszul_q, pairs, S, sat_tag = [:f]; kwargs...)
+        empty!(pairs)
+        # extract new cleaners
+        newly_inserted = filter(id -> tag(ctx, id) == :zd && minimal_larger_f_id(id) == f_id,
+                                keys(ctx.sgb_nodes))
+        # attach new cleaners to branch node
+        for id in newly_inserted
+            h = random_lin_comb(ctx.po, (sig -> project(ctx, sig)).(filter(sig -> sig[1] == id, H)))
+            h_id = new_generator!(ctx, branch_node_id, h, :h)
+            push!(non_zero_conditions, h_id)
+        end
+        # sort them by degree
+        sort!(non_zero_conditions, by = id -> degree(ctx.po, ctx(unitvector(ctx, id)).pol))
+        # process cleaners
+        for id in non_zero_conditions
+            pair!(ctx, pairs, unitvector(ctx, id))
+            f5sat_core!(ctx, G, H, koszul_q, pairs, S, sat_tag = [:h], zd_tag = :p; kwargs...)
+            empty!(pairs)
+            delete_indices!(ctx, G, [id])
+        end
     end
 end
 
