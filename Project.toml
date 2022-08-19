@@ -18,6 +18,7 @@ Singular = "bcd08a7b-43d2-5ff7-b6d4-c458787f915c"
 StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
 
 [compat]
+DataStructures = "0.18"
 AbstractTrees = "0.4"
 Dictionaries = "0.3"
 Lazy = "0.15"
