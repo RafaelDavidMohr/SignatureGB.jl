@@ -19,6 +19,15 @@ StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
 
 [compat]
 Nemo = "0.32"
+DataFrames = "1"
+Combinatorics = "1"
+StaticArrays = "1"
+Singular = "0.12"
+DataStructures = "0.18"
+AbstractTrees = "0.4"
+Dictionaries = "0.3"
+Lazy = "0.15"
+AbstractAlgebra = "0.27"
 julia = "1"
 
 [extras]
