@@ -78,7 +78,7 @@ function Base.show(io::IO,
                    a::Γpair0{SigHash{I, M}, SX}) where {I, M, SX <: SigPolynomialΓ{I, M}}
     ctx = a.ctx
     sighash = a.dat
-    print(io, (Int(index(ctx, sighash)),
+    print(io, (Int(sort_id(ctx, sighash)),
                convert(Vector{Int}, exponents(ctx.po.mo, sighash[2]))))
 end
 

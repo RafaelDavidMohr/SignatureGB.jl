@@ -1,4 +1,5 @@
 #. PREAMBLE
+using Base: @propagate_inbounds
 using StaticArrays
 using Random
 using Singular
@@ -181,6 +182,7 @@ Base.@propagate_inbounds function tail(p::Polynomial)
         zero(p)
     end
 end
+Base.@propagate_inbounds leadingterm(p::Polynomial) = Polynomial([first(p.mo)], [first(p.co)])
 monomials(p::Polynomial) = p.mo
 Base.zero(::Type{Polynomial{M, T}}) where {M, T} = Polynomial(M[], T[])
 Base.zero(p::Polynomial) = zero(typeof(p))
@@ -327,6 +329,13 @@ end
 function mul_scalar(ctx::PolynomialΓ{M, T}, p::Polynomial{M, T}, c::T) where {M, T}
     newco = [mul(ctx.co, c, coeff) for coeff in p.co]
     eltype(ctx)(p.mo, newco)
+end
+
+# this is probably god awful
+function mul(ctx::PolynomialΓ{M, T}, R::AA.MPolyRing, p::Polynomial{M, T}, q::Polynomial{M, T}) where {M, T}
+    Rp, Rq = R(ctx, p), R(ctx, q)
+    Rres = Rp * Rq
+    return ctx(Rres)
 end
 
 #.. AA/Singular interoperability
