@@ -15,7 +15,7 @@ end
 
 function poly_reduce(gb::Vector{P},
                      p::P,
-                     R) where {P <: AA.MPolyElem}
+                     R) where {P <: AA.MPolyRingElem}
 
     J = Singular.Ideal(R, gb)
     J.isGB = true

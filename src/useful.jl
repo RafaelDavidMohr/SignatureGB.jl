@@ -44,7 +44,7 @@ function even_between(a, b, nums)
     part_2
 end
 
-function mac_bound(I::Vector{P}) where {P <: AbstractAlgebra.MPolyElem}
+function mac_bound(I::Vector{P}) where {P <: AbstractAlgebra.MPolyRingElem}
     I_sorted = sort(I, by = p -> Singular.total_degree(p), rev = true)
     l = min(Singular.nvars(parent(first(I))) + 1, length(I))
     sum([total_degree(I_sorted[j]) for j in 1:l]) - l + 1

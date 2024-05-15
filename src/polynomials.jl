@@ -136,7 +136,7 @@ end
 
 #... AA interoperability
 
-function (ctx :: MonomialContext)(p :: AA.MPolyElem)
+function (ctx :: MonomialContext)(p :: AA.MPolyRingElem)
     AA.isterm(p) || error("Not a monomial")
     return ctx(AA.exponent_vector(p, 1))
 end
@@ -340,14 +340,14 @@ end
 
 #.. AA/Singular interoperability
 
-abstractalgebra(ctx :: PolynomialΓ) = AA.PolynomialRing(abstractalgebra(ctx.co), variables(ctx))
+abstractalgebra(ctx :: PolynomialΓ) = AA.polynomial_ring(abstractalgebra(ctx.co), variables(ctx))
 
-function (ctx :: MonomialΓ)(m ::AA.MPolyElem)
+function (ctx :: MonomialΓ)(m ::AA.MPolyRingElem)
     exp = first(exponent_vectors(m))
     ctx(Monomial{nvars(ctx), exponenttype(ctx)}(exp))
 end
 
-function (ctx :: PolynomialΓ)(p :: AA.MPolyElem)
+function (ctx :: PolynomialΓ)(p :: AA.MPolyRingElem)
     mo = [ctx.mo(m) for m in AA.monomials(p)]
     if typeof(p) <: Singular.spoly
         co = [ctx.co(Int(c)) for c in Singular.coefficients(p)]

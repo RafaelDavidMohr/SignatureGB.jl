@@ -293,8 +293,8 @@ end
 
 # Abstract Algebra
 
-(ctx::SigPolynomialΓ)(i, m::AA.MPolyElem) = (pos_type(ctx)(i), ctx.po.mo(m))
-(ctx::SigPolynomialΓ{I, M})(sig::Tuple{I, M}, p::AA.MPolyElem) where {I, M} = ctx(sig, ctx.po(p))
+(ctx::SigPolynomialΓ)(i, m::AA.MPolyRingElem) = (pos_type(ctx)(i), ctx.po.mo(m))
+(ctx::SigPolynomialΓ{I, M})(sig::Tuple{I, M}, p::AA.MPolyRingElem) where {I, M} = ctx(sig, ctx.po(p))
 
 function (R :: AA.MPolyRing)(ctx::SigPolynomialΓ{I, M},
                              sig::Tuple{I, M}) where {I, M}
@@ -308,7 +308,7 @@ function setup(I::Vector{P};
                mon_order=:GREVLEX,
                modulus=32,
                buffer=64,
-               kwargs...) where {P <: AA.MPolyElem}
+               kwargs...) where {P <: AA.MPolyRingElem}
 
     R = parent(first(I))
     char = characteristic(R)

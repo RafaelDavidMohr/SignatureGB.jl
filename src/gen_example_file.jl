@@ -1,6 +1,6 @@
 using Singular
 
-function is_gb(pols::Vector{MP}) where {MP <: Singular.MPolyElem}
+function is_gb(pols::Vector{MP}) where {MP <: Singular.MPolyRingElem}
     id = Singular.Ideal(parent(first(pols)), pols)
     id.isGB = true
     gb_id = std(id)

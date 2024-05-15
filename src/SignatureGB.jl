@@ -19,7 +19,7 @@ export sgb, f5sat, f5reg, nondegen_part
 
 function sgb(I::Vector{P};
              verbose = 0,
-             kwargs...) where {P <: AA.MPolyElem}
+             kwargs...) where {P <: AA.MPolyRingElem}
 
     ctx = setup(I; kwargs...)
     R = parent(first(I))
@@ -36,7 +36,7 @@ function f5sat(I::Vector{P},
                to_sat::P;
                verbose = 0,
                f5c = false,
-               kwargs...) where {P<:AA.MPolyElem}
+               kwargs...) where {P<:AA.MPolyRingElem}
 
     R = parent(first(I))
     ctx = setup(I; mod_rep_type = :highest_index,
@@ -46,7 +46,7 @@ function f5sat(I::Vector{P},
     sat_id = new_generator!(ctx, pos_type(ctx)(length(I)), ctx.po(to_sat), :to_sat)
     pair!(ctx, pairs, unitvector(ctx, sat_id))
     logger = SGBLogger(ctx, verbose = verbose, task = :sat, f5c = f5c; kwargs...)
-    S, vars = Singular.PolynomialRing(Fp(Int(characteristic(R))), ["x$(i)" for i in 1:length(gens(R))])
+    S, vars = Singular.polynomial_ring(Fp(Int(characteristic(R))), ["x$(i)" for i in 1:length(gens(R))])
     with_logger(logger) do
         f5sat_core!(ctx, G, H, koszul_q, pairs, S, f5c = f5c; kwargs...)
         delete_indices!(ctx, G, [sat_id])
@@ -62,7 +62,7 @@ function f5reg(I::Vector{P},
                to_reg::P;
                verbose = 0,
                f5c = false,
-               kwargs...) where {P<:AA.MPolyElem}
+               kwargs...) where {P<:AA.MPolyRingElem}
 
     R = parent(first(I))
     ctx = setup(I; mod_rep_type = :highest_index,
@@ -72,7 +72,7 @@ function f5reg(I::Vector{P},
     sat_id = new_generator!(ctx, pos_type(ctx)(length(I)), ctx.po(to_reg), :to_sat)
     pair!(ctx, pairs, unitvector(ctx, sat_id))
     logger = SGBLogger(ctx, verbose = verbose, task = :sat, f5c = f5c; kwargs...)
-    S, vars = Singular.PolynomialRing(Fp(Int(characteristic(R))), ["x$(i)" for i in 1:length(gens(R))])
+    S, vars = Singular.polynomial_ring(Fp(Int(characteristic(R))), ["x$(i)" for i in 1:length(gens(R))])
     with_logger(logger) do
         f5reg_core!(ctx, G, H, koszul_q, pairs, S, f5c = f5c; kwargs...)
         if f5c
@@ -85,7 +85,7 @@ end
 
 function nondegen_part(I::Vector{P};
                        verbose = 0,
-                       kwargs...) where {P<:AA.MPolyElem}
+                       kwargs...) where {P<:AA.MPolyRingElem}
 
     R = parent(first(I))
     if length(I) > length(gens(R))
@@ -144,7 +144,7 @@ function sgb_core!(ctx::SΓ,
         mod_order(ctx) != :POT && error("F5c only makes sense for position over term ordering.")
     end
 
-    S, vars = Singular.PolynomialRing(Fp(Int(characteristic(R))), ["x$(i)" for i in 1:length(gens(R))])
+    S, vars = Singular.polynomial_ring(Fp(Int(characteristic(R))), ["x$(i)" for i in 1:length(gens(R))])
 
     # TEMP: temporary solution to not correctly symbolically preproc. the unit vectors
     # TODO: get rid of this somehow
@@ -376,9 +376,9 @@ function nondegen_part_core!(ctx::SΓ,
                              remaining::Vector{P},
                              R;
                              kwargs...) where {I, M, SΓ <: SigPolynomialΓ{I, M},
-                                               P <: AA.MPolyElem}
+                                               P <: AA.MPolyRingElem}
 
-    S, vars = Singular.PolynomialRing(Fp(Int(characteristic(R))), ["x$(i)" for i in 1:length(gens(R))])
+    S, vars = Singular.polynomial_ring(Fp(Int(characteristic(R))), ["x$(i)" for i in 1:length(gens(R))])
     non_zero_conditions = I[]
     pairs = pairset(ctx)
     branch_node_id = first(ctx.branch_nodes)

@@ -206,7 +206,7 @@ end
 
 (ctx::IxMonomialΓ{I, N, E, B})(x::Monomial{N, E}) where {I, N, E, B} = findorpush!(ctx.table, ctx.ctx(x))
 (ctx::IxMonomialΓ{I})(i::I) where I = i
-(ctx::IxMonomialΓ)(x::AA.MPolyElem) = findorpush!(ctx.table, ctx.ctx(x))
+(ctx::IxMonomialΓ)(x::AA.MPolyRingElem) = findorpush!(ctx.table, ctx.ctx(x))
 
 Base.@propagate_inbounds Base.getindex(ctx::IxMonomialΓ{I}, i::I) where I = ctx.table[i]
 
